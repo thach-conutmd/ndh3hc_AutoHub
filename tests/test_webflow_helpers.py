@@ -103,6 +103,27 @@ def test_collapse_runs_only_after_confirmed_save(monkeypatch, collapsed):
     assert events == ["click", "saved", "collapse"]
 
 
+@pytest.mark.parametrize("method,args", [
+    ("import_software_part_number", ()),
+    ("import_ecr", ()),
+    ("pick_pst_lib", ("PV01",)),
+])
+@pytest.mark.parametrize("completed,collapsed", [(True, True), (True, False), (False, True)])
+def test_imports_collapse_information_only_after_completion(monkeypatch, method, args, completed, collapsed):
+    events = []
+    tab = GeneralTab(Mock())
+    tab._hardware = Mock()
+    getattr(tab._hardware, method).side_effect = lambda *_: events.append("import") or completed
+    monkeypatch.setattr(
+        general_tab_module.Information, "collapse_job_information",
+        lambda _self: events.append("collapse") or collapsed,
+    )
+
+    assert getattr(tab, method)(*args) is (completed and collapsed)
+    assert events == (["import", "collapse"] if completed else ["import"])
+    getattr(tab._hardware, method).assert_called_once_with(*args)
+
+
 class El:
     def __init__(self, attrs=None, children=None, displayed=True):
         self.attrs, self.children = attrs or {}, children or {}

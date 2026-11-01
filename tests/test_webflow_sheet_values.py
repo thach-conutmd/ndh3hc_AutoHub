@@ -269,6 +269,7 @@ def test_ecr_import_is_scoped_single_click_and_retains_number(monkeypatch, value
     monkeypatch.setattr(hardware_module.Constants, "WEBFLOW_TIMEOUT", 0)
     body = fields.sections["ECR Information"].body.return_value
     button = Mock()
+    button.get_attribute.return_value = None
     field = Mock()
     field.get_attribute.return_value = value
     body.find_element.side_effect = lambda _by, locator: button if locator.startswith(".//button") else field
@@ -284,6 +285,7 @@ def _hardware(monkeypatch):
     fields.sections = {panel: Mock() for panel in fields.sections}
     for section in fields.sections.values():
         section.body.return_value = fields.sections["General info"].body.return_value
+    fields.sections["General info"].body.return_value.find_element.return_value.get_attribute.return_value = None
     form = fields.sections["General info"].body.return_value.find_element.return_value.find_element.return_value
     monkeypatch.setattr(hardware_module, "pause", lambda: None)
     monkeypatch.setattr(hardware_module, "wait_until_idle", lambda driver, timeout=None: True)
@@ -303,15 +305,19 @@ def _hardware(monkeypatch):
 def test_race_import_follows_only_successfully_filled_hardware_number(monkeypatch, key, filled, imported, expected):
     from autohub.services.WebFlow.GeneralTab import GeneralTab
     from autohub.services.WebFlow.Actions import Actions
+    from autohub.services.WebFlow.Information import Information
 
     save = Mock(return_value=True)
     monkeypatch.setattr(Actions, "save", save)
+    collapse = Mock(return_value=True)
+    monkeypatch.setattr(Information, "collapse_job_information", collapse)
     general = GeneralTab(Mock())
     general._hardware = Mock()
     general._hardware.fill.return_value = filled
     general._hardware.import_from_race.return_value = imported
 
     assert general.fill_hardware_field(key, "part number") is expected
+    assert collapse.call_count == (1 if key == "hardware_part_number" and filled and imported else 0)
     general._hardware.fill.assert_called_once_with(key, "part number")
     if key == "hardware_part_number" and filled:
         save.assert_called_once()
@@ -339,15 +345,17 @@ def test_failed_save_prevents_race_import(monkeypatch):
 def test_race_import_saves_after_hardware_number_and_before_import(monkeypatch):
     from autohub.services.WebFlow.GeneralTab import GeneralTab
     from autohub.services.WebFlow.Actions import Actions
+    from autohub.services.WebFlow.Information import Information
 
     events = []
     monkeypatch.setattr(Actions, "save", lambda _self: events.append("save") or True)
+    monkeypatch.setattr(Information, "collapse_job_information", lambda _self: events.append("collapse") or True)
     general = GeneralTab(Mock())
     general._hardware = Mock()
     general._hardware.fill.side_effect = lambda *_: events.append("fill") or True
     general._hardware.import_from_race.side_effect = lambda: events.append("import") or True
     assert general.fill_hardware_field("hardware_part_number", "HW123")
-    assert events == ["fill", "save", "import"]
+    assert events == ["fill", "save", "import", "collapse"]
 
 
 def test_race_import_clicks_classification_button_once_and_waits(monkeypatch):
@@ -512,7 +520,8 @@ def test_pool_import_waits_for_number_and_clicks_only_once(monkeypatch, caplog):
     button.is_displayed.return_value = True
     button.is_enabled.return_value = True
     field = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
-    field.get_attribute.side_effect = ["", "0", "10SW137784"]
+    values = iter(["", "0", "10SW137784"])
+    field.get_attribute.side_effect = lambda attr: next(values) if attr == "value" else None
     with caplog.at_level("INFO", logger=hardware_module.__name__):
         assert fields.import_software_part_number() is True
     button.click.assert_called_once()
@@ -525,6 +534,40 @@ def test_pool_import_waits_for_number_and_clicks_only_once(monkeypatch, caplog):
         (("software_name", "10SW137784"),),
         (("customer_software_part_number", "10SW137784"),),
     ]
+
+
+@pytest.mark.parametrize("method,panel", [
+    ("import_from_race", "Classification"),
+    ("import_software_part_number", "Ident Numbers"),
+    ("import_ecr", "ECR Information"),
+    ("pick_pst_lib", "Ident Numbers"),
+])
+@pytest.mark.parametrize("state", ["native", "disabled", "p-disabled", "bg-disabled", "aria-disabled", "ng-reflect-disabled"])
+def test_disabled_import_buttons_are_never_clicked(monkeypatch, method, panel, state):
+    fields, _ = _hardware(monkeypatch)
+    monkeypatch.setattr(hardware_module.Constants, "BODY_TIMEOUT", 0)
+    button = fields.sections[panel].body.return_value.find_element.return_value
+    button.is_enabled.return_value = state != "native"
+    button.get_attribute.side_effect = lambda attr: (
+        state if attr == "class" and state in ("disabled", "p-disabled", "bg-disabled")
+        else "true" if attr == state else None
+    )
+    args = ("PV01",) if method == "pick_pst_lib" else ()
+    assert getattr(fields, method)(*args) is False
+    button.click.assert_not_called()
+
+
+@pytest.mark.parametrize("method,panel", [
+    ("import_from_race", "Classification"),
+    ("import_software_part_number", "Ident Numbers"),
+    ("import_ecr", "ECR Information"),
+])
+def test_import_button_disabled_after_scroll_is_not_clicked(monkeypatch, method, panel):
+    fields, _ = _hardware(monkeypatch)
+    button = fields.sections[panel].body.return_value.find_element.return_value
+    button.is_enabled.side_effect = [True, False]
+    assert getattr(fields, method)() is False
+    button.click.assert_not_called()
 
 
 def test_pool_import_timeout_is_failure_without_retry(monkeypatch):

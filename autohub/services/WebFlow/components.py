@@ -152,6 +152,18 @@ def select_dropdown(
         return False
 
 
+def button_is_enabled(button: Any) -> bool:
+    classes = (button.get_attribute("class") or "").split()
+    return (
+        button.is_enabled()
+        and not any(name in classes for name in ("disabled", "p-disabled", "bg-disabled"))
+        and not any(
+            button.get_attribute(attribute) == "true"
+            for attribute in ("aria-disabled", "ng-reflect-disabled", "ng-reflect-is-disabled")
+        )
+    )
+
+
 def checkbox_icon_value(checkbox: Any) -> bool | None:
     """A PrimeNG tri-state checkbox's value read from its check / uncheck icon (None: neither)."""
     try:

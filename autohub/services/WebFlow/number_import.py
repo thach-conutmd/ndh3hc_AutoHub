@@ -5,7 +5,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants
-from .components import Section
+from .components import Section, button_is_enabled
 from .save_confirmation import SaveBeforeImportConfirmation
 
 class NumberImport:
@@ -18,10 +18,12 @@ class NumberImport:
             button = self.section.body().find_element(
                 By.XPATH, f'.//button[.//span[normalize-space(.)="{button_label}"]]'
             )
-            return button if button.is_displayed() and button.is_enabled() else False
+            return button if button.is_displayed() and button_is_enabled(button) else False
 
         button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(available_button)
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+        if not button_is_enabled(button):
+            raise RuntimeError(f"{button_label} is disabled; import was not started.")
         # Allocating a number may have server-side effects: never retry the click.
         button.click()
         confirmation = SaveBeforeImportConfirmation(self.driver, button_label)
