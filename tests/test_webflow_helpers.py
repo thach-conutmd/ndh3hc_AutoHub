@@ -57,10 +57,50 @@ def test_save_waits_for_confirmation_without_waiting_for_activity_indicator(
     monkeypatch.setattr(
         actions_module, "wait_until_idle", Mock(side_effect=AssertionError("unexpected idle wait"))
     )
+    collapse = Mock(return_value=True)
+    monkeypatch.setattr(actions_module.Information, "collapse_job_information", collapse)
 
     assert actions.save() is expected
     button.click.assert_called_once_with()
     assert waits == [actions_module.Constants.SAVE_TIMEOUT]
+    assert collapse.call_count == (1 if expected else 0)
+
+
+@pytest.mark.parametrize("disabled_state", ["class", "native", "aria-disabled", "ng-reflect-disabled"])
+def test_gray_save_is_not_clicked_or_collapsed(monkeypatch, disabled_state):
+    button = Mock()
+    button.is_enabled.return_value = disabled_state != "native"
+    button.get_attribute.side_effect = lambda attr: (
+        "action disabled" if attr == "class" and disabled_state == "class"
+        else "true" if attr == disabled_state else None
+    )
+    actions = Actions(Mock())
+    actions.get_button_by_text = Mock(return_value=button)
+    actions._saved_toast_shown = Mock()
+    collapse = Mock()
+    monkeypatch.setattr(actions_module.Information, "collapse_job_information", collapse)
+
+    assert actions.save()
+    button.click.assert_not_called()
+    actions._saved_toast_shown.assert_not_called()
+    collapse.assert_not_called()
+
+
+@pytest.mark.parametrize("collapsed", [True, False])
+def test_collapse_runs_only_after_confirmed_save(monkeypatch, collapsed):
+    events = []
+    button = Mock()
+    button.get_attribute.return_value = None
+    button.click.side_effect = lambda: events.append("click")
+    actions = Actions(Mock())
+    actions.get_button_by_text = Mock(return_value=button)
+    actions._saved_toast_shown = Mock(side_effect=lambda: events.append("saved") or True)
+    monkeypatch.setattr(
+        actions_module.Information, "collapse_job_information",
+        lambda _self: events.append("collapse") or collapsed,
+    )
+    assert actions.save() is collapsed
+    assert events == ["click", "saved", "collapse"]
 
 
 class El:

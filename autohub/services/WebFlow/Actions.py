@@ -7,7 +7,9 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants as Constants
+from .Information import Information
 from .components import scroll_into_view_if_hidden, wait_for, wait_until_idle
+from .step_log import run_step
 from .toast import toast_severity
 
 _logger = logging.getLogger(__name__)
@@ -42,14 +44,27 @@ class Actions:
             return None
 
     def save(self) -> bool:
-        """Clicks Save and confirms its success toast; an error toast or no toast is a failure."""
+        """Skip disabled Save; otherwise confirm the save and collapse job information."""
         button = self.get_button_by_text("save")
         if button is None:
             return False
-        if "disabled" in button.get_attribute("class"):
+        if (
+            "disabled" in (button.get_attribute("class") or "")
+            or not button.is_enabled()
+            or any(
+                button.get_attribute(attribute) == "true"
+                for attribute in ("aria-disabled", "ng-reflect-disabled", "ng-reflect-is-disabled")
+            )
+        ):
+            _logger.info("Save is disabled; no changes to save")
             return True
         button.click()
-        return self._saved_toast_shown()
+        if not self._saved_toast_shown():
+            return False
+        return run_step(
+            _logger, "Collapse the job information after Save",
+            Information(self.driver).collapse_job_information,
+        )
 
     def _saved_toast_shown(self) -> bool:
         def severity(driver):
