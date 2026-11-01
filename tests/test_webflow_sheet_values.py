@@ -415,13 +415,30 @@ def test_race_import_reports_failures_without_repeating_click(monkeypatch, failu
 def test_hardware_text_fields_are_written_and_verified(monkeypatch, column, key, label, kind):
     fields, form = _hardware(monkeypatch)
     control = form.find_element.return_value
-    control.get_attribute.side_effect = lambda name: "sheet value" if name == "value" else None
+    state = {"value": "old value"}
+    control.get_attribute.side_effect = lambda name: state["value"] if name == "value" else None
+    control.send_keys.side_effect = lambda value: state.update(value=value)
     assert fields.fill(key, "sheet value") is True
     control.clear.assert_called_once()
     control.send_keys.assert_called_once_with("sheet value")
     locator = fields.sections[hardware_module._FIELD_PANELS[key]].body.return_value.find_element.call_args.args[1]
     assert label in locator
     fields.sections[hardware_module._FIELD_PANELS[key]].expand.assert_called_once()
+
+
+@pytest.mark.parametrize("readonly", [False, True])
+@pytest.mark.parametrize("key,value", [
+    ("vehicle_model", "62XS"), ("ecr_notes", "Notes"),
+    ("hardware_part_number", "0261S10BN8"), ("software_name", "10SW072930"),
+])
+def test_matching_hardware_values_skip_editing(monkeypatch, readonly, key, value):
+    fields, form = _hardware(monkeypatch)
+    control = form.find_element.return_value
+    control.is_enabled.return_value = not readonly
+    control.get_attribute.side_effect = lambda attr: value if attr == "value" else "true" if readonly else None
+    assert fields.fill(key, value)
+    control.clear.assert_not_called()
+    control.send_keys.assert_not_called()
 
 
 def test_hardware_read_only_field_fails_explicitly(monkeypatch):
@@ -644,7 +661,9 @@ def test_pool_import_copy_failure_retains_allocated_number(monkeypatch, failed_k
 def test_software_name_is_written_in_ident_numbers(monkeypatch):
     fields, form = _hardware(monkeypatch)
     control = form.find_element.return_value
-    control.get_attribute.side_effect = lambda name: "10SW072930" if name == "value" else None
+    state = {"value": ""}
+    control.get_attribute.side_effect = lambda name: state["value"] if name == "value" else None
+    control.send_keys.side_effect = lambda value: state.update(value=value)
     assert fields.fill("software_name", "10SW072930") is True
     control.send_keys.assert_called_once_with("10SW072930")
     fields.sections["Ident Numbers"].expand.assert_called_once()

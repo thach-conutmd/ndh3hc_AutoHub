@@ -206,6 +206,9 @@ class HardwareFields:
             if kind == "multi":
                 return self._select_multiple(form, value, key)
             field = form.find_element(By.CSS_SELECTOR, "textarea" if kind == "textarea" else 'input[type="text"]')
+            if field.get_attribute("value") == value:
+                _logger.info("WebFlow field %s already equals %r; skipping", label, value)
+                return True
             scroll_into_view_if_hidden(self.driver, field)
             if not field.is_enabled() or field.get_attribute("readonly") is not None:
                 _logger.error("WebFlow field %s is read-only; requested %r", label, value)

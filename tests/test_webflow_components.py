@@ -225,7 +225,18 @@ def test_section_fills_an_input(page):
     sec = Section(Driver(), "//section", "div.body")
     assert sec.fill_input("input.x", "ABC") is True
     assert field.cleared == 1 and field.typed == ["ABC"]
+    assert sec.fill_input("input.x", "ABC") is True
+    assert field.cleared == 1 and field.typed == ["ABC"]
     assert sec.fill_input("input.missing", "ABC") is False
+
+
+def test_matching_read_only_input_is_not_edited(page):
+    _, body = section(page, "display: block;")
+    field = Element({"value": "ABC", "readonly": "true"})
+    field.is_enabled = lambda: False
+    body.children["input.x"] = field
+    assert Section(Driver(), "//section", "div.body").fill_input("input.x", "ABC")
+    assert field.cleared == 0 and field.typed == []
 
 
 def test_tab_link_clicks_only_an_unselected_tab(page):

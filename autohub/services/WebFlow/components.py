@@ -295,6 +295,9 @@ class Section:
             return False
         try:
             field = self.body().find_element(By.CSS_SELECTOR, input_css)
+            if field.get_attribute("value") == value:
+                _logger.info("WebFlow input %s already equals %r; skipping", input_css, value)
+                return True
             scroll_into_view_if_hidden(self.driver, field)
             if not field.is_enabled() or field.get_attribute("readonly") is not None:
                 _logger.error("WebFlow input %s is read-only; requested %r", input_css, value)
