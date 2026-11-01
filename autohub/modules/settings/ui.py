@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QFormLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QLabel, QPushButton,
+    QSpinBox, QVBoxLayout, QWidget,
+)
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.logger import LOGGING_ENABLED_KEY, logging_enabled, set_logging_enabled
@@ -54,18 +57,26 @@ class SettingsWidget(QWidget):
             "AutoHub asks before resuming with the batch's saved settings."
         )
 
-        form = QFormLayout()
-        form.addRow("Theme:", self._theme)
-        form.addRow("Logging:", self._logging)
-        form.addRow("Analysis:", self._record)
-        form.addRow("WebFlow retry:", self._retry)
-        form.addRow("Maximum WebFlow attempts:", self._attempts)
+        theme_group = QGroupBox("Theme")
+        QFormLayout(theme_group).addRow("Mode:", self._theme)
+
+        logging_group = QGroupBox("Logging")
+        QVBoxLayout(logging_group).addWidget(self._logging)
+
+        analysis_group = QGroupBox("Analysis")
+        QVBoxLayout(analysis_group).addWidget(self._record)
+
+        retry_group = QGroupBox("WebFlow Retry")
+        retry_form = QFormLayout(retry_group)
+        retry_form.addRow(self._retry)
+        retry_form.addRow("Maximum WebFlow attempts:", self._attempts)
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignTop)
         layout.addWidget(title)
         layout.addSpacing(8)
-        layout.addLayout(form)
+        for group in (theme_group, logging_group, analysis_group, retry_group):
+            layout.addWidget(group)
         self._apply = QPushButton("Apply")
         self._apply.setToolTip("Save and apply the settings above.")
         self._apply.clicked.connect(self._on_apply)
