@@ -213,6 +213,22 @@ def test_resume_uses_saved_attempt_limit():
     assert sleeps == [5.0]
 
 
+@pytest.mark.parametrize("resume", [False, True])
+def test_disabled_retries_make_one_attempt_and_preserve_crash_recovery(resume):
+    config = replace(CONFIG, max_attempts=7, retry_enabled=False)
+    state = {"config": asdict(config), "variants": [{"part_number": "P1"}]}
+    journal = MemoryJournal(state if resume else None)
+    service, sleeps = flaky_service(99, journal)
+    with pytest.raises(RuntimeError, match="after 1 attempts"):
+        if resume:
+            service.resume_jobs()
+        else:
+            service.create_jobs([{"part_number": "P1"}], config)
+    assert len(FlakyWebFlow.instances) == 1 and sleeps == []
+    assert service.pending_batch()["config"]["max_attempts"] == 7
+    assert service.pending_batch()["config"]["retry_enabled"] is False
+
+
 @pytest.mark.parametrize("attempts", [0, -1, 101, True, "5", 1.5, None])
 def test_invalid_attempt_limit_is_rejected(attempts):
     with pytest.raises(ValueError, match="Maximum WebFlow attempts"):

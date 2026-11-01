@@ -198,3 +198,32 @@ def test_attempt_changes_support_apply_discard_and_cancel(qapp):
         assert page.confirm_leave() is (answer is not None)
         assert settings.load()["webflow_max_attempts"] == (7 if answer else 3)
         assert page._attempts.value() == (3 if answer is False else 7)
+
+
+def test_retry_checkbox_saves_and_preserves_attempt_limit(qapp):
+    from autohub.modules.creation.config_form import load_config
+
+    settings = MemorySettings({"webflow_max_attempts": 7})
+    page = SettingsWidget(settings)
+    assert page._retry.isChecked() and page._attempts.isEnabled()
+    page._retry.setChecked(False)
+    assert not page._attempts.isEnabled()
+    assert page._attempts.value() == 7 and page._apply.isEnabled()
+    page._apply.click()
+    assert load_config(settings).retry_enabled is False
+    restored = SettingsWidget(settings)
+    assert not restored._retry.isChecked() and not restored._attempts.isEnabled()
+    restored._retry.setChecked(True)
+    restored._apply.click()
+    assert load_config(settings).retry_enabled is True
+    assert restored._attempts.isEnabled() and restored._attempts.value() == 7
+
+
+def test_retry_checkbox_changes_can_be_discarded(qapp):
+    from tests.fakes import FakeDialogs
+
+    page = SettingsWidget(MemorySettings(), FakeDialogs(table_answer=False))
+    page._retry.setChecked(False)
+    assert page.confirm_leave()
+    assert page._retry.isChecked() and page._attempts.isEnabled()
+    assert not page._apply.isEnabled()

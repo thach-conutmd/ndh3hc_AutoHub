@@ -9,6 +9,7 @@ from autohub.core.logger import LOGGING_ENABLED_KEY, logging_enabled, set_loggin
 from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import (
     DEFAULT_WEBFLOW_MAX_ATTEMPTS, RECORD_PAGES_KEY, WEBFLOW_ATTEMPTS_LIMIT, WEBFLOW_MAX_ATTEMPTS_KEY,
+    WEBFLOW_RETRY_ENABLED_KEY,
 )
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode
 
@@ -38,9 +39,15 @@ class SettingsWidget(QWidget):
         self._record = QCheckBox("Record every WebFlow step (HTML, screenshot, elements) in logs/webflow_trace")
         self._record.setChecked(bool(settings.load().get(RECORD_PAGES_KEY, True)))
 
+        self._retry = QCheckBox("Enable automatic retries")
+        self._retry.setChecked(settings.load().get(WEBFLOW_RETRY_ENABLED_KEY, True))
+        self._retry.setToolTip("When disabled, WebFlow runs once. Crash recovery still asks before resuming.")
+
         self._attempts = QSpinBox()
         self._attempts.setRange(1, WEBFLOW_ATTEMPTS_LIMIT)
         self._attempts.setValue(settings.load().get(WEBFLOW_MAX_ATTEMPTS_KEY, DEFAULT_WEBFLOW_MAX_ATTEMPTS))
+        self._attempts.setEnabled(self._retry.isChecked())
+        self._retry.toggled.connect(self._attempts.setEnabled)
         self._attempts.setToolTip(
             "Includes the first attempt. Set to 1 to disable automatic retries. "
             "Retries resume saved progress, with a 5-second delay. After a crash, "
@@ -51,6 +58,7 @@ class SettingsWidget(QWidget):
         form.addRow("Theme:", self._theme)
         form.addRow("Logging:", self._logging)
         form.addRow("Analysis:", self._record)
+        form.addRow("WebFlow retry:", self._retry)
         form.addRow("Maximum WebFlow attempts:", self._attempts)
 
         layout = QVBoxLayout(self)
@@ -66,11 +74,15 @@ class SettingsWidget(QWidget):
         self._logging.toggled.connect(self._refresh_apply)
         self._record.toggled.connect(self._refresh_apply)
         self._attempts.valueChanged.connect(self._refresh_apply)
+        self._retry.toggled.connect(self._refresh_apply)
         self._refresh_apply()
         layout.addWidget(self._apply, alignment=Qt.AlignRight)
 
-    def _current(self) -> tuple[str, bool, bool, int]:
-        return self._theme.currentData(), self._logging.isChecked(), self._record.isChecked(), self._attempts.value()
+    def _current(self) -> tuple[str, bool, bool, int, bool]:
+        return (
+            self._theme.currentData(), self._logging.isChecked(), self._record.isChecked(),
+            self._attempts.value(), self._retry.isChecked(),
+        )
 
     def _refresh_apply(self, *_args) -> None:
         """Apply is only available while the page differs from what is applied."""
@@ -93,15 +105,17 @@ class SettingsWidget(QWidget):
             self._logging.setChecked(self._applied[1])
             self._record.setChecked(self._applied[2])
             self._attempts.setValue(self._applied[3])
+            self._retry.setChecked(self._applied[4])
         return True
 
     def _on_apply(self) -> None:
-        mode, enabled, record, attempts = self._current()
+        mode, enabled, record, attempts, retry = self._current()
         self._settings.update(**{
             THEME_KEY: mode, LOGGING_ENABLED_KEY: enabled, RECORD_PAGES_KEY: record,
             WEBFLOW_MAX_ATTEMPTS_KEY: attempts,
+            WEBFLOW_RETRY_ENABLED_KEY: retry,
         })
         set_logging_enabled(enabled)
         apply_theme(QApplication.instance(), mode)
-        self._applied = (mode, enabled, record, attempts)
+        self._applied = (mode, enabled, record, attempts, retry)
         self._refresh_apply()

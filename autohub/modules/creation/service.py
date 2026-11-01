@@ -31,10 +31,13 @@ class WebFlowConfig:
     change_reason: str = ""
     ecr_notes: str = ""
     max_attempts: int = DEFAULT_WEBFLOW_MAX_ATTEMPTS
+    retry_enabled: bool = True
 
     def __post_init__(self) -> None:
         if type(self.max_attempts) is not int or not 1 <= self.max_attempts <= WEBFLOW_ATTEMPTS_LIMIT:
             raise ValueError(f"Maximum WebFlow attempts must be an integer from 1 to {WEBFLOW_ATTEMPTS_LIMIT}.")
+        if type(self.retry_enabled) is not bool:
+            raise ValueError("WebFlow automatic retries must be enabled or disabled.")
 
 
 class WebFlowSession(Protocol):
@@ -210,7 +213,7 @@ class WebFlowJobService:
     def _attempts(self, state: dict, config: WebFlowConfig, progress: ProgressCallback) -> list[dict]:
         """Runs the configured number of attempts, resuming from saved progress each time."""
         job_variants = state["variants"]
-        max_attempts = config.max_attempts
+        max_attempts = config.max_attempts if config.retry_enabled else 1
 
         def checkpoint() -> None:
             if self._journal:
