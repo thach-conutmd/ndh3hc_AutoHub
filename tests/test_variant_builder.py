@@ -42,8 +42,11 @@ SYSTEM = {"Hardware": "MG1CS022", "Destination": "M", "Market": "Brazil", "SSID"
         (n.development_number, "0261B00DA8", "0261B00DA8"),
         (n.development_number, "0261B00-001", "0261B00-001"),
         (n.ascii_hex, "37805", "3337383035"),
-        (n.parse_event, "62XS for DAN/MP1 event", "DAN"),
-        (n.parse_event, "62XS - HIN Lot / MP1", "HIN"),
+        (n.parse_event, "62XS for DAN/MP1 event", "62XS - DAN"),
+        (n.parse_event, "62XS - HIN Lot / MP1", "62XS - HIN"),
+        (n.parse_event, "6WZX for MP0 event", "6WZX - MP0"),
+        (n.parse_event, " 62XS  -  HIN  lot / MP1 ", "62XS - HIN"),
+        (n.parse_event, None, ""),
         (n.normalize_project_purpose, "62XS for HIN/MP1 event", "62xs - hin lot / mp1"),
         (n.normalize_project_purpose, "62XS - HIN Lot / MP1", "62xs - hin lot / mp1"),
         (n.parse_event, "free text", "free text"),
@@ -69,7 +72,7 @@ def test_request_values_for_a_variant():
 def test_project_purpose_uses_project_event_and_milestone():
     values = build_request_values(GENERAL, {**ECU, "Event": "HIN"}, MAIN, {}, SYSTEM)
     assert values["H"] == "62XS - HIN Lot / MP1"
-    assert webflow_variant_from_row(values["J"], values)["event"] == "HIN"
+    assert webflow_variant_from_row(values["J"], values)["event"] == "62XS - HIN"
 
 
 def test_security_type_1_joins_sk1_sk2_sk3():
@@ -172,7 +175,7 @@ def test_webflow_variant_uses_sheet_values_instead_of_defaults():
            "V": "Program", "W": "YES", "X": "No", "Y": "Yes", "Z": False, "AA": True,
            "BE": "62XS", "BF": "V030", "BH": "FFFF", "CL": "33", "CM": "00", "CN": "FF", "CQ": "01"}
     variant = webflow_variant_from_row("37820-62X-MD10-M6", row)
-    assert variant["event"] == "DAN" and variant["ecu_type"] == "MED17.9"
+    assert variant["event"] == "62XS - DAN" and variant["ecu_type"] == "MED17.9"
     assert variant["ecu_generation"] == "MED17" and variant["brand"] == "Honda"
     assert variant["general"] == {
         "delivery_type": "Custom delivery", "release_class": "Pilot", "release_scope": "Program", "limitations": "YES",
