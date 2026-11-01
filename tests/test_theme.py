@@ -79,7 +79,7 @@ def test_settings_page_turns_logging_off_and_on_with_apply():
         logging.disable(logging.NOTSET)
 
 
-def test_checklist_selects_the_latest_event_until_the_user_chooses():
+def test_checklist_shows_all_events_by_default_and_preserves_user_filter():
     from datetime import datetime
 
     from autohub.modules.creation.variant_checklist import VariantChecklist
@@ -91,11 +91,13 @@ def test_checklist_selects_the_latest_event_until_the_user_chooses():
         {"part_number": "2", "ecu_type": "x", "event": "NEW", "created_at": datetime(2025, 6, 1)},
     ]
     box.set_variants(rows)
-    assert box._event_filter.currentText() == "NEW" and list(box._checkboxes) == ["2"]
+    assert box._event_filter.currentText() == "All events"
+    assert list(box._checkboxes) == ["1", "2"]
     box._event_filter.setCurrentText("OLD")
     box._on_event_chosen(0)
     box.set_variants(rows)
     assert box._event_filter.currentText() == "OLD"
+    assert list(box._checkboxes) == ["1"]
 
 
 def _changed_page(answer):
