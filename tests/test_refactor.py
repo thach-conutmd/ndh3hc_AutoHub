@@ -97,6 +97,35 @@ def test_checklist_selection_starts_empty_and_is_not_persisted(qapp):
     assert settings.data["selected_variants"] == ["P2"]  # untouched stale value
 
 
+def test_creation_selection_summary_and_create_action_follow_selection(qapp):
+    creation = CreationWidget(WebFlowJobService(webflow_factory=FakeWebFlow), MemorySettings())
+    assert creation._selection_summary.text() == "0 selected · 0 available"
+    assert not creation._create_jobs_btn.isEnabled()
+    assert creation._footer_hint.text() == "Load variants on Home to get started."
+
+    creation.set_variants([
+        {"part_number": "P1", "ecu_type": "E", "event": "A"},
+        {"part_number": "P2", "ecu_type": "E", "event": "B"},
+    ])
+    assert creation._selection_summary.text() == "0 selected · 2 available"
+    assert creation._footer_hint.text() == "Select at least one variant to continue."
+    assert not creation._create_jobs_btn.isEnabled()
+
+    creation._checklist._checkboxes["P2"].setChecked(True)
+    assert creation._selection_summary.text() == "1 selected · 2 available"
+    assert creation._footer_hint.text() == "Ready to create jobs."
+    assert creation._create_jobs_btn.isEnabled()
+    assert creation._create_jobs_btn.text() == "Create 1 WebFlow job"
+
+    creation._checklist._event_filter.setCurrentText("A")
+    assert creation._selection_summary.text() == "1 selected · 2 available"
+    creation._checklist._set_all(True)
+    assert creation._selection_summary.text() == "2 selected · 2 available"
+    assert creation._create_jobs_btn.text() == "Create 2 WebFlow jobs"
+    creation._checklist.clear_selection()
+    assert not creation._create_jobs_btn.isEnabled()
+
+
 def test_reloading_variants_clears_the_selection(qapp):
     creation = _two_variant_creation()
     assert selected_part_numbers(creation) == ["P1", "P2"]

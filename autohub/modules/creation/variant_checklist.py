@@ -1,7 +1,7 @@
 """Variant checklist with event filter; the selection is cleared whenever the variants are reloaded."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -59,6 +59,8 @@ class CreationTable(QTableWidget):
 
 
 class VariantChecklist(QWidget):
+    selectionChanged = Signal(int, int)
+
     def __init__(self):
         super().__init__()
         # Only the latest variant per part number is kept by MasterSheet; this is the
@@ -73,18 +75,20 @@ class VariantChecklist(QWidget):
         self._event_filter.currentTextChanged.connect(self._apply_filter)
         self._event_filter.activated.connect(self._on_event_chosen)
         self._event_chosen = False  # once the user picks an event, reloads keep it
-        select_all_btn = QPushButton("Select all")
-        select_all_btn.clicked.connect(lambda: self._set_all(True))
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(lambda: self._set_all(False))
+        self._select_visible_btn = QPushButton("Select visible")
+        self._select_visible_btn.setToolTip("Select every variant in the current event filter.")
+        self._select_visible_btn.clicked.connect(lambda: self._set_all(True))
+        self._clear_selection_btn = QPushButton("Clear selection")
+        self._clear_selection_btn.clicked.connect(lambda: self._set_all(False))
 
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(0, 0, 0, 0)
         toolbar.addWidget(QLabel("Event:"))
         toolbar.addWidget(self._event_filter)
+        self._event_filter.setMinimumWidth(180)
         toolbar.addStretch(1)
-        toolbar.addWidget(select_all_btn)
-        toolbar.addWidget(clear_btn)
+        toolbar.addWidget(self._select_visible_btn)
+        toolbar.addWidget(self._clear_selection_btn)
 
         self._table = CreationTable()
         self._table.setShowGrid(True)
@@ -93,6 +97,7 @@ class VariantChecklist(QWidget):
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.setMinimumHeight(150)
         self._empty_label = QLabel("Load variants from a Master Sheet on Home, or create them from all three files.")
+        self._empty_label.setWordWrap(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -103,6 +108,10 @@ class VariantChecklist(QWidget):
     @property
     def has_variants(self) -> bool:
         return bool(self._variants)
+
+    @property
+    def variant_count(self) -> int:
+        return len(self._variants)
 
     def selected_variants(self) -> list[dict]:
         return [v for v in self._variants if v["part_number"] in self._selected]
@@ -115,6 +124,7 @@ class VariantChecklist(QWidget):
         self._selected.clear()
         for checkbox in self._checkboxes.values():
             checkbox.setChecked(False)
+        self._emit_selection_changed()
 
     def set_variants(self, variants: list[dict]) -> None:
         """Shows a fresh variant list; any previous selection is cleared."""
@@ -149,6 +159,9 @@ class VariantChecklist(QWidget):
             filtered = [v for v in self._variants if (v.get("event") or _NO_EVENT) == event_filter]
 
         self._empty_label.setVisible(not filtered)
+        visible_selected = sum(variant["part_number"] in self._selected for variant in filtered)
+        self._select_visible_btn.setEnabled(bool(filtered) and visible_selected < len(filtered))
+        self._clear_selection_btn.setEnabled(bool(self._selected))
         self._table.setRowCount(len(filtered))
         if filtered:
             for row, variant in enumerate(filtered):
@@ -183,6 +196,7 @@ class VariantChecklist(QWidget):
                     item.setTextAlignment(Qt.AlignCenter)
                     self._table.setItem(row, column, item)
         self._table.fit_columns()
+        self._emit_selection_changed()
 
     def set_numbers(self, numbers: dict[str, dict[str, str]]) -> None:
         for variant in self._variants:
@@ -202,7 +216,12 @@ class VariantChecklist(QWidget):
             self._selected.add(part_number)
         else:
             self._selected.discard(part_number)
+        self._emit_selection_changed()
 
     def _set_all(self, checked: bool) -> None:
         for checkbox in self._checkboxes.values():
             checkbox.setChecked(checked)
+        self._emit_selection_changed()
+
+    def _emit_selection_changed(self) -> None:
+        self.selectionChanged.emit(len(self._selected), len(self._variants))
