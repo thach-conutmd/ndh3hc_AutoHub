@@ -15,6 +15,8 @@ def test_event_filter_keeps_projects_with_the_same_event_separate(qapp):
     assert [checklist._event_filter.itemText(i) for i in range(checklist._event_filter.count())] == [
         "All events", "62XS - HIN", "6WZX - HIN",
     ]
+    assert checklist._event_filter.currentText() == "62XS - HIN"
+    assert set(checklist._checkboxes) == {"P", "R"}
     checklist._event_filter.setCurrentText("62XS - HIN")
     assert set(checklist._checkboxes) == {"P", "R"}
     checklist._event_filter.setCurrentText("6WZX - HIN")

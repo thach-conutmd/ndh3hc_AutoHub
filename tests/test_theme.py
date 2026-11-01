@@ -79,7 +79,7 @@ def test_settings_page_turns_logging_off_and_on_with_apply():
         logging.disable(logging.NOTSET)
 
 
-def test_checklist_shows_all_events_by_default_and_preserves_user_filter():
+def test_checklist_selects_latest_variant_event_and_preserves_user_filter():
     from datetime import datetime
 
     from autohub.modules.creation.variant_checklist import VariantChecklist
@@ -87,17 +87,26 @@ def test_checklist_shows_all_events_by_default_and_preserves_user_filter():
     QApplication.instance() or QApplication([])
     box = VariantChecklist()
     rows = [
-        {"part_number": "1", "ecu_type": "x", "event": "OLD", "created_at": datetime(2025, 1, 1)},
-        {"part_number": "2", "ecu_type": "x", "event": "NEW", "created_at": datetime(2025, 6, 1)},
+        {"part_number": "2", "ecu_type": "x", "event": "62XS - HIN", "created_at": datetime(2025, 6, 1)},
+        {"part_number": "1", "ecu_type": "x", "event": "6WZX - MP0", "created_at": datetime(2025, 1, 1)},
     ]
     box.set_variants(rows)
-    assert box._event_filter.currentText() == "All events"
-    assert list(box._checkboxes) == ["1", "2"]
-    box._event_filter.setCurrentText("OLD")
+    assert box._event_filter.currentText() == "62XS - HIN"
+    assert list(box._checkboxes) == ["2"]
+    newer = {"part_number": "3", "ecu_type": "x", "event": "62XS - MP2", "created_at": datetime(2025, 7, 1)}
+    box.set_variants([*rows, newer])
+    assert box._event_filter.currentText() == "62XS - MP2"
+    assert list(box._checkboxes) == ["3"]
+    box._event_filter.setCurrentText("6WZX - MP0")
     box._on_event_chosen(0)
     box.set_variants(rows)
-    assert box._event_filter.currentText() == "OLD"
+    assert box._event_filter.currentText() == "6WZX - MP0"
     assert list(box._checkboxes) == ["1"]
+    box._event_filter.setCurrentText("All events")
+    box._on_event_chosen(0)
+    box.set_variants(rows)
+    assert box._event_filter.currentText() == "All events"
+    assert list(box._checkboxes) == ["2", "1"]
 
 
 def _changed_page(answer):
