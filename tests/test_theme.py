@@ -227,3 +227,16 @@ def test_retry_checkbox_changes_can_be_discarded(qapp):
     assert page.confirm_leave()
     assert page._retry.isChecked() and page._attempts.isEnabled()
     assert not page._apply.isEnabled()
+
+
+def test_settings_controls_are_organized_in_groups(qapp):
+    from PySide6.QtWidgets import QGroupBox
+
+    page = SettingsWidget(MemorySettings())
+    groups = {group.title(): group for group in page.findChildren(QGroupBox)}
+    assert list(groups) == ["Theme", "Logging", "Analysis", "WebFlow Retry"]
+    assert page._theme.parentWidget() is groups["Theme"]
+    assert page._logging.parentWidget() is groups["Logging"]
+    assert page._record.parentWidget() is groups["Analysis"]
+    assert page._retry.parentWidget() is groups["WebFlow Retry"]
+    assert page._attempts.parentWidget() is groups["WebFlow Retry"]
