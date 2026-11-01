@@ -4,7 +4,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QLabel, QPushButton,
-    QSpinBox, QVBoxLayout, QWidget,
+    QScrollArea, QSpinBox, QVBoxLayout, QWidget,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
@@ -16,6 +16,7 @@ from autohub.core.settings_keys import (
     LATEST_COUNT_CHOICES, LATEST_COUNT_KEY, SHOW_WEBFLOW_LINK_KEY, normalize_latest_count,
 )
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode
+from autohub.modules.settings.creation_form import CreationSettingsForm, load_config
 
 THEME_KEY = "theme"
 _LABELS = {"system": "System", "light": "Light", "dark": "Dark"}
@@ -88,12 +89,24 @@ class SettingsWidget(QWidget):
         retry_form.addRow(self._retry)
         retry_form.addRow("Maximum WebFlow attempts:", self._attempts)
 
+        creation_group = QGroupBox("Creation")
+        self._creation = CreationSettingsForm(load_config(settings))
+        QVBoxLayout(creation_group).addWidget(self._creation)
+
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignTop)
         layout.addWidget(title)
         layout.addSpacing(8)
-        for group in (theme_group, logging_group, analysis_group, home_group, retry_group):
-            layout.addWidget(group)
+        content = QWidget()
+        groups_layout = QVBoxLayout(content)
+        groups_layout.setContentsMargins(0, 0, 0, 0)
+        for group in (theme_group, logging_group, analysis_group, home_group, creation_group, retry_group):
+            groups_layout.addWidget(group)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(content)
+        layout.addWidget(scroll, 1)
         self._apply = QPushButton("Apply")
         self._apply.setToolTip("Save and apply the settings above.")
         self._apply.clicked.connect(self._on_apply)
@@ -105,14 +118,22 @@ class SettingsWidget(QWidget):
         self._retry.toggled.connect(self._refresh_apply)
         self._latest.currentIndexChanged.connect(self._refresh_apply)
         self._show_link.toggled.connect(self._refresh_apply)
+        for field in (
+            self._creation._base_url, self._creation._tool_version, self._creation._routing,
+            self._creation._change_engineer, self._creation._cost_allocation,
+        ):
+            field.textChanged.connect(self._refresh_apply)
+        self._creation._ecr_notes.textChanged.connect(self._refresh_apply)
+        self._creation._change_reason.itemChanged.connect(self._refresh_apply)
         self._refresh_apply()
         layout.addWidget(self._apply, alignment=Qt.AlignRight)
 
-    def _current(self) -> tuple[str, bool, bool, int, bool, int, bool]:
+    def _current(self) -> tuple:
         return (
             self._theme.currentData(), self._logging.isChecked(), self._record.isChecked(),
             self._attempts.value(), self._retry.isChecked(),
             self._latest.currentData(), self._show_link.isChecked(),
+            *self._creation.values().values(),
         )
 
     def _refresh_apply(self, *_args) -> None:
@@ -139,15 +160,17 @@ class SettingsWidget(QWidget):
             self._retry.setChecked(self._applied[4])
             self._latest.setCurrentIndex(self._latest.findData(self._applied[5]))
             self._show_link.setChecked(self._applied[6])
+            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:])))
         return True
 
     def _on_apply(self) -> None:
-        mode, enabled, record, attempts, retry, latest, show_link = self._current()
+        mode, enabled, record, attempts, retry, latest, show_link = self._current()[:7]
         values = {
             THEME_KEY: mode, LOGGING_ENABLED_KEY: enabled, RECORD_PAGES_KEY: record,
             WEBFLOW_MAX_ATTEMPTS_KEY: attempts,
             WEBFLOW_RETRY_ENABLED_KEY: retry,
             LATEST_COUNT_KEY: latest, SHOW_WEBFLOW_LINK_KEY: show_link,
+            **self._creation.values(),
         }
         changes = {
             key: values[key] for key, previous in zip(values, self._applied)
