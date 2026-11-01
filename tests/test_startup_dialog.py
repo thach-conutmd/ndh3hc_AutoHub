@@ -87,6 +87,7 @@ def test_startup_steps_build_the_main_window(qapp, tmp_path, monkeypatch):
         "Preparing interface...",
         "Loading modules and configuration...",
         "Building main window...",
+        "Loading variants...",
     ]
     main.run_startup(steps, StartupDialog(len(steps)))
     assert state["modules"] and state["window"] is not None

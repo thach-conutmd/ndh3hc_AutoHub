@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from autohub.config import APP_NAME, APP_VERSION, LOGO_PATH
 from autohub.core.capabilities import (
-    Closable, LeaveGuard, StartupTask, VariantSink, VariantSource, WebFlowLinkSink, WebFlowLinkSource,
+    Closable, LeaveGuard, StartupPreload, StartupTask, VariantSink, VariantSource, WebFlowLinkSink, WebFlowLinkSource,
     WebFlowNumberSink, WebFlowNumberSource,
     SettingsSink, SettingsSource,
 )
@@ -72,6 +72,13 @@ class MainWindow(QMainWindow):
         for source in (w for w in widgets if isinstance(w, SettingsSource)):
             for sink in (w for w in widgets if isinstance(w, SettingsSink)):
                 source.settingsChanged.connect(sink.apply_settings)
+
+    def preload(self, progress) -> None:
+        """Runs each page's startup loading while the startup dialog is still shown."""
+        for i in range(self._pages.count()):
+            page = self._pages.widget(i)
+            if isinstance(page, StartupPreload):
+                page.preload(progress)
 
     def run_startup_tasks(self) -> None:
         for i in range(self._pages.count()):

@@ -5,7 +5,7 @@ implements what it actually needs.
 """
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Callable, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -59,6 +59,16 @@ class Closable(Protocol):
     """Page that must release external resources when the app closes."""
 
     def shutdown(self) -> None: ...
+
+
+@runtime_checkable
+class StartupPreload(Protocol):
+    """Page that loads data behind the startup dialog, before the main window is shown.
+
+    ``progress`` receives status text for the startup dialog; failures must be handled inside.
+    """
+
+    def preload(self, progress: Callable[[str], None]) -> None: ...
 
 
 @runtime_checkable

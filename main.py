@@ -15,8 +15,12 @@ from autohub.ui.theme import apply_theme, set_dark_titlebar
 _logger = logging.getLogger(__name__)
 
 
-def startup_steps(app: QApplication, settings: JsonSettingsStore, state: dict) -> list:
-    """(message, action) pairs run behind the startup dialog; heavy imports happen here, after it shows."""
+def startup_steps(app: QApplication, settings: JsonSettingsStore, state: dict, report=None) -> list:
+    """(message, action) pairs run behind the startup dialog; heavy imports happen here, after it shows.
+
+    ``report`` shows sub-step text (e.g. Master Sheet progress) in the dialog.
+    """
+    report = report or (lambda _text: None)
 
     def apply_settings():
         set_logging_enabled(logging_enabled(settings.load()))
@@ -39,11 +43,15 @@ def startup_steps(app: QApplication, settings: JsonSettingsStore, state: dict) -
         state["window"] = MainWindow(state["modules"])
         set_dark_titlebar(state["window"], state["dark"])
 
+    def load_variants():
+        state["window"].preload(report)
+
     return [
         ("Applying settings and logging...", apply_settings),
         ("Preparing interface...", prepare_interface),
         ("Loading modules and configuration...", load_modules),
         ("Building main window...", build_window),
+        ("Loading variants...", load_variants),
     ]
 
 
@@ -64,7 +72,7 @@ def main() -> int:
     settings = JsonSettingsStore()
     state = {"dark": apply_theme(app, settings.load().get("theme"))}
 
-    steps = startup_steps(app, settings, state)
+    steps = startup_steps(app, settings, state, lambda text: dialog.step(text))
     dialog = StartupDialog(len(steps))
     dialog.start()
     try:

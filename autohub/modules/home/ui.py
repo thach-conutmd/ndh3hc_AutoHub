@@ -127,8 +127,8 @@ class HomeWidget(QWidget):
         self._presenter.restore_saved_paths()
         self._variant_table.set_webflow_link_visible(self._show_webflow_link())
 
-    def on_startup(self) -> None:
-        self._presenter.auto_load_variants()
+    def preload(self, progress) -> None:
+        self._presenter.auto_load_variants(progress)
 
     # -- HomeView ----------------------------------------------------------------------
 
