@@ -116,13 +116,12 @@ def hex_text(value) -> str:
 
 
 def parse_event(project_purpose) -> str:
-    """Extract the event from current or legacy Project Purpose text."""
+    """Extract a project-version/event label from current or legacy Project Purpose text."""
     text = clean_text(project_purpose)
-    match = re.fullmatch(r".+?\s+-\s+(.+?)\s+Lot\s*/\s*.+", text, re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    match = re.search(r"for\s+(.+?)/(.+?)\s+event$", text, re.IGNORECASE)
-    return match.group(1).strip() if match else text
+    match = re.fullmatch(r"(.+?)\s+-\s+(.+?)\s+Lot\s*/\s*.+", text, re.IGNORECASE)
+    if not match:
+        match = re.fullmatch(r"(.+?)\s+for\s+([^/]+?)(?:\s*/\s*.+?)?\s+event", text, re.IGNORECASE)
+    return f"{match.group(1).strip()} - {match.group(2).strip()}" if match else text
 
 
 def tp_level(rom_check, tuning_protection) -> str:

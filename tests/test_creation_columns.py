@@ -2,6 +2,25 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHeaderView, QLabel
 
 from autohub.modules.creation.variant_checklist import VariantChecklist
+from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
+
+
+def test_event_filter_keeps_projects_with_the_same_event_separate(qapp):
+    checklist = VariantChecklist()
+    checklist.set_variants([
+        webflow_variant_from_row("P", {"H": "62XS - HIN Lot / MP1"}),
+        webflow_variant_from_row("Q", {"H": "6WZX for HIN/MP1 event"}),
+        webflow_variant_from_row("R", {"H": "62XS for HIN/MP2 event"}),
+    ])
+    assert [checklist._event_filter.itemText(i) for i in range(checklist._event_filter.count())] == [
+        "All events", "62XS - HIN", "6WZX - HIN",
+    ]
+    assert checklist._event_filter.currentText() == "62XS - HIN"
+    assert set(checklist._checkboxes) == {"P", "R"}
+    checklist._event_filter.setCurrentText("62XS - HIN")
+    assert set(checklist._checkboxes) == {"P", "R"}
+    checklist._event_filter.setCurrentText("6WZX - HIN")
+    assert set(checklist._checkboxes) == {"Q"}
 
 
 def test_creation_headers_and_ecu_values(qapp):

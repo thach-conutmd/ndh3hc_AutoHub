@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from autohub.core.latest_event import NO_EVENT
+from autohub.core.latest_event import NO_EVENT, latest_event
 from autohub.core.webflow_links import webflow_link_text
 from autohub.core.webflow_numbers import NUMBER_FIELDS
 from autohub.ui.link_label import LinkLabel
@@ -136,7 +136,7 @@ class VariantChecklist(QWidget):
 
         events = sorted({v.get("event") or _NO_EVENT for v in variants})
         self._event_filter.blockSignals(True)
-        current = self._event_filter.currentText() if self._event_chosen else _ALL_EVENTS
+        current = self._event_filter.currentText() if self._event_chosen else (latest_event(variants) or _ALL_EVENTS)
         self._event_filter.clear()
         self._event_filter.addItem(_ALL_EVENTS)
         self._event_filter.addItems(events)
