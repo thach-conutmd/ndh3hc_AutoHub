@@ -101,6 +101,11 @@ class JobFiller:
                 _logger.info("[%s] %s was already clicked in an earlier attempt; not clicking again", variant["part_number"], step[0])
                 if not variant.get(key):
                     notes.append(f"{step[0]} was clicked in an earlier attempt but its number was not read; check the job in WebFlow.")
+                elif key == "imported_software_part_number":
+                    guarded.append((
+                        "General: Copy allocated Software part number",
+                        general.copy_software_part_number, variant[key],
+                    ))
             else:
                 guarded.append((step[0], self._recorded_import(step, key, variant, general), *step[2:]))
         return guarded
@@ -111,7 +116,7 @@ class JobFiller:
             self.checkpoint()
             ok = step[1](*args)
             number = getattr(general, key, "")
-            if ok and number:
+            if number and (ok or key == "imported_software_part_number"):
                 variant[key] = number
                 self.checkpoint()
             return ok

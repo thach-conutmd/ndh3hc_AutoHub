@@ -58,6 +58,9 @@ class GeneralTab:
     def import_software_part_number(self) -> bool:
         return self._collapse_after_import(self._hardware.import_software_part_number(), "Import from pool")
 
+    def copy_software_part_number(self, value: str) -> bool:
+        return self._hardware.copy_software_part_number(value)
+
     def import_ecr(self) -> bool:
         return self._collapse_after_import(self._hardware.import_ecr(), "ECR Import")
 

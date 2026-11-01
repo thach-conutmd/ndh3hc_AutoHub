@@ -281,6 +281,7 @@ def test_ecr_import_is_scoped_single_click_and_retains_number(monkeypatch, value
 
 def _hardware(monkeypatch):
     fields = HardwareFields(Mock())
+    fields._read_software_part_number = Mock(return_value="")
     fields.driver.find_elements.return_value = []
     fields.sections = {panel: Mock() for panel in fields.sections}
     for section in fields.sections.values():
@@ -602,6 +603,31 @@ def test_pool_import_timeout_is_failure_without_retry(monkeypatch):
     assert fields.import_software_part_number() is False
     assert fields.imported_software_part_number == ""
     button.click.assert_called_once()
+
+
+def test_existing_software_number_is_copied_without_pool_import(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    fields._read_software_part_number.return_value = "10SW072930"
+    fields._import_number = Mock()
+    fields.fill = Mock(return_value=True)
+    assert fields.import_software_part_number()
+    fields._import_number.assert_not_called()
+    assert fields.imported_software_part_number == "10SW072930"
+    assert fields.fill.call_args_list == [
+        call("software_name", "10SW072930"),
+        call("customer_software_part_number", "10SW072930"),
+    ]
+
+
+@pytest.mark.parametrize("value,expected", [
+    (" 10SW072930 ", "10SW072930"), ("", ""), ("0", ""), ("---", ""),
+])
+def test_reads_software_number_from_ident_numbers(monkeypatch, value, expected):
+    fields, _ = _hardware(monkeypatch)
+    field = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
+    field.get_attribute.return_value = value
+    assert HardwareFields._read_software_part_number(fields) == expected
+    assert "Software part number" in fields.sections["Ident Numbers"].body.return_value.find_element.call_args.args[1]
 
 
 @pytest.mark.parametrize("panel,method", [

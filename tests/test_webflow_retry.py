@@ -142,6 +142,27 @@ def test_number_import_value_is_kept_for_a_retry():
     assert variant["imported_ecr_number"] == "ECR1"
 
 
+def test_allocated_software_number_is_kept_and_copy_retried_without_import():
+    from autohub.services.WebFlow.job_filler import NUMBER_IMPORTS
+
+    general = Mock(imported_software_part_number="10SW072930")
+    general.skipped_fields = []
+    general.import_software_part_number.return_value = False
+    name = next(name for name, key in NUMBER_IMPORTS.items() if key == "imported_software_part_number")
+    plan = Mock()
+    plan.steps.return_value = [(name, general.import_software_part_number)]
+    body = Mock()
+    body.tab.generaltab = general
+    job_filler = JobFiller(Mock(), body, plan)
+    variant = {"part_number": "P1", "hardware": {"lead_plant": "SaW"}}
+    with pytest.raises(RuntimeError):
+        job_filler.fill(variant)
+    assert variant["imported_software_part_number"] == "10SW072930"
+    assert job_filler.fill(variant) == []
+    general.import_software_part_number.assert_called_once()
+    general.copy_software_part_number.assert_called_once_with("10SW072930")
+
+
 class FlakyWebFlow:
     failures = 0
     instances: list = []

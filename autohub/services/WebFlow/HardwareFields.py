@@ -136,19 +136,35 @@ class HardwareFields:
         if not section.expand():
             return False
         try:
-            value = self._import_number("Ident Numbers", "Import from pool", "Software part number")
+            value = self._read_software_part_number()
+            if not value:
+                value = self._import_number("Ident Numbers", "Import from pool", "Software part number")
             self.imported_software_part_number = value
-            wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT)
+            if not wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT):
+                _logger.error("WebFlow is still busy before copying Software part number")
+                return False
             _logger.info("WebFlow imported Software part number = %s", value)
-            for key in ("software_name", "customer_software_part_number"):
-                if not self.fill(key, value):
-                    _logger.error("Could not copy imported software part number %s into %s", value, key)
-                    return False
-                _logger.info("WebFlow %s = %s", _FIELDS[key][0], value)
-            return True
+            return self.copy_software_part_number(value)
         except Exception:
             _logger.exception("Could not import the software part number from pool")
             return False
+
+    def _read_software_part_number(self) -> str:
+        field = self.sections["Ident Numbers"].body().find_element(
+            By.XPATH,
+            './/div[contains(@class,"form-group") and '
+            './div[contains(@class,"control-label") and normalize-space(.)="Software part number"]]//input',
+        )
+        value = (field.get_attribute("value") or "").strip()
+        return value if value and value not in ("0", "---") else ""
+
+    def copy_software_part_number(self, value: str) -> bool:
+        for key in ("software_name", "customer_software_part_number"):
+            if not self.fill(key, value):
+                _logger.error("Could not copy Software part number %s into %s", value, key)
+                return False
+            _logger.info("WebFlow %s = %s", _FIELDS[key][0], value)
+        return True
 
     def import_from_race(self) -> bool:
         section = self.sections["Classification"]

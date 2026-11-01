@@ -58,6 +58,18 @@ def test_job_form_ready_after_navigation(monkeypatch):
     idle.assert_called_once_with(driver)
 
 
+def test_browser_is_maximized_on_startup(monkeypatch):
+    monkeypatch.setattr(webflow_module, "edge_service", Mock())
+    monkeypatch.setattr(webflow_module.webdriver.Edge, "__init__", lambda self, **kwargs: None)
+    maximize = Mock()
+    monkeypatch.setattr(WebFlow, "maximize_window", maximize)
+    monkeypatch.setattr(WebFlow, "implicitly_wait", Mock())
+    for name in ("SideMenuBar", "Body", "JobFiller"):
+        monkeypatch.setattr(webflow_module, name, Mock())
+    WebFlow()
+    maximize.assert_called_once()
+
+
 def test_recorded_browser_error_page_is_not_success(monkeypatch):
     monkeypatch.setattr(Constants, "WEBFLOW_MAX_ATTEMPTS", 1)
     monkeypatch.setattr(Constants, "WEBFLOW_REFRESH_INTERVAL", 0)
