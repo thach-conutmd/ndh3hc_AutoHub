@@ -1,10 +1,10 @@
 """Settings page for theme, logging, WebFlow tracing and retry attempts."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QLabel, QPushButton,
-    QScrollArea, QSpinBox, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton,
+    QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
@@ -15,7 +15,7 @@ from autohub.core.settings_keys import (
     WEBFLOW_RETRY_ENABLED_KEY,
     LATEST_COUNT_CHOICES, LATEST_COUNT_KEY, SHOW_WEBFLOW_LINK_KEY, normalize_latest_count,
 )
-from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode
+from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode, set_muted
 from autohub.modules.settings.creation_form import CreationSettingsForm, load_config
 
 THEME_KEY = "theme"
@@ -40,10 +40,10 @@ class SettingsWidget(QWidget):
         self._theme.setCurrentIndex(self._theme.findData(saved))
         self._theme.setToolTip("System follows the Windows light / dark setting.")
 
-        self._logging = QCheckBox("Enable logging (logs/autohub.log and console)")
+        self._logging = QCheckBox("Enable application logging")
         self._logging.setChecked(logging_enabled(settings.load()))
 
-        self._record = QCheckBox("Record every WebFlow step (HTML, screenshot, elements) in logs/webflow_trace")
+        self._record = QCheckBox("Record WebFlow steps for analysis")
         self._record.setChecked(bool(settings.load().get(RECORD_PAGES_KEY, True)))
 
         self._retry = QCheckBox("Enable automatic retries")
@@ -94,21 +94,65 @@ class SettingsWidget(QWidget):
         QVBoxLayout(creation_group).addWidget(self._creation)
 
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addSpacing(8)
-        content = QWidget()
-        groups_layout = QVBoxLayout(content)
-        groups_layout.setContentsMargins(0, 0, 0, 0)
-        for group in (theme_group, logging_group, analysis_group, home_group, creation_group, retry_group):
-            groups_layout.addWidget(group)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setWidget(content)
-        layout.addWidget(scroll, 1)
-        self._apply = QPushButton("Apply")
-        self._apply.setToolTip("Save and apply the settings above.")
+        subtitle = QLabel("Personalize AutoHub and configure your WebFlow workflow.")
+        set_muted(subtitle, True)
+        layout.addWidget(subtitle)
+        self._tabs = QTabWidget()
+        self._tabs.setDocumentMode(True)
+        descriptions = {
+            theme_group: "Choose a comfortable appearance. System follows your Windows theme.",
+            logging_group: "Write application activity to logs/autohub.log and the console.",
+            analysis_group: "Save HTML, screenshots and element details in logs/webflow_trace. "
+                            "Detailed recording uses additional disk space.",
+            home_group: "Control how loaded variants and job links appear on Home.",
+            creation_group: "Configure the WebFlow connection and ECR details. Leave all four ECR "
+                            "fields empty to skip ECR import, or complete all four to enable it.",
+            retry_group: "Recover from browser failures without recreating completed jobs. "
+                         "After an app crash, AutoHub asks before resuming saved progress.",
+        }
+        for tab_name, groups in (
+            ("General", (theme_group,)),
+            ("Home", (home_group,)),
+            ("Creation", (creation_group, retry_group)),
+            ("Diagnostics", (logging_group, analysis_group)),
+        ):
+            content = QWidget()
+            groups_layout = QVBoxLayout(content)
+            groups_layout.setContentsMargins(16, 16, 16, 16)
+            groups_layout.setSpacing(18)
+            for group in groups:
+                group.layout().setContentsMargins(16, 24, 16, 16)
+                group.layout().setSpacing(12)
+                group.setStyleSheet(
+                    "QGroupBox { border: 1px solid palette(mid); border-radius: 8px; "
+                    "margin-top: 12px; font-weight: 600; }"
+                    "QGroupBox::title { subcontrol-origin: margin; left: 14px; padding: 0 6px; }"
+                )
+                description = QLabel(descriptions[group])
+                description.setWordWrap(True)
+                set_muted(description, True)
+                group_layout = group.layout()
+                if isinstance(group_layout, QFormLayout):
+                    group_layout.insertRow(0, description)
+                else:
+                    group_layout.insertWidget(0, description)
+                groups_layout.addWidget(group)
+            groups_layout.addStretch(1)
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QScrollArea.NoFrame)
+            scroll.setWidget(content)
+            self._tabs.addTab(scroll, tab_name)
+        layout.addWidget(self._tabs, 1)
+        self._save_status = QLabel("All changes saved")
+        set_muted(self._save_status, True)
+        self._apply = QPushButton("Apply changes")
+        self._apply.setMinimumWidth(130)
+        self._apply.setMinimumHeight(32)
+        self._apply.setToolTip("Save and apply changes across all settings tabs.")
         self._apply.clicked.connect(self._on_apply)
         self._applied = self._current()
         self._theme.currentIndexChanged.connect(self._refresh_apply)
@@ -126,7 +170,11 @@ class SettingsWidget(QWidget):
         self._creation._ecr_notes.textChanged.connect(self._refresh_apply)
         self._creation._change_reason.itemChanged.connect(self._refresh_apply)
         self._refresh_apply()
-        layout.addWidget(self._apply, alignment=Qt.AlignRight)
+        footer = QHBoxLayout()
+        footer.addWidget(self._save_status)
+        footer.addStretch(1)
+        footer.addWidget(self._apply)
+        layout.addLayout(footer)
 
     def _current(self) -> tuple:
         return (
@@ -139,6 +187,7 @@ class SettingsWidget(QWidget):
     def _refresh_apply(self, *_args) -> None:
         """Apply is only available while the page differs from what is applied."""
         self._apply.setEnabled(self._current() != self._applied)
+        self._save_status.setText("Unsaved changes" if self._apply.isEnabled() else "All changes saved")
 
     def confirm_leave(self) -> bool:
         """Asks what to do with pending changes; False (Cancel) keeps the user on this page."""

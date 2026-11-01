@@ -109,6 +109,9 @@ class CreationSettingsForm(QWidget):
             field.setMinimumWidth(field.fontMetrics().horizontalAdvance(field.text()) + 24)
 
         form = QFormLayout(self)
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setHorizontalSpacing(20)
+        form.setVerticalSpacing(12)
         form.addRow("Base URL:", self._base_url)
         form.addRow("Tool version:", self._tool_version)
         form.addRow("Routing:", self._routing)
