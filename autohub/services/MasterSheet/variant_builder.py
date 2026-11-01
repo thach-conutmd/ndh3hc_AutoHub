@@ -23,6 +23,8 @@ from autohub.core.normalizers import (
 )
 from autohub.core.records import BootRow, EcuGroup, EcuInfoData, HWLookup, HWRecord, KickOffInfo, SystemMatrixData
 from autohub.core.webflow_defaults import WEBFLOW_DEFAULTS
+from autohub.core.webflow_fields import HARDWARE_FIELDS
+from autohub.core.webflow_options import GENERAL_OPTION_FIELDS, normalize_option_value
 
 _SECURITY_KEY_FIELDS = ("SK1", "SK2", "SK3")
 _PROJECT_NUMBER_FIRST_PART = 159
@@ -173,6 +175,9 @@ def build_request_values(
         _apply_hw_info(request_values, hw)
     if kick_off:
         _apply_kick_off_info(request_values, kick_off)
+    for column, key, _, _ in HARDWARE_FIELDS:
+        if key in GENERAL_OPTION_FIELDS:
+            request_values[column] = normalize_option_value(key, request_values.get(column))
     return request_values
 
 
