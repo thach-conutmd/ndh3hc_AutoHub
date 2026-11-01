@@ -18,6 +18,7 @@ from .components import (
 )
 from .dropdown import read_options
 from .HardwareFields import HardwareFields
+from .Information import Information
 from .step_log import run_step
 
 _logger = logging.getLogger(__name__)
@@ -51,21 +52,29 @@ class GeneralTab:
                 _logger, "Save the job before Import from Race",
                 save_before_action, Actions(self.driver).save, "Import from Race",
             )
-            return self._hardware.import_from_race()
+            return self._collapse_after_import(self._hardware.import_from_race(), "Import from Race")
         return True
 
     def import_software_part_number(self) -> bool:
-        return self._hardware.import_software_part_number()
+        return self._collapse_after_import(self._hardware.import_software_part_number(), "Import from pool")
 
     def import_ecr(self) -> bool:
-        return self._hardware.import_ecr()
+        return self._collapse_after_import(self._hardware.import_ecr(), "ECR Import")
+
+    def _collapse_after_import(self, completed: bool, action: str) -> bool:
+        if not completed:
+            return False
+        return run_step(
+            _logger, f"Collapse the job information after {action}",
+            Information(self.driver).collapse_job_information,
+        )
 
     @property
     def imported_ecr_number(self) -> str:
         return self._hardware.imported_ecr_number
 
     def pick_pst_lib(self, project_version: str) -> bool:
-        return self._hardware.pick_pst_lib(project_version)
+        return self._collapse_after_import(self._hardware.pick_pst_lib(project_version), "Pick PST_Lib")
 
     @property
     def imported_software_part_number(self) -> str:

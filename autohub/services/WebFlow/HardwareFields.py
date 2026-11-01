@@ -10,7 +10,7 @@ from autohub.core.webflow_fields import HARDWARE_FIELDS
 from autohub.core.webflow_options import resolve_option_values
 
 from . import Constants
-from .components import Section, checkbox_is_disabled, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
+from .components import Section, button_is_enabled, checkbox_is_disabled, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
 from .number_import import NumberImport
 from .pst_lib_picker import PstLibPicker
 from .save_confirmation import SaveBeforeImportConfirmation
@@ -160,10 +160,13 @@ class HardwareFields:
                 button = section.body().find_element(
                     By.XPATH, './/button[.//span[normalize-space(.)="Import from Race"]]'
                 )
-                return button if button.is_displayed() and button.is_enabled() else False
+                return button if button.is_displayed() and button_is_enabled(button) else False
 
             button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(available_button)
             self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+            if not button_is_enabled(button):
+                _logger.error("Import from Race is disabled; import was not started")
+                return False
             button.click()
             confirmation = SaveBeforeImportConfirmation(self.driver, "Import from Race")
 

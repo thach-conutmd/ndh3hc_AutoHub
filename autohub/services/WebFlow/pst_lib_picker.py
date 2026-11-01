@@ -8,7 +8,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants
-from .components import Section
+from .components import Section, button_is_enabled
 from .save_confirmation import SaveBeforeImportConfirmation
 
 _logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class PstLibPicker:
                     By.XPATH, './/button[.//span[normalize-space(.)="Pick PST_Lib"]]'
                 )
             )
-            if not button.is_displayed() or not button.is_enabled():
+            if not button.is_displayed() or not button_is_enabled(button):
                 _logger.error("Pick PST_Lib is not available")
                 return False
             button.click()
@@ -89,12 +89,15 @@ class PstLibPicker:
                     pick_button = current_dialog.find_element(
                         By.XPATH, './/button[.//span[normalize-space(.)="Pick PST"]]'
                     )
-                    if pick_button.is_displayed() and pick_button.is_enabled():
+                    if pick_button.is_displayed() and button_is_enabled(pick_button):
                         return pick_button
                 return False
 
             pick = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(enabled_pick)
             identification = rows[0].find_elements(By.TAG_NAME, "td")[0].text.strip()
+            if not button_is_enabled(pick):
+                _logger.error("Pick PST is disabled; selection was not submitted")
+                return False
             pick.click()
 
             def dialog_closed(_driver):
