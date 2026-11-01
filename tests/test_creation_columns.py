@@ -5,6 +5,32 @@ from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
 
 
+def test_selection_buttons_follow_checkbox_changes(qapp):
+    checklist = VariantChecklist()
+    assert not checklist._clear_selection_btn.isEnabled()
+    assert not checklist._select_visible_btn.isEnabled()
+    checklist.set_variants([
+        {"part_number": "P", "ecu_type": "MG1", "event": "A"},
+        {"part_number": "Q", "ecu_type": "MG1", "event": "A"},
+    ])
+    assert not checklist._clear_selection_btn.isEnabled()
+    assert checklist._select_visible_btn.isEnabled()
+    checklist._checkboxes["P"].click()
+    assert checklist._clear_selection_btn.isEnabled()
+    assert checklist._select_visible_btn.isEnabled()
+    checklist._checkboxes["Q"].click()
+    assert not checklist._select_visible_btn.isEnabled()
+    checklist._clear_selection_btn.click()
+    assert checklist.selected_variants() == []
+    assert not any(checkbox.isChecked() for checkbox in checklist._checkboxes.values())
+    assert not checklist._clear_selection_btn.isEnabled()
+    assert checklist._select_visible_btn.isEnabled()
+    checklist._select_visible_btn.click()
+    assert len(checklist.selected_variants()) == 2
+    assert checklist._clear_selection_btn.isEnabled()
+    assert not checklist._select_visible_btn.isEnabled()
+
+
 def test_event_filter_keeps_projects_with_the_same_event_separate(qapp):
     checklist = VariantChecklist()
     checklist.set_variants([

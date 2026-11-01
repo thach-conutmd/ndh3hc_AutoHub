@@ -76,10 +76,12 @@ class VariantChecklist(QWidget):
         self._event_filter.activated.connect(self._on_event_chosen)
         self._event_chosen = False  # once the user picks an event, reloads keep it
         self._select_visible_btn = QPushButton("Select visible")
+        self._select_visible_btn.setEnabled(False)
         self._select_visible_btn.setToolTip("Select every variant in the current event filter.")
         self._select_visible_btn.clicked.connect(lambda: self._set_all(True))
         self._clear_selection_btn = QPushButton("Clear selection")
-        self._clear_selection_btn.clicked.connect(lambda: self._set_all(False))
+        self._clear_selection_btn.setEnabled(False)
+        self._clear_selection_btn.clicked.connect(self.clear_selection)
 
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(0, 0, 0, 0)
@@ -159,9 +161,6 @@ class VariantChecklist(QWidget):
             filtered = [v for v in self._variants if (v.get("event") or _NO_EVENT) == event_filter]
 
         self._empty_label.setVisible(not filtered)
-        visible_selected = sum(variant["part_number"] in self._selected for variant in filtered)
-        self._select_visible_btn.setEnabled(bool(filtered) and visible_selected < len(filtered))
-        self._clear_selection_btn.setEnabled(bool(self._selected))
         self._table.setRowCount(len(filtered))
         if filtered:
             for row, variant in enumerate(filtered):
@@ -224,4 +223,6 @@ class VariantChecklist(QWidget):
         self._emit_selection_changed()
 
     def _emit_selection_changed(self) -> None:
+        self._select_visible_btn.setEnabled(any(not checkbox.isChecked() for checkbox in self._checkboxes.values()))
+        self._clear_selection_btn.setEnabled(bool(self._selected))
         self.selectionChanged.emit(len(self._selected), len(self._variants))
