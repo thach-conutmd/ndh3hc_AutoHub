@@ -1,7 +1,8 @@
 from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants as Constants
-from .components import Section
+from .components import Section, wait_until_idle
 
 
 class Information:
@@ -24,7 +25,12 @@ class Information:
         return True
 
     def collapse_job_information(self) -> bool:
+        if not wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT):
+            return False
         if not self.is_job_information_expanded():
             return True
         self._job_information.toggle()
+        WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
+            lambda _driver: self._job_information.is_collapsed()
+        )
         return True

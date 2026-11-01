@@ -1,14 +1,14 @@
 import logging
 from typing import Callable
 
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import ElementClickInterceptedException, StaleElementReferenceException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants as Constants
 from .Information import Information
-from .components import scroll_into_view_if_hidden, wait_for, wait_until_idle
+from .components import button_is_enabled, scroll_into_view_if_hidden, wait_for, wait_until_idle
 from .step_log import run_step
 from .toast import toast_severity
 
@@ -45,20 +45,32 @@ class Actions:
 
     def save(self) -> bool:
         """Skip disabled Save; otherwise confirm the save and collapse job information."""
-        button = self.get_button_by_text("save")
-        if button is None:
+        def submit(_driver):
+            button = self.get_button_by_text("save")
+            if button is None:
+                return False
+            if not button_is_enabled(button):
+                return "unchanged"
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+            if not button.is_displayed():
+                return False
+            button.click()
+            return "submitted"
+
+        try:
+            if not wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT):
+                _logger.error("WebFlow is still busy before Save")
+                return False
+            outcome = WebDriverWait(
+                self.driver, Constants.SAVE_TIMEOUT,
+                ignored_exceptions=(ElementClickInterceptedException, StaleElementReferenceException),
+            ).until(submit)
+        except TimeoutException:
+            _logger.exception("Save did not become available before the timeout")
             return False
-        if (
-            "disabled" in (button.get_attribute("class") or "")
-            or not button.is_enabled()
-            or any(
-                button.get_attribute(attribute) == "true"
-                for attribute in ("aria-disabled", "ng-reflect-disabled", "ng-reflect-is-disabled")
-            )
-        ):
+        if outcome == "unchanged":
             _logger.info("Save is disabled; no changes to save")
             return True
-        button.click()
         if not self._saved_toast_shown():
             return False
         return run_step(
@@ -70,8 +82,9 @@ class Actions:
         def severity(driver):
             for toast in driver.find_elements(By.CSS_SELECTOR, Constants.TOAST_MESSAGE_CSS):
                 found = toast_severity(toast.get_attribute("class"))
-                if found in ("success", "error"):
-                    return found, " ".join((toast.text or "").split())
+                text = " ".join((toast.text or "").split())
+                if found == "error" or (found == "success" and "saved successfully" in text.casefold()):
+                    return found, text
             return False
 
         try:

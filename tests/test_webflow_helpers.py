@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import ElementClickInterceptedException, StaleElementReferenceException, TimeoutException, WebDriverException
 
 from autohub.services.WebFlow import GeneralTab as general_tab_module
 from autohub.services.WebFlow.GeneralTab import (
@@ -29,7 +29,7 @@ def test_toast_severity_from_the_primeng_class():
         (None, "", False),
     ],
 )
-def test_save_waits_for_confirmation_without_waiting_for_activity_indicator(
+def test_save_waits_for_readiness_and_confirmation(
     monkeypatch, toast_class, toast_text, expected
 ):
     toast = Mock()
@@ -44,7 +44,7 @@ def test_save_waits_for_confirmation_without_waiting_for_activity_indicator(
     waits = []
 
     class Wait:
-        def __init__(self, _driver, timeout):
+        def __init__(self, _driver, timeout, **_kwargs):
             waits.append(timeout)
 
         def until(self, condition):
@@ -55,19 +55,20 @@ def test_save_waits_for_confirmation_without_waiting_for_activity_indicator(
 
     monkeypatch.setattr(actions_module, "WebDriverWait", Wait)
     monkeypatch.setattr(
-        actions_module, "wait_until_idle", Mock(side_effect=AssertionError("unexpected idle wait"))
+        actions_module, "wait_until_idle", Mock(return_value=True)
     )
     collapse = Mock(return_value=True)
     monkeypatch.setattr(actions_module.Information, "collapse_job_information", collapse)
 
     assert actions.save() is expected
     button.click.assert_called_once_with()
-    assert waits == [actions_module.Constants.SAVE_TIMEOUT]
+    assert waits == [actions_module.Constants.SAVE_TIMEOUT] * 2
     assert collapse.call_count == (1 if expected else 0)
 
 
 @pytest.mark.parametrize("disabled_state", ["class", "native", "aria-disabled", "ng-reflect-disabled"])
 def test_gray_save_is_not_clicked_or_collapsed(monkeypatch, disabled_state):
+    monkeypatch.setattr(actions_module, "wait_until_idle", Mock(return_value=True))
     button = Mock()
     button.is_enabled.return_value = disabled_state != "native"
     button.get_attribute.side_effect = lambda attr: (
@@ -88,6 +89,7 @@ def test_gray_save_is_not_clicked_or_collapsed(monkeypatch, disabled_state):
 
 @pytest.mark.parametrize("collapsed", [True, False])
 def test_collapse_runs_only_after_confirmed_save(monkeypatch, collapsed):
+    monkeypatch.setattr(actions_module, "wait_until_idle", Mock(return_value=True))
     events = []
     button = Mock()
     button.get_attribute.return_value = None
@@ -122,6 +124,46 @@ def test_imports_collapse_information_only_after_completion(monkeypatch, method,
     assert getattr(tab, method)(*args) is (completed and collapsed)
     assert events == (["import", "collapse"] if completed else ["import"])
     getattr(tab._hardware, method).assert_called_once_with(*args)
+
+
+@pytest.mark.parametrize("exception", [ElementClickInterceptedException, StaleElementReferenceException])
+def test_save_relocates_after_click_was_not_dispatched(monkeypatch, exception):
+    first, second = Mock(), Mock()
+    for button in (first, second):
+        button.get_attribute.return_value = None
+    first.click.side_effect = exception()
+    actions = Actions(Mock())
+    actions.get_button_by_text = Mock(side_effect=[first, second])
+    actions._saved_toast_shown = Mock(return_value=True)
+    monkeypatch.setattr(actions_module, "wait_until_idle", Mock(return_value=True))
+    monkeypatch.setattr(actions_module.Information, "collapse_job_information", Mock(return_value=True))
+    assert actions.save()
+    first.click.assert_called_once()
+    second.click.assert_called_once()
+    actions._saved_toast_shown.assert_called_once()
+
+
+def test_uncertain_save_is_not_clicked_again(monkeypatch):
+    button = Mock()
+    button.get_attribute.return_value = None
+    button.click.side_effect = WebDriverException("connection lost")
+    actions = Actions(Mock())
+    actions.get_button_by_text = Mock(return_value=button)
+    monkeypatch.setattr(actions_module, "wait_until_idle", Mock(return_value=True))
+    with pytest.raises(WebDriverException):
+        actions.save()
+    button.click.assert_called_once()
+
+
+def test_import_success_toast_does_not_hide_save_confirmation():
+    imported, saved = Mock(), Mock()
+    for toast in (imported, saved):
+        toast.get_attribute.return_value = "p-toast-message-success"
+    imported.text = "Success Imported successfully"
+    saved.text = "Success Saved successfully"
+    driver = Mock()
+    driver.find_elements.return_value = [imported, saved]
+    assert Actions(driver)._saved_toast_shown()
 
 
 class El:

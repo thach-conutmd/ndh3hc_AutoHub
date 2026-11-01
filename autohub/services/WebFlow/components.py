@@ -12,7 +12,7 @@ import re
 import time
 from typing import Any, Callable
 
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -32,9 +32,18 @@ def wait_for(driver: Any, by: str, locator: str, timeout: float | None = None) -
 
 
 def wait_until_idle(driver: Any, timeout: float | None = None) -> Any:
-    """Waits until WebFlow's activity indicator is gone; returns the wait's result."""
-    return WebDriverWait(driver, Constants.BODY_TIMEOUT if timeout is None else timeout).until(
-        EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
+    """Waits until activity indicators and blocking loading overlays are gone."""
+    return WebDriverWait(
+        driver, Constants.BODY_TIMEOUT if timeout is None else timeout,
+        ignored_exceptions=(StaleElementReferenceException,),
+    ).until(
+        lambda current: not any(
+            element.is_displayed() for element in current.find_elements(
+                By.CSS_SELECTOR,
+                f".{Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS}, "
+                ".loading-screen-wrapper, .loading-screen-icon, .overlay-screen-wrapper",
+            )
+        )
     )
 
 

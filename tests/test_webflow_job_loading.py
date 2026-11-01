@@ -62,7 +62,7 @@ def test_recorded_browser_error_page_is_not_success(monkeypatch):
     monkeypatch.setattr(Constants, "WEBFLOW_MAX_ATTEMPTS", 1)
     monkeypatch.setattr(Constants, "WEBFLOW_REFRESH_INTERVAL", 0)
     path = Path(__file__).resolve().parents[1] / (
-        "logs/webflow_trace/20261101_134207/001_Open_job_16468_OK.html"
+        "logs/webflow_trace/20261101_134207/002_37820_6WZ_M610_M6_Select_the_General_tab_FAILED.html"
     )
     parser = TitleParser()
     html = path.read_text(encoding="utf-8")
