@@ -82,7 +82,6 @@ def select_dropdown(driver: Any, title_xpath: str, button_css: str, value: str, 
         if selected(driver):
             return True
         button_element().click()
-        pause()
         if not wait_until_idle(driver):
             return False
 
@@ -95,6 +94,9 @@ def select_dropdown(driver: Any, title_xpath: str, button_css: str, value: str, 
         if option is None:
             _logger.error("Drop-down %s does not offer %r; available values: %s", title_xpath, value, list(options or {}))
             return False
+        WebDriverWait(driver, Constants.BODY_TIMEOUT).until(
+            lambda _driver: option if option.is_displayed() and option.is_enabled() else False
+        )
         option.click()
         if not wait_until_idle(driver):
             return False
