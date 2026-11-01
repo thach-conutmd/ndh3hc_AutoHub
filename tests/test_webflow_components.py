@@ -98,6 +98,20 @@ def test_dropdown_opens_and_clicks_the_option(page):
     assert button.clicks == 1 and option.clicks == 1
 
 
+def test_dropdown_matches_options_with_updated_unpadded_labels(page):
+    button = dropdown(page)
+    option = Element()
+
+    def click_option():
+        option.clicks += 1
+        button.children[".//span[normalize-space(text())='10']"] = Element()
+
+    option.click = click_option
+
+    assert select_dropdown(Driver(), "//title", "div.btn", " 10", lambda: {"10": option}) is True
+    assert button.clicks == 1 and option.clicks == 1
+
+
 def test_dropdown_without_the_value_clicks_no_option(page):
     button = dropdown(page)
     other = Element()
