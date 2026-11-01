@@ -9,7 +9,7 @@ from autohub.services.WebFlow import ECUTab as ecu_tab_module
 from autohub.services.WebFlow import pst_lib_picker as picker_module
 from autohub.services.WebFlow.ECUTab import ECUTab
 from autohub.services.WebFlow.HardwareFields import HardwareFields
-from autohub.services.WebFlow.components import Section, TabLink, select_dropdown
+from autohub.services.WebFlow.components import Section, TabLink, select_dropdown, similar_option
 from autohub.services.WebFlow.job_filler import JobFiller
 
 
@@ -130,6 +130,53 @@ def test_dropdown_missing_title_is_a_failure(page):
 def test_dropdown_rejects_a_value_that_does_not_stick(page):
     dropdown(page)
     assert select_dropdown(Driver(), "//title", "div.btn", "Pre-Production", lambda: {"Pre-Production": Element()}) is False
+
+
+@pytest.mark.parametrize("value, labels, expected", [
+    ("PD W0002", ["PD W0001 (Productive)", "PD W0002 (Productive)"], "PD W0002 (Productive)"),
+    ("pd  w0002", ["PD W0002 (Productive)"], "PD W0002 (Productive)"),
+    ("PD W0002", ["PD W0002", "PD W0002 (Productive)"], "PD W0002"),
+    ("W0002", ["PD W0002 (Productive)", "PD W0003 (Productive)"], "PD W0002 (Productive)"),
+    ("PD W0002 (Productive)", ["PD W0002"], "PD W0002"),
+    ("PD W0002", ["PD W00021 (Productive)"], None),
+    ("PD W0002", ["PD W0002 (Productive)", "PD W0002 (Test)"], None),
+    ("", ["PD W0002 (Productive)"], None),
+])
+def test_similar_option(value, labels, expected):
+    assert similar_option(value, labels) == expected
+
+
+def test_similar_dropdown_selects_the_option_containing_the_value(page):
+    button = dropdown(page)
+    option, other = Element(), Element()
+
+    def click_option():
+        option.clicks += 1
+        button.children[".//span[text()='PD W0002 (Productive)']"] = Element()
+
+    option.click = click_option
+    options = {"PD W0001 (Productive)": other, "PD W0002 (Productive)": option}
+
+    assert select_dropdown(Driver(), "//title", "div.btn", "PD W0002", lambda: options, similar=True) is True
+    assert option.clicks == 1 and other.clicks == 0
+
+
+def test_similar_dropdown_already_showing_a_similar_value_is_not_clicked(page):
+    button = dropdown(page)
+    shown = Element()
+    shown.text = "PD W0002 (Productive)"
+    button.children[".//span[contains(normalize-space(text()), 'PD W0002')]"] = shown
+    assert select_dropdown(
+        Driver(), "//title", "div.btn", "PD W0002", lambda: pytest.fail("options read"), similar=True
+    ) is True
+    assert button.clicks == 0
+
+
+def test_exact_dropdowns_do_not_pick_similar_options(page):
+    dropdown(page)
+    option = Element()
+    assert select_dropdown(Driver(), "//title", "div.btn", "PD W0002", lambda: {"PD W0002 (Productive)": option}) is False
+    assert option.clicks == 0
 
 
 def section(page, style):

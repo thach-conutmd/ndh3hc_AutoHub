@@ -8,6 +8,7 @@ in tests) after the widgets are built.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Any, Callable
 
@@ -47,9 +48,42 @@ def pause() -> None:
     time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
 
 
-def select_dropdown(driver: Any, title_xpath: str, button_css: str, value: str, read_options: OptionsReader) -> bool:
+def _normalized(text: str) -> str:
+    return " ".join(str(text).split()).casefold()
+
+
+def _starts_with_words(text: str, prefix: str) -> bool:
+    """``prefix`` begins ``text`` and ends on a word boundary ("PD W0002" in "PD W0002 (Productive)", not "PD W00021")."""
+    return bool(prefix) and text.startswith(prefix) and (len(text) == len(prefix) or not text[len(prefix)].isalnum())
+
+
+def similar_option(value: str, labels) -> str | None:
+    """The one label matching ``value`` ignoring case and spacing, else the one label extending it with
+    whole words (or contained in it word-for-word, either way); None when nothing or several labels match."""
+    wanted = _normalized(value)
+    labels = list(labels)
+    for tier in (
+        lambda label: label == wanted,
+        lambda label: _starts_with_words(label, wanted),
+        lambda label: bool(re.search(rf"(?<!\w){re.escape(wanted)}(?!\w)", label)) if wanted else False,
+        lambda label: _starts_with_words(wanted, label),
+    ):
+        matches = [label for label in labels if tier(_normalized(label))]
+        if len(matches) == 1:
+            return matches[0]
+        if matches:
+            _logger.error("Drop-down value %r is ambiguous; it matches %s", value, matches)
+            return None
+    return None
+
+
+def select_dropdown(
+    driver: Any, title_xpath: str, button_css: str, value: str, read_options: OptionsReader, similar: bool = False,
+) -> bool:
     """Selects ``value`` in the drop-down next to the title; True if it is (or was already) chosen.
 
+    With ``similar``, a value without an exact option selects the one option that contains it
+    (see ``similar_option``), e.g. "PD W0002" selects "PD W0002 (Productive)".
     Missing options or a value that does not stick are failures, never successful idle waits."""
     try:
         def button_element():
@@ -61,46 +95,57 @@ def select_dropdown(driver: Any, title_xpath: str, button_css: str, value: str, 
                 return "'" + text + "'"
             return 'concat(' + ', "\'", '.join("'" + part + "'" for part in text.split("'")) + ')'
 
-        literal = xpath_literal(value)
-
-        def selected(_driver):
+        def shows(label: str) -> bool:
             try:
-                button_element().find_element(By.XPATH, f'.//span[text()={literal}]')
+                button_element().find_element(By.XPATH, f'.//span[text()={xpath_literal(label)}]')
                 return True
             except NoSuchElementException:
-                if value != value.strip():
-                    normalized_literal = xpath_literal(value.strip())
+                if label != label.strip():
                     try:
                         button_element().find_element(
-                            By.XPATH, f'.//span[normalize-space(text())={normalized_literal}]'
+                            By.XPATH, f'.//span[normalize-space(text())={xpath_literal(label.strip())}]'
                         )
                         return True
                     except NoSuchElementException:
                         pass
                 return False
 
-        if selected(driver):
+        def shows_similar() -> bool:
+            try:
+                span = button_element().find_element(
+                    By.XPATH, f'.//span[contains(normalize-space(text()), {xpath_literal(value.strip())})]'
+                )
+            except NoSuchElementException:
+                return False
+            return similar_option(value, [span.text]) is not None
+
+        if shows(value) or (similar and shows_similar()):
             return True
         button_element().click()
         if not wait_until_idle(driver):
             return False
 
-        options = read_options()
-        option = (options or {}).get(value)
-        if option is None and options and value != value.strip():
-            matches = [item for label, item in options.items() if label.strip() == value.strip()]
+        options = read_options() or {}
+        label = value if value in options else None
+        if label is None and value != value.strip():
+            matches = [item for item in options if item.strip() == value.strip()]
             if len(matches) == 1:
-                option = matches[0]
-        if option is None:
-            _logger.error("Drop-down %s does not offer %r; available values: %s", title_xpath, value, list(options or {}))
+                label = matches[0]
+        if label is None and similar:
+            label = similar_option(value, options)
+            if label is not None:
+                _logger.info("Drop-down %s: selecting %r for configured value %r", title_xpath, label, value)
+        if label is None:
+            _logger.error("Drop-down %s does not offer %r; available values: %s", title_xpath, value, list(options))
             return False
+        option = options[label]
         WebDriverWait(driver, Constants.BODY_TIMEOUT).until(
             lambda _driver: option if option.is_displayed() and option.is_enabled() else False
         )
         option.click()
         if not wait_until_idle(driver):
             return False
-        WebDriverWait(driver, Constants.BODY_TIMEOUT).until(selected)
+        WebDriverWait(driver, Constants.BODY_TIMEOUT).until(lambda _driver: shows(label) or shows(value))
         return True
     except Exception:
         _logger.warning("Could not select %r in drop-down %s", value, title_xpath, exc_info=True)

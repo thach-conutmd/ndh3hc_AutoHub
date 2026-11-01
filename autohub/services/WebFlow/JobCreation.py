@@ -137,8 +137,10 @@ class JobCreation:
     def get_options(self) -> dict | None:
         return read_options(self.driver, Constants.BODY_JOBCREATION_OPTIONS_CLASS, Constants.BODY_JOBCREATION_OPTIONS_MAX_ITEMS)
 
-    def _select(self, title_xpath: str, value: str) -> bool:
-        return select_dropdown(self.driver, title_xpath, Constants.BODY_JOBCREATION_BTN_CSS, value, self.get_options)
+    def _select(self, title_xpath: str, value: str, similar: bool = False) -> bool:
+        return select_dropdown(
+            self.driver, title_xpath, Constants.BODY_JOBCREATION_BTN_CSS, value, self.get_options, similar=similar
+        )
 
     def select_ecu_generation(self, ecu_generation: str = "---") -> bool:
         return self._select(Constants.BODY_JOBCREATION_ECUGEN_XPATH, ecu_generation)
@@ -156,7 +158,8 @@ class JobCreation:
         return self._select(Constants.BODY_JOBCREATION_WRKMODE_XPATH, working_mode)
 
     def select_tool_version(self, tool_version: str = "---") -> bool:
-        return self._select(Constants.BODY_JOBCREATION_TOOLVER_XPATH, tool_version)
+        # Tool version labels carry a status suffix, e.g. "PD W0002" is offered as "PD W0002 (Productive)".
+        return self._select(Constants.BODY_JOBCREATION_TOOLVER_XPATH, tool_version, similar=True)
 
     def select_routing(self, routing: str = "---") -> bool:
         return self._select(Constants.BODY_JOBCREATION_ROUTING_XPATH, routing)
