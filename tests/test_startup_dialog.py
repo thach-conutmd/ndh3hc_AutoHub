@@ -23,6 +23,26 @@ def test_startup_dialog_reports_each_step_and_hands_over_to_the_window(qapp):
     window.close()
 
 
+def test_main_window_opens_on_the_same_monitor_as_the_startup_dialog(qapp, monkeypatch):
+    from PySide6.QtGui import QGuiApplication
+
+    from autohub.ui import startup_dialog
+
+    screen = QGuiApplication.primaryScreen()
+    monkeypatch.setattr(startup_dialog, "launch_screen", lambda: screen)
+    dialog = StartupDialog(1)
+    dialog.start()
+    window = QWidget()
+    window.resize(screen.availableGeometry().width() + 200, 300)  # wider than the monitor
+    dialog.finish(window)
+    available = screen.availableGeometry()
+    assert window.screen() is screen and dialog.screen() is screen
+    assert available.contains(dialog.frameGeometry())
+    assert abs(dialog.geometry().center().x() - available.center().x()) <= 2
+    assert available.contains(window.frameGeometry().topLeft())
+    window.close()
+
+
 def test_run_startup_runs_steps_in_order_and_fills_progress(qapp):
     seen, ran = [], []
     dialog = StartupDialog(2)

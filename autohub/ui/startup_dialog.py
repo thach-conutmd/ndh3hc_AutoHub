@@ -2,11 +2,27 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QCursor, QGuiApplication, QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from autohub.config import APP_NAME, APP_VERSION, LOGO_PATH
 from autohub.ui.theme import set_muted
+
+
+def launch_screen():
+    """The monitor AutoHub opens on: the one under the mouse, otherwise the primary monitor."""
+    return QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+
+
+def center_on(widget: QWidget, screen) -> None:
+    if screen is None:
+        return
+    widget.setScreen(screen)
+    available = screen.availableGeometry()
+    frame = widget.frameGeometry()
+    frame.moveCenter(available.center())
+    # Keep the title bar reachable when the window is larger than the monitor.
+    widget.move(max(frame.left(), available.left()), max(frame.top(), available.top()))
 
 
 class StartupDialog(QWidget):
@@ -17,6 +33,7 @@ class StartupDialog(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle(f"Starting {APP_NAME}")
         self.setFixedSize(420, 220)
+        self._screen = None
 
         card = QFrame(self)
         card.setObjectName("startupCard")
@@ -73,9 +90,8 @@ class StartupDialog(QWidget):
         return self._progress.value()
 
     def start(self) -> None:
-        screen = QApplication.primaryScreen()
-        if screen is not None:
-            self.move(screen.availableGeometry().center() - self.rect().center())
+        self._screen = launch_screen()
+        center_on(self, self._screen)
         self.show()
         self._repaint()
 
@@ -92,6 +108,7 @@ class StartupDialog(QWidget):
         self._progress.setValue(self._progress.maximum())
         self._status.setText("Ready")
         self._repaint()
+        center_on(window, self._screen)
         window.show()
         window.raise_()
         window.activateWindow()
