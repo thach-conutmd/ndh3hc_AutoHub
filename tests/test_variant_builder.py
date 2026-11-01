@@ -72,7 +72,11 @@ def test_request_values_for_a_variant():
 def test_project_purpose_uses_project_event_and_milestone():
     values = build_request_values(GENERAL, {**ECU, "Event": "HIN"}, MAIN, {}, SYSTEM)
     assert values["H"] == "62XS - HIN Lot / MP1"
-    assert webflow_variant_from_row(values["J"], values)["event"] == "62XS - HIN"
+    variant = webflow_variant_from_row(values["J"], values)
+    assert (variant["event"], variant["project"], variant["event_name"]) == ("62XS - HIN", "62XS", "HIN")
+    legacy = webflow_variant_from_row("P", {"H": "6WZX for MP0 event"})
+    assert (legacy["project"], legacy["event_name"]) == ("6WZX", "MP0")
+    assert (webflow_variant_from_row("P", {"H": "free text"})["project"], webflow_variant_from_row("P", {})["event_name"]) == ("", "")
 
 
 def test_security_type_1_joins_sk1_sk2_sk3():

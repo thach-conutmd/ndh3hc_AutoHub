@@ -146,9 +146,11 @@ Their internals were not reviewed for this document.
   Columns without a corresponding control are ignored and not shown; values are never guessed.
   Configuration still supplies fields without a sheet column. PST_Lib selection uses Master Sheet Program version (PVER, column AY), not FSWID Project Version. The creation service measures the entire
   operation with `perf_counter`, exposing elapsed seconds to the completion/failure dialog and log.
-- **WF-6 (ECR import):** Creation settings supply Change engineer, Cost allocation, Change Reason and
-  ECR notes through the creation service, not Selenium imports in the UI. All four settings are
-  required if any is configured; all blank preserves the previous workflow. The page adapter fills
+- **WF-6 (ECR import):** Creation settings supply Change engineer, Cost allocation and Change Reason
+  through the creation service, not Selenium imports in the UI. All three settings are
+  required if any is configured; all blank preserves the previous workflow. The creation service
+  generates each job's ECR notes from its Project Purpose project and event
+  (`This container is for {project} {event name} event.`). The page adapter fills
   only these controls in ECR Information, imports once and waits for the read-only ECR number.
   ECR-enabled jobs stop on the first failed step before Save. Retain the imported number per variant
   and expose `ECRNumber` in job results. The creation service writes allocated SW/ECR numbers through

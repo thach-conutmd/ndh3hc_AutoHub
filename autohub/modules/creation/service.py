@@ -19,6 +19,11 @@ _logger = logging.getLogger(__name__)
 MAX_ATTEMPTS = DEFAULT_WEBFLOW_MAX_ATTEMPTS
 
 
+def ecr_notes(project: str, event_name: str) -> str:
+    """ECR notes written to every job; generated from the variant's Project Purpose."""
+    return f"This container is for {project} {event_name} event."
+
+
 @dataclass(frozen=True)
 class WebFlowConfig:
     driver_path: str
@@ -29,7 +34,6 @@ class WebFlowConfig:
     change_engineer: str = ""
     cost_allocation: str = ""
     change_reason: str = ""
-    ecr_notes: str = ""
     max_attempts: int = DEFAULT_WEBFLOW_MAX_ATTEMPTS
     retry_enabled: bool = True
 
@@ -192,14 +196,20 @@ class WebFlowJobService:
             "change_engineer": config.change_engineer,
             "cost_allocation": config.cost_allocation,
             "change_reason": config.change_reason,
-            "ecr_notes": config.ecr_notes,
         }
         if any(ecr.values()):
             missing = [key for key, value in ecr.items() if not value.strip()]
             if missing:
                 raise ValueError(f"Complete ECR settings before creating jobs: {', '.join(missing)}.")
-            for job_variant in state["variants"]:
-                job_variant.setdefault("ecr", dict(ecr))
+            pending = [job_variant for job_variant in state["variants"] if "ecr" not in job_variant]
+            unknown = [v.get("part_number", "?") for v in pending if not (v.get("project") and v.get("event_name"))]
+            if unknown:
+                raise ValueError(
+                    "Cannot write ECR notes: Project Purpose has no project and event for "
+                    f"{', '.join(unknown)}. Use '<Project> - <Event> Lot / <MP>' and reload the variants."
+                )
+            for job_variant in pending:
+                job_variant["ecr"] = {**ecr, "ecr_notes": ecr_notes(job_variant["project"], job_variant["event_name"])}
         for variant in variants:
             variant.pop("imported_ecr_number", None)
         try:

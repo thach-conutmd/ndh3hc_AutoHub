@@ -104,13 +104,12 @@ def test_ecr_settings_are_loaded_and_editable(qapp):
         "change_engineer": "Configured engineer",
         "cost_allocation": "Configured allocation",
         "change_reason": "Customer requirement (Target: Customer covers costs)",
-        "ecr_notes": "Release notes\nSecond line",
     }
-    config = load_config(MemorySettings(values))
+    config = load_config(MemorySettings({**values, "ecr_notes": "Old saved notes"}))
     dialog = WebFlowSettingsDialog(config)
-    assert {key: dialog.values()[key] for key in values} == values
-    dialog._ecr_notes.setPlainText("New notes")
-    assert dialog.values()["ecr_notes"] == "New notes"
+    assert dialog.values() == {**dialog.values(), **values}
+    assert "ecr_notes" not in dialog.values()
+    assert not hasattr(dialog, "_ecr_notes")
 
 
 def test_change_reason_list_matches_webflow_options_and_saves_multiple_selections(qapp):
@@ -162,14 +161,12 @@ def test_creation_settings_width_fits_reason_options_and_input_content(qapp):
 
 def test_creation_reason_dropdown_opens_filters_and_keeps_multiple_checks(qapp):
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QPlainTextEdit
     from autohub.modules.settings.creation_form import CreationSettingsForm as WebFlowSettingsDialog, CHANGE_REASON_OPTIONS
 
     dialog = WebFlowSettingsDialog(WebFlowConfig("", "", "", ""))
     dialog.show()
     qapp.processEvents()
     assert not dialog._reason_popup.isVisible()
-    assert dialog._ecr_notes.height() == QPlainTextEdit().sizeHint().height() // 2
     dialog._reason_button.click()
     qapp.processEvents()
     assert dialog._reason_popup.isVisible()
@@ -193,25 +190,45 @@ def test_creation_service_passes_ecr_settings_without_mutating_sheet_variants():
     factory = Mock()
     factory.return_value.create_and_fill_jobs.return_value = []
     service = WebFlowJobService(factory)
-    variants = [{"part_number": "PN"}]
+    variants = [
+        {"part_number": "PN", "project": "62XS", "event_name": "HIN"},
+        {"part_number": "PN2", "project": "6WZX", "event_name": "MP0"},
+    ]
+    original = [dict(variant) for variant in variants]
     config = WebFlowConfig(
-        "", "", "", "", change_engineer="Engineer", cost_allocation="Allocation",
-        change_reason="Reason", ecr_notes="Notes",
+        "", "", "", "", change_engineer="Engineer", cost_allocation="Allocation", change_reason="Reason",
     )
     service.create_jobs(variants, config)
     sent = factory.return_value.create_and_fill_jobs.call_args.args[0]
     assert sent[0]["ecr"] == {
         "change_engineer": "Engineer", "cost_allocation": "Allocation",
-        "change_reason": "Reason", "ecr_notes": "Notes",
+        "change_reason": "Reason", "ecr_notes": "This container is for 62XS HIN event.",
     }
-    assert variants == [{"part_number": "PN"}]
+    assert sent[1]["ecr"]["ecr_notes"] == "This container is for 6WZX MP0 event."
+    assert variants == original
+
+
+def test_ecr_notes_need_a_recognised_project_purpose_before_opening_browser():
+    factory = Mock()
+    service = WebFlowJobService(factory)
+    config = WebFlowConfig("", "", "", "", change_engineer="E", cost_allocation="A", change_reason="R")
+    with pytest.raises(ValueError, match="Project Purpose has no project and event for PN"):
+        service.create_jobs([{"part_number": "PN", "project": "", "event_name": ""}], config)
+    factory.assert_not_called()
+
+
+def test_ecr_notes_are_not_needed_without_ecr_settings():
+    factory = Mock()
+    factory.return_value.create_and_fill_jobs.return_value = []
+    WebFlowJobService(factory).create_jobs([{"part_number": "PN"}], WebFlowConfig("", "", "", ""))
+    assert "ecr" not in factory.return_value.create_and_fill_jobs.call_args.args[0][0]
 
 
 def test_partial_ecr_settings_fail_before_opening_browser():
     factory = Mock()
     service = WebFlowJobService(factory)
     with pytest.raises(ValueError, match="Complete ECR settings"):
-        service.create_jobs([{"part_number": "PN"}], WebFlowConfig("", "", "", "", ecr_notes="Notes"))
+        service.create_jobs([{"part_number": "PN"}], WebFlowConfig("", "", "", "", change_reason="Reason"))
     factory.assert_not_called()
 
 
@@ -225,17 +242,16 @@ def test_creation_service_retains_allocated_ecr_on_original_variant(fails_later)
         return [{"PartNumber": "PN", "ECRNumber": "ECR123"}]
     factory.return_value.create_and_fill_jobs.side_effect = create
     service = WebFlowJobService(factory, sleep=lambda _seconds: None)
-    variants = [{"part_number": "PN", "imported_ecr_number": "previous run"}]
+    variants = [{"part_number": "PN", "project": "62XS", "event_name": "HIN", "imported_ecr_number": "previous run"}]
     config = WebFlowConfig(
-        "", "", "", "", change_engineer="Engineer", cost_allocation="Allocation",
-        change_reason="Reason", ecr_notes="Notes",
+        "", "", "", "", change_engineer="Engineer", cost_allocation="Allocation", change_reason="Reason",
     )
     if fails_later:
         with pytest.raises(RuntimeError, match="later tab failed"):
             service.create_jobs(variants, config)
     else:
         assert service.create_jobs(variants, config)[0]["ECRNumber"] == "ECR123"
-    assert variants == [{"part_number": "PN", "imported_ecr_number": "ECR123"}]
+    assert variants == [{"part_number": "PN", "project": "62XS", "event_name": "HIN", "imported_ecr_number": "ECR123"}]
 
 
 def test_ecr_notes_use_a_textarea(monkeypatch):

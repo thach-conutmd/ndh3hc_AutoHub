@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from autohub.core.normalizers import clean_text, parse_event
+from autohub.core.normalizers import clean_text, parse_event, project_event
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 
@@ -50,12 +50,15 @@ def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
         *_GENERAL_COLUMNS.values(), *_ECU_COLUMNS.values(), *_CUSTOMER_COLUMNS.values(),
         *(field[0] for field in HARDWARE_FIELDS),
     }
+    project, event_name = project_event(row.get("H"))
     return {
         "part_number": part_number,
         "ecu_generation": _text(row.get("Q")),
         "brand": _text(row.get("R")),
         "ecu_type": _text(row.get("S")),
         "event": parse_event(row.get("H")),
+        "project": project,
+        "event_name": event_name,
         "created_at": row.get("C"),
         "general": general,
         "hardware": {key: _text(row.get(column)) for column, key, _, _ in HARDWARE_FIELDS},
