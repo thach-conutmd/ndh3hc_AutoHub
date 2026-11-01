@@ -123,19 +123,32 @@ class HomePresenter:
         self._show_rows(latest_rows(self._loaded_rows, self.latest_count()))
 
     def browse_master_sheet(self) -> None:
-        self._pick(MASTER_SHEET, "Select file", _EXCEL_FILTER)
+        """Load Master Sheet: picks a file, clears the table and loads that sheet's variants."""
+        title = f"Load {MASTER_SHEET}"
+        path = self._dialogs.pick_file("Select file", _EXCEL_FILTER)
+        if not path:
+            return
+        if self._edited and not self._dialogs.confirm(
+            title,
+            "The table has changes that are not in the Master Sheet yet. Loading another Master Sheet "
+            "discards them.\n\nContinue?",
+        ):
+            return
+        problem = self._service.master_sheet_problem(path)
+        if problem:
+            _logger.error("Master Sheet not loaded: %s", problem)
+            self._dialogs.error(title, problem)
+            return
+        self._set_path(MASTER_SHEET, path)
+        self._settings.update(**{SETTINGS_KEYS[MASTER_SHEET]: path})
+        _logger.info("%s file selected: %s", MASTER_SHEET, path)
+        self._clear_rows()
+        self._view.publish_variants([])
+        self._start_load(path, keep_rows=False)
 
     def _set_path(self, field_name: str, path: str) -> None:
         self._paths[field_name] = path
         self._view.show_file_name(field_name, path)
-
-    def _pick(self, field_name: str, title: str, file_filter: str) -> str:
-        path = self._dialogs.pick_file(title, file_filter)
-        if path:
-            self._set_path(field_name, path)
-            self._settings.update(**{SETTINGS_KEYS[field_name]: path})
-            _logger.info("%s file selected: %s", field_name, path)
-        return path
 
     def _valid_master_sheet(self, title: str) -> str | None:
         path = self._paths.get(MASTER_SHEET, "")
