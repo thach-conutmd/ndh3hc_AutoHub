@@ -312,6 +312,7 @@ def test_race_import_follows_only_successfully_filled_hardware_number(monkeypatc
     collapse = Mock(return_value=True)
     monkeypatch.setattr(Information, "collapse_job_information", collapse)
     general = GeneralTab(Mock())
+    general.driver.find_elements.return_value = []
     general._hardware = Mock()
     general._hardware.fill.return_value = filled
     general._hardware.import_from_race.return_value = imported
@@ -351,6 +352,7 @@ def test_race_import_saves_after_hardware_number_and_before_import(monkeypatch):
     monkeypatch.setattr(Actions, "save", lambda _self: events.append("save") or True)
     monkeypatch.setattr(Information, "collapse_job_information", lambda _self: events.append("collapse") or True)
     general = GeneralTab(Mock())
+    general.driver.find_elements.return_value = []
     general._hardware = Mock()
     general._hardware.fill.side_effect = lambda *_: events.append("fill") or True
     general._hardware.import_from_race.side_effect = lambda: events.append("import") or True

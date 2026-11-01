@@ -114,6 +114,7 @@ def test_collapse_runs_only_after_confirmed_save(monkeypatch, collapsed):
 def test_imports_collapse_information_only_after_completion(monkeypatch, method, args, completed, collapsed):
     events = []
     tab = GeneralTab(Mock())
+    tab.driver.find_elements.return_value = []
     tab._hardware = Mock()
     getattr(tab._hardware, method).side_effect = lambda *_: events.append("import") or completed
     monkeypatch.setattr(
@@ -164,6 +165,38 @@ def test_import_success_toast_does_not_hide_save_confirmation():
     driver = Mock()
     driver.find_elements.return_value = [imported, saved]
     assert Actions(driver)._saved_toast_shown()
+
+
+@pytest.mark.parametrize("severity,text,should_close", [
+    ("success", "Success\nImported successfully", True),
+    ("success", "Success Saved successfully", False),
+    ("error", "Error Imported successfully", False),
+    ("warn", "Warning Import failed", False),
+])
+def test_closes_only_known_import_success_toast(severity, text, should_close):
+    toast = Mock()
+    toast.text = text
+    toast.get_attribute.return_value = f"p-toast-message-{severity}"
+    toast.is_displayed.return_value = True
+    close = toast.find_element.return_value
+    close.get_attribute.return_value = None
+    close.click.side_effect = lambda: setattr(toast.is_displayed, "return_value", False)
+    driver = Mock()
+    driver.find_elements.return_value = [toast]
+    assert actions_module.close_import_success(driver)
+    assert close.click.call_count == (1 if should_close else 0)
+
+
+def test_import_success_close_failure_is_reported(monkeypatch):
+    toast = Mock()
+    toast.text = "Success Imported successfully"
+    toast.get_attribute.return_value = "p-toast-message-success"
+    toast.find_element.return_value.get_attribute.return_value = None
+    driver = Mock()
+    driver.find_elements.return_value = [toast]
+    monkeypatch.setattr(actions_module.Constants, "BODY_TIMEOUT", 0)
+    assert not actions_module.close_import_success(driver)
+    toast.find_element.return_value.click.assert_called_once()
 
 
 class El:

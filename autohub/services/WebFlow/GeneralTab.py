@@ -7,7 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants as Constants
-from .Actions import Actions, save_before_action
+from .Actions import Actions, close_import_success, save_before_action
 from .components import (
     Section,
     TabLink,
@@ -64,10 +64,12 @@ class GeneralTab:
     def _collapse_after_import(self, completed: bool, action: str) -> bool:
         if not completed:
             return False
-        return run_step(
+        if not run_step(
             _logger, f"Collapse the job information after {action}",
             Information(self.driver).collapse_job_information,
-        )
+        ):
+            return False
+        return run_step(_logger, f"Close import-success message after {action}", close_import_success, self.driver)
 
     @property
     def imported_ecr_number(self) -> str:
