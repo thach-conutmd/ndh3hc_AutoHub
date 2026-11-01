@@ -234,7 +234,7 @@ def test_settings_controls_are_organized_in_groups(qapp):
 
     page = SettingsWidget(MemorySettings())
     groups = {group.title(): group for group in page.findChildren(QGroupBox)}
-    assert list(groups) == ["Theme", "Logging", "Analysis", "Home", "Creation", "WebFlow Retry"]
+    assert set(groups) == {"Theme", "Logging", "Analysis", "Home", "Creation", "WebFlow Retry"}
     assert page._theme.parentWidget() is groups["Theme"]
     assert page._logging.parentWidget() is groups["Logging"]
     assert page._record.parentWidget() is groups["Analysis"]
@@ -313,3 +313,18 @@ def test_creation_settings_are_saved_and_discarded_from_settings_page(qapp):
     assert not page._apply.isEnabled()
     creation = CreationWidget(WebFlowJobService(FakeWebFlow), settings)
     assert not hasattr(creation, "_settings_btn")
+
+
+def test_settings_tabs_keep_pending_changes_and_shared_footer(qapp):
+    page = SettingsWidget(MemorySettings())
+    assert [page._tabs.tabText(index) for index in range(page._tabs.count())] == [
+        "General", "Home", "Creation", "Diagnostics",
+    ]
+    assert page._save_status.text() == "All changes saved"
+    page._creation._routing.setText("New routing")
+    page._tabs.setCurrentIndex(3)
+    assert page._save_status.text() == "Unsaved changes"
+    assert page._apply.isEnabled()
+    page._apply.click()
+    assert page._save_status.text() == "All changes saved"
+    assert page._settings.load()["routing"] == "New routing"
