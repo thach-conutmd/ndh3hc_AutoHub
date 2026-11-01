@@ -1,0 +1,135 @@
+{
+ "step": "[37820-6WZ-M610-M6] General: Lead Plant = SaW",
+ "navigated": false,
+ "dropped": 0,
+ "events": [
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_2978_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "Insert description"
+   },
+   "t": 58193,
+   "type": "added"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": null,
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": "display: inline-block;",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": "display: inline-block; width: fit-content;",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": "pn_id_2978_tooltip",
+   "old": null,
+   "t": 58193,
+   "target": "div#2356 > div:nth-of-type(2)",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": "display: inline-block; width: fit-content; pointer-events: none;",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px;",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "class",
+   "new": "p-tooltip p-component p-tooltip-bottom",
+   "old": null,
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px; top: -999px;",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: -999px;",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px;",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0;",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0;",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 446.906px; top: 565.812px; opacity: 0; z-index: 2",
+   "t": 58193,
+   "target": "div#pn_id_2978_tooltip",
+   "type": "attr"
+  },
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_2978_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "Insert description"
+   },
+   "t": 58193,
+   "type": "removed"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": null,
+   "old": "pn_id_2978_tooltip",
+   "t": 58193,
+   "target": "div#2356 > div:nth-of-type(2)",
+   "type": "attr"
+  }
+ ]
+}
