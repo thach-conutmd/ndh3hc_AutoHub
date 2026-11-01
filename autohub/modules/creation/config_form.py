@@ -11,7 +11,9 @@ from PySide6.QtWidgets import (
 
 from autohub.config import LOG_DIR
 from autohub.core.settings import SettingsStore
-from autohub.core.settings_keys import DEFAULT_WEBFLOW_MAX_ATTEMPTS, RECORD_PAGES_KEY, WEBFLOW_MAX_ATTEMPTS_KEY
+from autohub.core.settings_keys import (
+    DEFAULT_WEBFLOW_MAX_ATTEMPTS, RECORD_PAGES_KEY, WEBFLOW_MAX_ATTEMPTS_KEY, WEBFLOW_RETRY_ENABLED_KEY,
+)
 from autohub.modules.creation.service import WebFlowConfig
 
 _DEFAULTS = {
@@ -45,6 +47,7 @@ def load_config(settings: SettingsStore) -> WebFlowConfig:
         change_reason=str(saved.get("change_reason", "")).strip(),
         ecr_notes=str(saved.get("ecr_notes", "")).strip(),
         max_attempts=saved.get(WEBFLOW_MAX_ATTEMPTS_KEY, DEFAULT_WEBFLOW_MAX_ATTEMPTS),
+        retry_enabled=saved.get(WEBFLOW_RETRY_ENABLED_KEY, True),
     )
 
 
