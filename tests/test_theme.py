@@ -328,3 +328,19 @@ def test_settings_tabs_keep_pending_changes_and_shared_footer(qapp):
     page._apply.click()
     assert page._save_status.text() == "All changes saved"
     assert page._settings.load()["routing"] == "New routing"
+
+
+def test_home_workspace_summary_tracks_rows_selection_and_clear(qapp):
+    from autohub.modules.home.ui import HomeWidget
+    from tests.fakes import build_service
+
+    home = HomeWidget(build_service(), MemorySettings())
+    assert home._row_summary.text() == "No variants loaded"
+    home.show_rows([{"J": "P1"}, {"J": "P2"}])
+    assert home._row_summary.text() == "2 variants"
+    home._variant_table.selectRow(0)
+    assert home._row_summary.text() == "2 variants | 1 selected"
+    home.remove_rows([0])
+    assert home._row_summary.text().startswith("1 variant")
+    home.clear_rows()
+    assert home._row_summary.text() == "No variants loaded"
