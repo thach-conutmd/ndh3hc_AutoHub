@@ -23,13 +23,13 @@ def test_columns_stay_within_limits(qtbot=None):
     assert table.columnWidth(3) == MAX_COLUMN_WIDTH
 
 
-def test_settings_dialog_returns_the_chosen_latest_count():
+def test_settings_page_returns_the_chosen_latest_count():
     from PySide6.QtWidgets import QApplication
-    from autohub.modules.home.presenter import LATEST_COUNT_CHOICES
-    from autohub.modules.home.settings_dialog import HomeSettingsDialog
+    from autohub.modules.settings.ui import SettingsWidget
+    from tests.fakes import MemorySettings
     QApplication.instance() or QApplication([])
-    assert HomeSettingsDialog(20, LATEST_COUNT_CHOICES).latest_count() == 20
-    assert HomeSettingsDialog(7, LATEST_COUNT_CHOICES).latest_count() == 5
+    assert SettingsWidget(MemorySettings({"latest_variant_count": 20}))._latest.currentData() == 20
+    assert SettingsWidget(MemorySettings({"latest_variant_count": 7}))._latest.currentData() == 0
 
 
 def test_webflow_link_column_is_hidden_until_enabled_and_read_only():

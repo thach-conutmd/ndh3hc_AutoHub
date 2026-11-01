@@ -1,7 +1,7 @@
 """Settings page for theme, logging, WebFlow tracing and retry attempts."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QLabel, QPushButton,
     QSpinBox, QVBoxLayout, QWidget,
@@ -13,6 +13,7 @@ from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import (
     DEFAULT_WEBFLOW_MAX_ATTEMPTS, RECORD_PAGES_KEY, WEBFLOW_ATTEMPTS_LIMIT, WEBFLOW_MAX_ATTEMPTS_KEY,
     WEBFLOW_RETRY_ENABLED_KEY,
+    LATEST_COUNT_CHOICES, LATEST_COUNT_KEY, SHOW_WEBFLOW_LINK_KEY, normalize_latest_count,
 )
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode
 
@@ -21,6 +22,8 @@ _LABELS = {"system": "System", "light": "Light", "dark": "Dark"}
 
 
 class SettingsWidget(QWidget):
+    settingsChanged = Signal(dict)
+
     def __init__(self, settings: SettingsStore, dialogs: Dialogs | None = None):
         super().__init__()
         self._settings = settings
@@ -57,6 +60,20 @@ class SettingsWidget(QWidget):
             "AutoHub asks before resuming with the batch's saved settings."
         )
 
+        self._latest = QComboBox()
+        for count in LATEST_COUNT_CHOICES:
+            self._latest.addItem(str(count) if count else "All", count)
+        self._latest.setCurrentIndex(self._latest.findData(
+            normalize_latest_count(settings.load().get(LATEST_COUNT_KEY, 0))
+        ))
+        self._latest.setToolTip("How many of the latest variants Load variants shows.")
+        self._show_link = QCheckBox("Show the WebFlow link column")
+        self._show_link.setChecked(bool(settings.load().get(SHOW_WEBFLOW_LINK_KEY, False)))
+        home_group = QGroupBox("Home")
+        home_form = QFormLayout(home_group)
+        home_form.addRow("Latest variants:", self._latest)
+        home_form.addRow(self._show_link)
+
         theme_group = QGroupBox("Theme")
         QFormLayout(theme_group).addRow("Mode:", self._theme)
 
@@ -75,7 +92,7 @@ class SettingsWidget(QWidget):
         layout.setAlignment(Qt.AlignTop)
         layout.addWidget(title)
         layout.addSpacing(8)
-        for group in (theme_group, logging_group, analysis_group, retry_group):
+        for group in (theme_group, logging_group, analysis_group, home_group, retry_group):
             layout.addWidget(group)
         self._apply = QPushButton("Apply")
         self._apply.setToolTip("Save and apply the settings above.")
@@ -86,13 +103,16 @@ class SettingsWidget(QWidget):
         self._record.toggled.connect(self._refresh_apply)
         self._attempts.valueChanged.connect(self._refresh_apply)
         self._retry.toggled.connect(self._refresh_apply)
+        self._latest.currentIndexChanged.connect(self._refresh_apply)
+        self._show_link.toggled.connect(self._refresh_apply)
         self._refresh_apply()
         layout.addWidget(self._apply, alignment=Qt.AlignRight)
 
-    def _current(self) -> tuple[str, bool, bool, int, bool]:
+    def _current(self) -> tuple[str, bool, bool, int, bool, int, bool]:
         return (
             self._theme.currentData(), self._logging.isChecked(), self._record.isChecked(),
             self._attempts.value(), self._retry.isChecked(),
+            self._latest.currentData(), self._show_link.isChecked(),
         )
 
     def _refresh_apply(self, *_args) -> None:
@@ -117,16 +137,25 @@ class SettingsWidget(QWidget):
             self._record.setChecked(self._applied[2])
             self._attempts.setValue(self._applied[3])
             self._retry.setChecked(self._applied[4])
+            self._latest.setCurrentIndex(self._latest.findData(self._applied[5]))
+            self._show_link.setChecked(self._applied[6])
         return True
 
     def _on_apply(self) -> None:
-        mode, enabled, record, attempts, retry = self._current()
-        self._settings.update(**{
+        mode, enabled, record, attempts, retry, latest, show_link = self._current()
+        values = {
             THEME_KEY: mode, LOGGING_ENABLED_KEY: enabled, RECORD_PAGES_KEY: record,
             WEBFLOW_MAX_ATTEMPTS_KEY: attempts,
             WEBFLOW_RETRY_ENABLED_KEY: retry,
-        })
+            LATEST_COUNT_KEY: latest, SHOW_WEBFLOW_LINK_KEY: show_link,
+        }
+        changes = {
+            key: values[key] for key, previous in zip(values, self._applied)
+            if values[key] != previous
+        }
+        self._settings.update(**values)
         set_logging_enabled(enabled)
         apply_theme(QApplication.instance(), mode)
-        self._applied = (mode, enabled, record, attempts, retry)
+        self._applied = self._current()
         self._refresh_apply()
+        self.settingsChanged.emit(changes)

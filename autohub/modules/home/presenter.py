@@ -9,6 +9,7 @@ from autohub.core.dialogs import Dialogs
 from autohub.core.file_fields import FileField
 from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
+from autohub.core.settings_keys import LATEST_COUNT_CHOICES, LATEST_COUNT_KEY, normalize_latest_count
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS
 from autohub.modules.home.service import VariantService
 
@@ -22,9 +23,6 @@ NEW_VARIANT_TIP = "Create new variant by reading ECU Info Sheet CR and System Ma
 
 # Field label -> settings.json key. Only the Master Sheet is remembered; the New variant source files are not.
 SETTINGS_KEYS = {"Master Sheet": "master_sheet_path"}
-LATEST_COUNT_CHOICES = (5, 10, 20, 50, 100, 0)  # 0 = All
-SHOW_WEBFLOW_LINK_KEY = "show_webflow_link"  # shows the read-only WebFlow Link column in the table
-LATEST_COUNT_KEY = "latest_variant_count"  # how many of the newest variants Load shows; 0 = all
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
 _KICK_OFF_FILTER = "Kick Off Meeting (*.pptx)"
@@ -109,7 +107,12 @@ class HomePresenter:
         count = normalize_latest_count(count)
         changed = count != self.latest_count()
         self._settings.update(**{LATEST_COUNT_KEY: count})
-        if not changed or self._loaded_rows is None:
+        if changed:
+            self.refresh_latest_rows()
+
+    def refresh_latest_rows(self) -> None:
+        """Applies the saved display limit without silently discarding table edits."""
+        if self._loaded_rows is None:
             return
         if self._edited and not self._dialogs.confirm(
             "Latest variants",
@@ -117,7 +120,7 @@ class HomePresenter:
             "variants discards them.\n\nContinue?",
         ):
             return
-        self._show_rows(latest_rows(self._loaded_rows, count))
+        self._show_rows(latest_rows(self._loaded_rows, self.latest_count()))
 
     def browse_master_sheet(self) -> None:
         self._pick(MASTER_SHEET, "Select file", _EXCEL_FILTER)
@@ -445,15 +448,6 @@ class HomePresenter:
         self._view.set_load_state(True, LOAD_TEXT)
         _logger.error("Load variants failed: %s", error)
         window.fail(error)
-
-
-def normalize_latest_count(value) -> int:
-    """A listed choice, else 0 (All)."""
-    try:
-        count = int(value)
-    except (TypeError, ValueError):
-        return 0
-    return count if count in LATEST_COUNT_CHOICES else 0
 
 
 def latest_rows(rows: list[dict], count: int) -> list[dict]:

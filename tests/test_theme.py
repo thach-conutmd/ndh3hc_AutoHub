@@ -234,9 +234,55 @@ def test_settings_controls_are_organized_in_groups(qapp):
 
     page = SettingsWidget(MemorySettings())
     groups = {group.title(): group for group in page.findChildren(QGroupBox)}
-    assert list(groups) == ["Theme", "Logging", "Analysis", "WebFlow Retry"]
+    assert list(groups) == ["Theme", "Logging", "Analysis", "Home", "WebFlow Retry"]
     assert page._theme.parentWidget() is groups["Theme"]
     assert page._logging.parentWidget() is groups["Logging"]
     assert page._record.parentWidget() is groups["Analysis"]
     assert page._retry.parentWidget() is groups["WebFlow Retry"]
     assert page._attempts.parentWidget() is groups["WebFlow Retry"]
+    assert page._latest.parentWidget() is groups["Home"]
+    assert page._show_link.parentWidget() is groups["Home"]
+
+
+def test_home_settings_apply_to_existing_home_page(qapp):
+    from unittest.mock import Mock
+    from autohub.modules.home.ui import HomeWidget
+    from autohub.ui.main_window import MainWindow
+    from tests.fakes import build_service
+
+    settings = MemorySettings({"latest_variant_count": 5})
+    home = HomeWidget(build_service(), settings)
+    page = SettingsWidget(settings)
+    MainWindow._wire_cross_module_signals([home, page])
+    home._presenter.refresh_latest_rows = Mock()
+    assert not hasattr(home, "_settings_btn")
+    page._latest.setCurrentIndex(page._latest.findData(20))
+    page._show_link.setChecked(True)
+    page._apply.click()
+    assert settings.load()["latest_variant_count"] == 20
+    assert settings.load()["show_webflow_link"] is True
+    home._presenter.refresh_latest_rows.assert_called_once()
+    assert not home._variant_table.isColumnHidden(2)
+
+
+def test_home_settings_discard_restores_both_controls(qapp):
+    from tests.fakes import FakeDialogs
+
+    settings = MemorySettings({"latest_variant_count": 20, "show_webflow_link": True})
+    page = SettingsWidget(settings, FakeDialogs(table_answer=False))
+    page._latest.setCurrentIndex(page._latest.findData(5))
+    page._show_link.setChecked(False)
+    assert page.confirm_leave()
+    assert page._latest.currentData() == 20 and page._show_link.isChecked()
+    assert not page._apply.isEnabled()
+
+
+def test_unrelated_settings_do_not_refresh_home(qapp):
+    from unittest.mock import Mock
+
+    page = SettingsWidget(MemorySettings())
+    changed = Mock()
+    page.settingsChanged.connect(changed)
+    page._record.setChecked(False)
+    page._apply.click()
+    assert changed.call_args.args[0] == {"record_webflow_pages": False}

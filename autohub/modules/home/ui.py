@@ -9,11 +9,10 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWi
 from autohub.config import HOME_BANNER_PATH
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
+from autohub.core.settings_keys import LATEST_COUNT_KEY, SHOW_WEBFLOW_LINK_KEY
 from autohub.core.workers import TaskRunner
 from autohub.modules.home.banner import BannerLabel
 from autohub.modules.home.presenter import (
-    LATEST_COUNT_CHOICES,
-    SHOW_WEBFLOW_LINK_KEY,
     LOAD_TEXT,
     MASTER_SHEET,
     NEW_VARIANT_TEXT,
@@ -21,7 +20,6 @@ from autohub.modules.home.presenter import (
     UPDATE_TEXT,
     HomePresenter,
 )
-from autohub.modules.home.settings_dialog import HomeSettingsDialog
 from autohub.modules.home.service import VariantService
 from autohub.modules.home.variant_table import VariantTable
 from autohub.ui.theme import set_muted
@@ -72,9 +70,6 @@ class HomeWidget(QWidget):
         write_row = QHBoxLayout()
         write_row.addWidget(self._clear_btn)
         write_row.addWidget(self._delete_btn)
-        self._settings_btn = QPushButton("Settings")
-        self._settings_btn.setToolTip("Home settings, e.g. how many latest variants Load variants shows.")
-        write_row.addWidget(self._settings_btn)
         write_row.addStretch(1)
         write_row.addWidget(self._update_btn)
 
@@ -98,7 +93,6 @@ class HomeWidget(QWidget):
         self._variant_table.selectionModel().selectionChanged.connect(
             lambda *_: self._presenter.on_selection_changed()
         )
-        self._settings_btn.clicked.connect(self._open_settings)
         self._presenter.restore_saved_paths()
         self._variant_table.set_webflow_link_visible(self._show_webflow_link())
 
@@ -123,14 +117,11 @@ class HomeWidget(QWidget):
         self._variant_table.set_webflow_numbers(numbers)
         self._presenter.set_webflow_numbers(numbers, persisted)
 
-    def _open_settings(self) -> None:
-        dialog = HomeSettingsDialog(
-            self._presenter.latest_count(), LATEST_COUNT_CHOICES, self._show_webflow_link(), self
-        )
-        if dialog.exec() == HomeSettingsDialog.Accepted:
-            self._settings.update(**{SHOW_WEBFLOW_LINK_KEY: dialog.show_webflow_link()})
-            self._variant_table.set_webflow_link_visible(dialog.show_webflow_link())
-            self._presenter.set_latest_count(dialog.latest_count())
+    def apply_settings(self, changes: dict) -> None:
+        if SHOW_WEBFLOW_LINK_KEY in changes:
+            self._variant_table.set_webflow_link_visible(self._show_webflow_link())
+        if LATEST_COUNT_KEY in changes:
+            self._presenter.refresh_latest_rows()
 
     def _show_webflow_link(self) -> bool:
         return bool(self._settings.load().get(SHOW_WEBFLOW_LINK_KEY, False))

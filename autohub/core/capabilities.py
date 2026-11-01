@@ -45,6 +45,16 @@ class WebFlowNumberSink(Protocol):
 
 
 @runtime_checkable
+class SettingsSource(Protocol):
+    settingsChanged: Any
+
+
+@runtime_checkable
+class SettingsSink(Protocol):
+    def apply_settings(self, changes: dict) -> None: ...
+
+
+@runtime_checkable
 class Closable(Protocol):
     """Page that must release external resources when the app closes."""
 
