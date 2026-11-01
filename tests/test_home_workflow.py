@@ -487,13 +487,25 @@ def _checked_service(problem="", master=None):
 def test_startup_loads_a_valid_remembered_master_sheet_without_asking(tmp_path):
     master = FakeMasterSheet(rows=[{"J": "P1"}], webflow=[{"part_number": "P1"}])
     presenter, view, dialogs, _ = _presenter(tmp_path, _checked_service(master=master))
+    steps = []
 
-    presenter.auto_load_variants()
+    presenter.auto_load_variants(steps.append)
 
     assert view.rows == [{"J": "P1"}]
     assert view.published == [[{"part_number": "P1"}]]
-    assert view.states["load"] == (True, "Load variants")
-    assert dialogs.asked == [] and dialogs.errors == []
+    assert steps == ["Opening the Master Sheet...", "Reading the variants...", "Loaded 1 variant."]
+    assert dialogs.asked == [] and dialogs.errors == [] and dialogs.windows == []
+
+
+def test_startup_load_failure_is_only_logged(tmp_path):
+    class Broken(FakeMasterSheet):
+        def open(self):
+            raise RuntimeError("Excel is busy")
+
+    presenter, view, dialogs, _ = _presenter(tmp_path, _checked_service(master=Broken()))
+    presenter.auto_load_variants()
+    assert view.rows == [] and view.published == []
+    assert dialogs.errors == [] and dialogs.windows == []
 
 
 def test_startup_skips_an_invalid_or_missing_master_sheet(tmp_path):
@@ -515,11 +527,11 @@ def test_startup_does_not_replace_rows_already_in_the_table(tmp_path):
     assert view.rows == [{"J": "kept"}] and dialogs.windows == []
 
 
-def test_home_page_auto_loads_as_a_startup_task(qapp, tmp_path):
-    from autohub.core.capabilities import StartupTask
+def test_home_page_loads_variants_behind_the_startup_dialog(qapp, tmp_path):
+    from autohub.core.capabilities import StartupPreload, StartupTask
     from autohub.modules.home.ui import HomeWidget
 
     page = HomeWidget(_checked_service("missing"), MemorySettings({}), FakeDialogs())
-    assert isinstance(page, StartupTask)
-    page.on_startup()
+    assert isinstance(page, StartupPreload) and not isinstance(page, StartupTask)
+    page.preload(lambda _text: None)
     assert page.row_count() == 0

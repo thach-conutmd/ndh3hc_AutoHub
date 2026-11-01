@@ -12,7 +12,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 ### Main window
 
 - Fixed-size window (1024x700) with a dark theme and dark title bar.
-- Startup dialog: a themed loading card (logo, version, current step, progress bar) appears immediately at launch while AutoHub applies settings and logging, prepares the interface, loads modules and configuration, and builds the main window. The dialog opens on the monitor under the mouse (otherwise the primary monitor), and the main window opens centered on that same monitor. Each step is logged. If a step fails, the dialog closes and an error message explains why AutoHub could not start.
+- Startup dialog: a themed loading card (logo, version, current step, progress bar) appears immediately at launch while AutoHub applies settings and logging, prepares the interface, loads modules and configuration, builds the main window, and loads the remembered Master Sheet's variants. The dialog opens on the monitor under the mouse (otherwise the primary monitor), and the main window opens centered on that same monitor. Each step is logged. If a step fails, the dialog closes and an error message explains why AutoHub could not start.
 - Collapsible sidebar (220px to 56px icon-only) with the logo and Home / Creation / Comparison navigation.
 - The window title shows the active module.
 - Cross-module wiring: variants loaded on Home are passed to Creation automatically.
@@ -28,7 +28,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 ### Home module
 
 - Browse and remember the Master Sheet (`.xlsx`).
-- **Load at startup**: when the remembered Master Sheet still exists and its format is valid (an `.xlsx` workbook, password-protected or not, containing the MG1 `Master sheet` or Mx17 `ECU Container Release Honda GDI` sheet), its variants load automatically after the main window opens, with the usual Load variants progress window, and are passed to Creation. The check reads only the workbook's sheet list (no Excel). A missing or invalid file is skipped and logged; use Browse / Load variants as usual.
+- **Load at startup**: when the remembered Master Sheet still exists and its format is valid (an `.xlsx` workbook, password-protected or not, containing the MG1 `Master sheet` or Mx17 `ECU Container Release Honda GDI` sheet), its variants load automatically inside the startup dialog (which shows the Master Sheet progress) before the main window opens, and are passed to Creation. No separate progress window appears. The check reads only the workbook's sheet list (no Excel). A missing or invalid file, or a load error, is skipped and logged without blocking startup; use Browse / Load variants as usual.
 - **New variant**:
   - Prompts for the ECU Info Sheet CR and System Matrix CR.
   - Hover tooltip: "Create new variant by reading ECU Info Sheet CR and System Matrix CR."

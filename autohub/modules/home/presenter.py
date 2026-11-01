@@ -7,7 +7,7 @@ from typing import Callable, Protocol
 
 from autohub.core.dialogs import Dialogs
 from autohub.core.file_fields import FileField
-from autohub.core.progress import ProgressWindow
+from autohub.core.progress import ProgressCallback, ProgressWindow, no_progress
 from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import LATEST_COUNT_CHOICES, LATEST_COUNT_KEY, normalize_latest_count
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS
@@ -426,8 +426,12 @@ class HomePresenter:
         _logger.info("Load variants clicked (master=%s)", master_sheet_path)
         self._start_load(master_sheet_path, keep_rows)
 
-    def auto_load_variants(self) -> None:
-        """At startup, loads the remembered Master Sheet when it exists and has a supported layout."""
+    def auto_load_variants(self, progress: ProgressCallback = no_progress) -> None:
+        """At startup, loads the remembered Master Sheet when it exists and has a supported layout.
+
+        Runs in the calling thread and reports through ``progress`` (the startup dialog), so no
+        progress window opens; a failure is only logged.
+        """
         master_sheet_path = self._paths.get(MASTER_SHEET, "")
         if not master_sheet_path or self._view.row_count():
             return
@@ -436,7 +440,13 @@ class HomePresenter:
             _logger.info("Variants not loaded at startup: %s", problem)
             return
         _logger.info("Loading variants at startup (master=%s)", master_sheet_path)
-        self._start_load(master_sheet_path, keep_rows=False)
+        try:
+            result = self._service.load_variants(master_sheet_path, progress)
+        except Exception as error:
+            _logger.error("Variants not loaded at startup: %s", error)
+            return
+        count, total = self._apply_load(result, keep_rows=False)
+        progress(f"Loaded {count} variant{'s' if count != 1 else ''}.")
 
     def _start_load(self, master_sheet_path: str, keep_rows: bool) -> None:
         self._view.set_load_state(False, "Loading...")
@@ -448,16 +458,20 @@ class HomePresenter:
         )
 
     def _finish_load(self, result, window: ProgressWindow, keep_rows: bool) -> None:
-        rows, available = result
         self._view.set_load_state(True, LOAD_TEXT)
+        count, total = self._apply_load(result, keep_rows)
+        note = f" (latest {count} of {total})" if count != total else ""
+        window.succeed(f"Loaded {count} variant{'s' if count != 1 else ''} from the Master Sheet{note}.")
+
+    def _apply_load(self, result, keep_rows: bool) -> tuple[int, int]:
+        rows, available = result
         self._loaded_rows = rows
         shown = latest_rows(rows, self.latest_count())
         self._show_added_rows(shown, keep_rows)
         count, total = len(shown), len(rows)
         _logger.info("Loaded %d of %d variant(s)", count, total)
-        note = f" (latest {count} of {total})" if count != total else ""
-        window.succeed(f"Loaded {count} variant{'s' if count != 1 else ''} from the Master Sheet{note}.")
         self._view.publish_variants(available)
+        return count, total
 
     def _fail_load(self, error: str, window: ProgressWindow) -> None:
         self._view.set_load_state(True, LOAD_TEXT)
