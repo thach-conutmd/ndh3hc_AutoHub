@@ -424,6 +424,38 @@ def test_hardware_multiselect_missing_option_fails(monkeypatch):
     assert fields._select_multiple(form, "Brazil") is False
 
 
+@pytest.mark.parametrize("key,value,names,expected", [
+    ("model_year", "MY27/MY28", ["2027", "2028"], True),
+    ("emission_norm", "PROCONVE-L8", ["PROCONVE L8"], True),
+    ("transmission", "manual", ["MT", "AT"], True),
+    ("immobilizer", "Active|IMMO 6", ["active", "IMMO6"], True),
+    ("market", "UK/Brazil", ["GB", "Brazil"], True),
+    ("market", "Brazil/Unknown", ["Brazil", "Japan"], False),
+])
+def test_hardware_fill_resolves_general_lists_before_clicking(monkeypatch, key, value, names, expected):
+    fields, form = _hardware(monkeypatch)
+    panel = Mock()
+    items = []
+    for name in names:
+        item = Mock()
+        state = {"selected": False}
+        item.get_attribute.side_effect = lambda attr, state=state, name=name: (
+            name if attr == "aria-label" else str(state["selected"]).lower()
+        )
+        item.click.side_effect = lambda state=state: state.update(selected=not state["selected"])
+        items.append(item)
+    panel.find_elements.return_value = items
+    fields.driver.find_elements.return_value = [panel]
+
+    assert fields.fill(key, value) is expected
+    if expected:
+        items[0].click.assert_called_once()
+    else:
+        for item in items:
+            item.click.assert_not_called()
+    assert form.find_element.return_value.find_element.return_value.click.call_count == 2
+
+
 def test_pool_import_waits_for_number_and_clicks_only_once(monkeypatch, caplog):
     fields, _ = _hardware(monkeypatch)
     fields.fill = Mock(return_value=True)

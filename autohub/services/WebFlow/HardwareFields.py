@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
+from autohub.core.webflow_options import resolve_option_values
 
 from . import Constants
 from .components import Section, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
@@ -186,7 +187,7 @@ class HardwareFields:
             if kind == "dropdown":
                 return self._select_plant(form, value)
             if kind == "multi":
-                return self._select_multiple(form, value)
+                return self._select_multiple(form, value, key)
             field = form.find_element(By.CSS_SELECTOR, "textarea" if kind == "textarea" else 'input[type="text"]')
             scroll_into_view_if_hidden(self.driver, field)
             if not field.is_enabled() or field.get_attribute("readonly") is not None:
@@ -216,7 +217,7 @@ class HardwareFields:
     def _import_number(self, panel: str, button_label: str, field_label: str) -> str:
         return NumberImport(self.driver, self.sections[panel]).run(button_label, field_label)
 
-    def _select_multiple(self, form, value: str) -> bool:
+    def _select_multiple(self, form, value: str, key: str = "") -> bool:
         control = form.find_element(By.CSS_SELECTOR, "p-multiselect")
         if control.get_attribute("ng-reflect-disabled") == "true":
             _logger.error("WebFlow multiselect is disabled; requested %r", value)
@@ -229,12 +230,14 @@ class HardwareFields:
                     False,
                 )
             )
-            requested = {item.strip().casefold() for item in value.replace("\n", "|").split("|") if item.strip()}
             items = panel.find_elements(By.CSS_SELECTOR, "li.p-multiselect-item")
-            options = {(item.get_attribute("aria-label") or item.text).strip().casefold(): item for item in items}
-            if not requested.issubset(options):
-                _logger.error("WebFlow multiselect does not offer %s", sorted(requested - options.keys()))
+            options = {(item.get_attribute("aria-label") or item.text): item for item in items}
+            try:
+                requested = resolve_option_values(key, value, options)
+            except ValueError as error:
+                _logger.error("%s", error)
                 return False
+            _logger.info("WebFlow %s: %r resolved to %s", key or "multiselect", value, sorted(requested))
             for name, item in options.items():
                 selected = item.get_attribute("aria-selected") == "true"
                 if selected != (name in requested):

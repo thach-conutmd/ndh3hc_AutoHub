@@ -6,6 +6,7 @@ from typing import Any, Mapping
 from autohub.core.normalizers import clean_text, parse_event, project_event
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS
 from autohub.core.webflow_fields import HARDWARE_FIELDS
+from autohub.core.webflow_options import GENERAL_OPTION_FIELDS, normalize_option_value
 
 #: Sheet columns a request row is read from to build a WebFlow variant.
 WEBFLOW_SOURCE_COLUMNS = tuple(dict.fromkeys(("C", *VARIANT_FIELD_LABELS, "CR")))
@@ -61,7 +62,10 @@ def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
         "event_name": event_name,
         "created_at": row.get("C"),
         "general": general,
-        "hardware": {key: _text(row.get(column)) for column, key, _, _ in HARDWARE_FIELDS},
+        "hardware": {
+            key: normalize_option_value(key, row.get(column)) if key in GENERAL_OPTION_FIELDS else _text(row.get(column))
+            for column, key, _, _ in HARDWARE_FIELDS
+        },
         "ecu": {key: _text(row.get(column)) for key, column in _ECU_COLUMNS.items()},
         "customer": {key: _text(row.get(column)) for key, column in _CUSTOMER_COLUMNS.items()},
         "unmapped_fields": {

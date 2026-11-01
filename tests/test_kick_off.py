@@ -102,7 +102,7 @@ def test_builder_fills_the_blank_columns_from_kick_off_info():
 def test_kick_off_corrects_emission_and_immobilizer():
     info = {"emission": "BS6 + RDE", "immobilizer": "IMMO6", "engine_family": "NP1"}
     values = build_request_values(GENERAL, ECU, MAIN, {}, {**SYSTEM, "Emission": "BS6"}, kick_off=info)
-    assert (values["AH"], values["AD"], values["AG"]) == ("BS6 + RDE", "Active|IMMO6", "NP1")
+    assert (values["AH"], values["AD"], values["AG"]) == ("BS6 + RDE", "active|IMMO6", "NP1")
 
 
 def test_displacement_from_the_system_matrix_is_not_touched():
