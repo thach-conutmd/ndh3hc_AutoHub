@@ -424,6 +424,21 @@ class HomePresenter:
         if master_sheet_path is None:
             return
         _logger.info("Load variants clicked (master=%s)", master_sheet_path)
+        self._start_load(master_sheet_path, keep_rows)
+
+    def auto_load_variants(self) -> None:
+        """At startup, loads the remembered Master Sheet when it exists and has a supported layout."""
+        master_sheet_path = self._paths.get(MASTER_SHEET, "")
+        if not master_sheet_path or self._view.row_count():
+            return
+        problem = self._service.master_sheet_problem(master_sheet_path)
+        if problem:
+            _logger.info("Variants not loaded at startup: %s", problem)
+            return
+        _logger.info("Loading variants at startup (master=%s)", master_sheet_path)
+        self._start_load(master_sheet_path, keep_rows=False)
+
+    def _start_load(self, master_sheet_path: str, keep_rows: bool) -> None:
         self._view.set_load_state(False, "Loading...")
         window = self._dialogs.open_progress(LOAD_TEXT)
         self._start_task(

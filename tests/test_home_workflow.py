@@ -476,3 +476,50 @@ def test_sheets_that_find_variants_by_part_number_are_given_the_part_numbers(tmp
     presenter.update_master_sheet()
 
     assert master.deleted_parts == ["P1"] and master.deleted is None
+
+
+def _checked_service(problem="", master=None):
+    service = build_service(master=master)
+    service._master_sheet_checker = lambda _path: problem
+    return service
+
+
+def test_startup_loads_a_valid_remembered_master_sheet_without_asking(tmp_path):
+    master = FakeMasterSheet(rows=[{"J": "P1"}], webflow=[{"part_number": "P1"}])
+    presenter, view, dialogs, _ = _presenter(tmp_path, _checked_service(master=master))
+
+    presenter.auto_load_variants()
+
+    assert view.rows == [{"J": "P1"}]
+    assert view.published == [[{"part_number": "P1"}]]
+    assert view.states["load"] == (True, "Load variants")
+    assert dialogs.asked == [] and dialogs.errors == []
+
+
+def test_startup_skips_an_invalid_or_missing_master_sheet(tmp_path):
+    presenter, view, dialogs, _ = _presenter(tmp_path, _checked_service("not a Master Sheet"))
+    presenter.auto_load_variants()
+    assert view.rows == [] and dialogs.windows == [] and dialogs.errors == []
+
+    presenter, view, dialogs, _ = _presenter(
+        tmp_path, _checked_service(), settings=MemorySettings({})
+    )
+    presenter.auto_load_variants()
+    assert view.rows == [] and dialogs.windows == []
+
+
+def test_startup_does_not_replace_rows_already_in_the_table(tmp_path):
+    presenter, view, dialogs, _ = _presenter(tmp_path, _checked_service())
+    view.rows = [{"J": "kept"}]
+    presenter.auto_load_variants()
+    assert view.rows == [{"J": "kept"}] and dialogs.windows == []
+
+
+def test_home_page_auto_loads_as_a_startup_task(qapp, tmp_path):
+    from autohub.core.capabilities import StartupTask
+    from autohub.modules.home.ui import HomeWidget
+
+    page = HomeWidget(_checked_service("missing"), MemorySettings({}), FakeDialogs())
+    assert isinstance(page, StartupTask)
+    page.on_startup()
+    assert page.row_count() == 0

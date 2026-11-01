@@ -22,6 +22,7 @@ class VariantService:
         hw_info_factory: Callable[[str], HWInfoDocument],
         session_factory: SessionFactory,
         kick_off_factory: Callable[[str], KickOffDocument],
+        master_sheet_checker: Callable[[str], str] = lambda _path: "",
     ):
         self._master_sheet_factory = master_sheet_factory
         self._ecu_info_factory = ecu_info_factory
@@ -29,6 +30,11 @@ class VariantService:
         self._hw_info_factory = hw_info_factory
         self._session = session_factory
         self._kick_off_factory = kick_off_factory
+        self._master_sheet_checker = master_sheet_checker
+
+    def master_sheet_problem(self, master_sheet_path: str) -> str:
+        """Why the file is not a readable Master Sheet (missing, wrong format or layout); empty when it is."""
+        return self._master_sheet_checker(master_sheet_path)
 
     @staticmethod
     def _load(document, description: str) -> None:

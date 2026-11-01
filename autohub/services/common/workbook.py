@@ -11,6 +11,9 @@ from autohub.services.common.sheet_grid import LayoutError, SheetGrid, locate_an
 
 _logger = logging.getLogger(__name__)
 
+#: Password tried for protected workbooks.
+DEFAULT_PASSWORD = "hondabosch"
+
 
 class ExcelDocument:
     """Shared open/close handling; subclasses implement `load_data` on top of `_parse`."""
@@ -19,7 +22,7 @@ class ExcelDocument:
     #: Readers report problems through `last_error`; a document that gets written must raise instead.
     raise_on_open_error = False
 
-    def __init__(self, file_path: str, password: str = "hondabosch", quit: bool = False):
+    def __init__(self, file_path: str, password: str = DEFAULT_PASSWORD, quit: bool = False):
         self.file_path = file_path
         self.password = password
         self.quit = quit
