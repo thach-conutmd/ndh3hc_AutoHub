@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants as Constants
+from .Actions import Actions, save_before_action
 from .components import (
     Section,
     TabLink,
@@ -17,6 +18,7 @@ from .components import (
 )
 from .dropdown import read_options
 from .HardwareFields import HardwareFields
+from .step_log import run_step
 
 _logger = logging.getLogger(__name__)
 
@@ -44,7 +46,13 @@ class GeneralTab:
     def fill_hardware_field(self, key: str, value: str) -> bool:
         if not self._hardware.fill(key, value):
             return False
-        return self._hardware.import_from_race() if key == "hardware_part_number" else True
+        if key == "hardware_part_number":
+            run_step(
+                _logger, "Save the job before Import from Race",
+                save_before_action, Actions(self.driver).save, "Import from Race",
+            )
+            return self._hardware.import_from_race()
+        return True
 
     def import_software_part_number(self) -> bool:
         return self._hardware.import_software_part_number()

@@ -45,7 +45,7 @@ def session(monkeypatch, title=Constants.WEBFLOW_TITLE, general_visible=True):
         raise NoSuchElementException(locator)
 
     driver = SimpleNamespace(
-        title=title, get=Mock(), find_element=find_element,
+        title=title, page_source="", get=Mock(), refresh=Mock(), quit=Mock(), find_element=find_element,
         job_url=Mock(return_value="https://example.com/app/ShowJob/16468"),
     )
     return driver, idle
@@ -59,6 +59,8 @@ def test_job_form_ready_after_navigation(monkeypatch):
 
 
 def test_recorded_browser_error_page_is_not_success(monkeypatch):
+    monkeypatch.setattr(Constants, "WEBFLOW_MAX_ATTEMPTS", 1)
+    monkeypatch.setattr(Constants, "WEBFLOW_REFRESH_INTERVAL", 0)
     path = Path(__file__).resolve().parents[1] / (
         "logs/webflow_trace/20261101_134207/001_Open_job_16468_OK.html"
     )
@@ -68,8 +70,56 @@ def test_recorded_browser_error_page_is_not_success(monkeypatch):
     assert "ERR_UNEXPECTED" in html
     assert parser.title != Constants.WEBFLOW_TITLE
     driver, idle = session(monkeypatch, title=parser.title)
+    driver.page_source = html
     assert WebFlow.open_job(driver, "16468") is False
+    driver.refresh.assert_called_once()
+    driver.quit.assert_called_once()
     idle.assert_not_called()
+
+
+def test_job_open_refreshes_edge_error_page_and_continues(monkeypatch):
+    monkeypatch.setattr(Constants, "WEBFLOW_REFRESH_INTERVAL", 0)
+    driver, idle = session(monkeypatch)
+    driver.page_source = "ERR_UNEXPECTED"
+
+    def refresh():
+        driver.page_source = ""
+
+    driver.refresh.side_effect = refresh
+    assert WebFlow.open_job(driver, "16468") is True
+    driver.refresh.assert_called_once()
+    driver.quit.assert_not_called()
+    idle.assert_called_once_with(driver)
+
+
+@pytest.mark.parametrize("attempts", [1, 2, 5])
+def test_persistent_error_closes_browser_at_refresh_limit(monkeypatch, attempts):
+    monkeypatch.setattr(Constants, "WEBFLOW_MAX_ATTEMPTS", attempts)
+    monkeypatch.setattr(Constants, "WEBFLOW_REFRESH_INTERVAL", 0)
+    driver, idle = session(monkeypatch)
+    driver.page_source = "ERR_UNEXPECTED"
+
+    assert WebFlow.open_job(driver, "16468") is False
+    assert driver.refresh.call_count == attempts
+    driver.quit.assert_called_once()
+    idle.assert_not_called()
+
+
+@pytest.mark.parametrize("recovers", [False, True])
+def test_dashboard_closes_only_if_final_refresh_fails(monkeypatch, recovers):
+    monkeypatch.setattr(Constants, "WEBFLOW_MAX_ATTEMPTS", 1)
+    monkeypatch.setattr(Constants, "WEBFLOW_REFRESH_INTERVAL", 0)
+    driver, _ = session(monkeypatch, title="browser error")
+    driver.base_url = "https://example.com/app/dashboard"
+
+    def refresh():
+        if recovers:
+            driver.title = Constants.WEBFLOW_TITLE
+
+    driver.refresh.side_effect = refresh
+    assert WebFlow.open_dashboard_page(driver) is recovers
+    driver.refresh.assert_called_once()
+    assert driver.quit.call_count == (0 if recovers else 1)
 
 
 def test_webflow_shell_without_visible_job_form_is_not_success(monkeypatch):

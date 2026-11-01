@@ -316,6 +316,7 @@ def test_job_filler_plans_the_legacy_steps_in_order():
         "General: Bosch calibration data response = False",
         "General: data integration response = True",
         "General: Program version = PV01",
+        "Save the job before Pick PST_Lib",
         "General: Pick PST_Lib for PVER PV01",
         "Select the ECU tab",
         "ECU: indi_spec = Spec",
@@ -367,7 +368,7 @@ def test_job_filler_runs_every_step_and_returns_warnings():
 def test_job_filler_names_every_failed_step():
     job_filler, calls, _ = filler({"fill_sw_version": False, "save": False})
     with pytest.raises(RuntimeError, match=r"37820-ABC.*Customer: sw_version = 01; \[37820-ABC\] Save the job"):
-        job_filler.fill(VARIANT)
+        job_filler.fill({**VARIANT, "hardware": {}})
     assert calls[-1] == ("save",)  # later steps still ran
 
 
@@ -378,12 +379,43 @@ def test_job_filler_stops_when_the_general_tab_cannot_be_selected():
     assert calls == [("select_general_tab",)]
 
 
-def test_job_filler_does_not_save_when_no_pst_lib_matches_pver():
+@pytest.mark.parametrize("action,hardware,ecr", [
+    ("import_software_part_number", {"lead_plant": "SaW"}, {}),
+    ("pick_pst_lib", {"program_version": "PV01"}, {}),
+    ("import_ecr", {}, {"change_reason": "Reason"}),
+])
+@pytest.mark.parametrize("saved", [True, False])
+def test_save_precedes_each_import_and_picker_without_consuming_import_on_failure(action, hardware, ecr, saved):
+    from unittest.mock import Mock
+
+    job_filler, calls, pages = filler({"save": saved})
+    job_filler.checkpoint = Mock()
+    pages.imported_software_part_number = "SW123"
+    pages.imported_ecr_number = "ECR123"
+    variant = {**VARIANT, "hardware": hardware, "ecr": ecr}
+    if saved:
+        job_filler.fill(variant)
+        action_index = next(index for index, recorded in enumerate(calls) if recorded[0] == action)
+        assert calls[action_index - 1] == ("save",)
+        assert calls[-1] == ("save",)
+    else:
+        with pytest.raises(RuntimeError, match="Could not save the job before"):
+            job_filler.fill(variant)
+        assert not any(recorded[0] == action for recorded in calls)
+        assert variant["attempted_imports"] == []
+        job_filler.checkpoint.assert_not_called()
+        pages.results["save"] = True
+        job_filler.fill(variant)
+        assert sum(recorded[0] == action for recorded in calls) == 1
+
+
+def test_job_filler_saves_before_picker_but_stops_when_no_pst_lib_matches():
     job_filler, calls, _ = filler({"pick_pst_lib": False})
     with pytest.raises(RuntimeError, match="PST_Lib entry matching PVER 'PV01'"):
         job_filler.fill(VARIANT)
     assert ("pick_pst_lib", "PV01") in calls
-    assert ("save",) not in calls
+    assert calls.count(("save",)) == 1
+    assert calls[-2:] == [("save",), ("pick_pst_lib", "PV01")]
 
 
 @pytest.mark.parametrize("failure", [None, "fill_hardware_field", "import_ecr"])
@@ -399,12 +431,13 @@ def test_ecr_workflow_retains_number_and_stops_before_save_on_failure(failure):
     if failure:
         with pytest.raises(RuntimeError, match="Could not fill"):
             job_filler.fill(variant)
-        assert ("save",) not in calls
+        assert calls.count(("save",)) == (2 if failure == "import_ecr" else 0)
         assert "imported_ecr_number" not in variant
     else:
         assert job_filler.fill(variant) == []
         assert variant["imported_ecr_number"] == "ECR123"
-        assert calls.index(("import_ecr",)) < calls.index(("select_ecu_tab",)) < calls.index(("save",))
+        assert calls[calls.index(("import_ecr",)) - 1] == ("save",)
+        assert calls.index(("import_ecr",)) < calls.index(("select_ecu_tab",)) < len(calls) - 1
         assert ("fill_hardware_field", "change_engineer", "Engineer") in calls
         assert ("fill_hardware_field", "cost_allocation", "Allocation") in calls
         assert ("fill_hardware_field", "ecr_number", "sheet ECR") not in calls
@@ -412,7 +445,10 @@ def test_ecr_workflow_retains_number_and_stops_before_save_on_failure(failure):
 
 @pytest.mark.parametrize("pver", ["MG1CS022_62XSC_V020_CS", "MG1CS022_62XSC/V020_CS"])
 @pytest.mark.parametrize("revision_count", [0, 1, 2])
-def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(monkeypatch, pver, revision_count):
+@pytest.mark.parametrize("shows_warning", [False, True])
+def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(monkeypatch, pver, revision_count, shows_warning):
+    from unittest.mock import Mock
+
     class Cell:
         def __init__(self, text):
             self.text = text
@@ -470,20 +506,27 @@ def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(m
     hardware.sections["Ident Numbers"] = type(
         "SectionStub", (), {"expand": lambda _self: True, "body": lambda _self: body}
     )()
-    hardware.driver.find_elements = lambda by, value: [dialog] if value == '[role="dialog"]' else []
+    warning = Mock()
+    warning.text = "Data filled in by you will be saved before import. Do you want to continue?"
+    warning.is_displayed.return_value = shows_warning
+    yes = warning.find_element.return_value
+    yes.click.side_effect = lambda: setattr(warning.is_displayed, "return_value", False)
+    hardware.driver.find_elements = lambda by, value: [warning, dialog]
 
     class Wait:
         def __init__(self, _driver, _timeout, **_kwargs):
             pass
 
         def until(self, condition):
-            result = condition(hardware.driver)
-            if not result:
-                raise TimeoutError("condition not met")
-            return result
+            for _ in range(3):
+                result = condition(hardware.driver)
+                if result:
+                    return result
+            raise TimeoutError("condition not met")
 
     monkeypatch.setattr(picker_module, "WebDriverWait", Wait)
     assert hardware.pick_pst_lib(pver) is (revision_count == 1)
+    assert yes.click.call_count == (1 if shows_warning else 0)
     assert dialog.search.typed == ["MG1CS022_62XSC/V020_CS", Keys.ENTER]
     assert matching.clicks == (1 if revision_count == 1 else 0)
     assert other.clicks == 0 and prefix_match.clicks == 0
@@ -538,10 +581,11 @@ def test_job_filler_uses_requested_priority_then_form_order():
     assert field_calls[8:10] == hardware_calls[:2]
     assert field_calls[10] == ("prepare_classification",)
     assert field_calls[11] == hardware_calls[2]
-    assert field_calls[12] == ("import_software_part_number",)
-    assert field_calls[13:10 + len(hardware_calls)] == hardware_calls[3:]
-    assert field_calls[10 + len(hardware_calls)] == ("pick_pst_lib", "program_version")
-    assert field_calls[11 + len(hardware_calls)] == ("select_ecu_tab",)
+    assert field_calls[12:14] == [("save",), ("import_software_part_number",)]
+    assert field_calls[14:11 + len(hardware_calls)] == hardware_calls[3:]
+    assert field_calls[11 + len(hardware_calls):14 + len(hardware_calls)] == [
+        ("save",), ("pick_pst_lib", "program_version"), ("select_ecu_tab",),
+    ]
     assert calls[-1] == ("save",)
 
 
@@ -553,7 +597,7 @@ def test_imported_software_number_is_not_overwritten_from_sheet():
     pages.imported_software_part_number = "10SW072930"
     job_filler.fill(variant)
     lead_index = calls.index(("fill_hardware_field", "lead_plant", "SaW"))
-    assert calls[lead_index + 1] == ("import_software_part_number",)
+    assert calls[lead_index + 1:lead_index + 3] == [("save",), ("import_software_part_number",)]
     assert ("fill_hardware_field", "software_part_number", "0") not in calls
     assert ("fill_hardware_field", "customer_software_part_number", "OLD") not in calls
     assert variant["imported_software_part_number"] == "10SW072930"

@@ -300,9 +300,12 @@ def _hardware(monkeypatch):
         ("customer_hardware_part_number", True, False, True),
     ],
 )
-def test_race_import_follows_only_successfully_filled_hardware_number(key, filled, imported, expected):
+def test_race_import_follows_only_successfully_filled_hardware_number(monkeypatch, key, filled, imported, expected):
     from autohub.services.WebFlow.GeneralTab import GeneralTab
+    from autohub.services.WebFlow.Actions import Actions
 
+    save = Mock(return_value=True)
+    monkeypatch.setattr(Actions, "save", save)
     general = GeneralTab(Mock())
     general._hardware = Mock()
     general._hardware.fill.return_value = filled
@@ -311,11 +314,40 @@ def test_race_import_follows_only_successfully_filled_hardware_number(key, fille
     assert general.fill_hardware_field(key, "part number") is expected
     general._hardware.fill.assert_called_once_with(key, "part number")
     if key == "hardware_part_number" and filled:
+        save.assert_called_once()
         assert general._hardware.method_calls == [
             call.fill(key, "part number"), call.import_from_race(),
         ]
     else:
+        save.assert_not_called()
         general._hardware.import_from_race.assert_not_called()
+
+
+def test_failed_save_prevents_race_import(monkeypatch):
+    from autohub.services.WebFlow.GeneralTab import GeneralTab
+    from autohub.services.WebFlow.Actions import Actions
+
+    monkeypatch.setattr(Actions, "save", Mock(return_value=False))
+    general = GeneralTab(Mock())
+    general._hardware = Mock()
+    general._hardware.fill.return_value = True
+    with pytest.raises(RuntimeError, match="before Import from Race"):
+        general.fill_hardware_field("hardware_part_number", "HW123")
+    general._hardware.import_from_race.assert_not_called()
+
+
+def test_race_import_saves_after_hardware_number_and_before_import(monkeypatch):
+    from autohub.services.WebFlow.GeneralTab import GeneralTab
+    from autohub.services.WebFlow.Actions import Actions
+
+    events = []
+    monkeypatch.setattr(Actions, "save", lambda _self: events.append("save") or True)
+    general = GeneralTab(Mock())
+    general._hardware = Mock()
+    general._hardware.fill.side_effect = lambda *_: events.append("fill") or True
+    general._hardware.import_from_race.side_effect = lambda: events.append("import") or True
+    assert general.fill_hardware_field("hardware_part_number", "HW123")
+    assert events == ["fill", "save", "import"]
 
 
 def test_race_import_clicks_classification_button_once_and_waits(monkeypatch):
@@ -332,6 +364,23 @@ def test_race_import_clicks_classification_button_once_and_waits(monkeypatch):
     )
     button.click.assert_called_once()
     idle.assert_called_once_with(fields.driver, hardware_module.Constants.WEBFLOW_TIMEOUT)
+
+
+def test_race_import_confirms_save_warning_before_waiting_for_completion(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    dialog = Mock()
+    dialog.text = "Data filled in by you will be saved before import. Do you want to continue?"
+    dialog.is_displayed.return_value = True
+    yes = dialog.find_element.return_value
+    yes.click.side_effect = lambda: setattr(dialog.is_displayed, "return_value", False)
+    fields.driver.find_elements.return_value = [dialog]
+    idle = Mock(return_value=True)
+    monkeypatch.setattr(hardware_module, "wait_until_idle", idle)
+
+    assert fields.import_from_race()
+    yes.click.assert_called_once()
+    idle.assert_called_once()
+    fields.sections["Classification"].body.return_value.find_element.return_value.click.assert_called_once()
 
 
 @pytest.mark.parametrize("failure", ["expand", "disabled", "click", "wait"])

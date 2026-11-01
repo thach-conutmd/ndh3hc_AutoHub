@@ -13,6 +13,7 @@ from . import Constants
 from .components import Section, checkbox_is_disabled, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
 from .number_import import NumberImport
 from .pst_lib_picker import PstLibPicker
+from .save_confirmation import SaveBeforeImportConfirmation
 
 _logger = logging.getLogger(__name__)
 _FIELDS = {key: (label, kind) for _, key, label, kind in HARDWARE_FIELDS}
@@ -164,9 +165,20 @@ class HardwareFields:
             button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(available_button)
             self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
             button.click()
-            if not wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT):
-                _logger.error("WebFlow did not become idle after Import from Race")
-                return False
+            confirmation = SaveBeforeImportConfirmation(self.driver, "Import from Race")
+
+            def completed(_driver):
+                if confirmation.pending():
+                    return False
+                return (
+                    wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT)
+                    and not confirmation.pending()
+                )
+
+            WebDriverWait(
+                self.driver, Constants.WEBFLOW_TIMEOUT,
+                ignored_exceptions=(StaleElementReferenceException,),
+            ).until(completed)
             _logger.info("WebFlow Import from Race clicked after filling Hardware part number")
             return True
         except Exception:

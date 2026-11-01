@@ -198,6 +198,7 @@ def test_service_respects_configured_attempt_limit_and_retains_recovery(attempts
         service.create_jobs([{"part_number": "P1"}], config)
     assert len(FlakyWebFlow.instances) == attempts
     assert sleeps == [5.0] * (attempts - 1)
+    assert all(browser.quit_calls == 1 for browser in FlakyWebFlow.instances)
     assert service.pending_batch()["config"]["max_attempts"] == attempts
 
 
@@ -225,6 +226,7 @@ def test_disabled_retries_make_one_attempt_and_preserve_crash_recovery(resume):
         else:
             service.create_jobs([{"part_number": "P1"}], config)
     assert len(FlakyWebFlow.instances) == 1 and sleeps == []
+    assert FlakyWebFlow.instances[0].quit_calls == 1
     assert service.pending_batch()["config"]["max_attempts"] == 7
     assert service.pending_batch()["config"]["retry_enabled"] is False
 
