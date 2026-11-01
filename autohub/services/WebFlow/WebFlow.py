@@ -94,9 +94,20 @@ class WebFlow(webdriver.Edge):
     def open_job(self, job_id: str) -> bool:
         url = self.job_url(job_id)
         _logger.info("Opening job %s: %s", job_id, url)
-        self.get(url)
         try:
-            wait_until_idle(self)
+            self.get(url)
+            WebDriverWait(self, Constants.WEBFLOW_TIMEOUT).until(
+                EC.title_is(Constants.WEBFLOW_TITLE)
+            )
+            WebDriverWait(self, Constants.WEBFLOW_TIMEOUT).until(
+                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_LOADING_SCREEN_CLASS))
+            )
+            if not wait_until_idle(self):
+                _logger.error("Job %s is still busy", job_id)
+                return False
+            WebDriverWait(self, Constants.WEBFLOW_TIMEOUT).until(
+                EC.visibility_of_element_located((By.XPATH, Constants.GENERAL_TAB_XPATH))
+            )
             return True
         except Exception:
             _logger.exception("Job %s did not finish loading", job_id)
