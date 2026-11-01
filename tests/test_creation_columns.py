@@ -36,16 +36,14 @@ def test_event_filter_keeps_projects_with_the_same_event_separate(qapp):
     checklist.set_variants([
         webflow_variant_from_row("P", {"H": "62XS - HIN Lot / MP1"}),
         webflow_variant_from_row("Q", {"H": "6WZX for HIN/MP1 event"}),
-        webflow_variant_from_row("R", {"H": "62XS for HIN/MP2 event"}),
+        webflow_variant_from_row("R", {"H": "62XS - HIN_MP1"}),
     ])
     assert [checklist._event_filter.itemText(i) for i in range(checklist._event_filter.count())] == [
-        "All events", "62XS - HIN", "6WZX - HIN",
+        "All events", "62XS - HIN_MP1", "6WZX - HIN_MP1",
     ]
-    assert checklist._event_filter.currentText() == "62XS - HIN"
+    assert checklist._event_filter.currentText() == "62XS - HIN_MP1"
     assert set(checklist._checkboxes) == {"P", "R"}
-    checklist._event_filter.setCurrentText("62XS - HIN")
-    assert set(checklist._checkboxes) == {"P", "R"}
-    checklist._event_filter.setCurrentText("6WZX - HIN")
+    checklist._event_filter.setCurrentText("6WZX - HIN_MP1")
     assert set(checklist._checkboxes) == {"Q"}
 
 
