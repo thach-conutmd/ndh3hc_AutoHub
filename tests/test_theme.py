@@ -234,7 +234,7 @@ def test_settings_controls_are_organized_in_groups(qapp):
 
     page = SettingsWidget(MemorySettings())
     groups = {group.title(): group for group in page.findChildren(QGroupBox)}
-    assert list(groups) == ["Theme", "Logging", "Analysis", "Home", "WebFlow Retry"]
+    assert list(groups) == ["Theme", "Logging", "Analysis", "Home", "Creation", "WebFlow Retry"]
     assert page._theme.parentWidget() is groups["Theme"]
     assert page._logging.parentWidget() is groups["Logging"]
     assert page._record.parentWidget() is groups["Analysis"]
@@ -286,3 +286,30 @@ def test_unrelated_settings_do_not_refresh_home(qapp):
     page._record.setChecked(False)
     page._apply.click()
     assert changed.call_args.args[0] == {"record_webflow_pages": False}
+
+
+def test_creation_settings_are_saved_and_discarded_from_settings_page(qapp):
+    from PySide6.QtCore import Qt
+    from autohub.modules.creation.ui import CreationWidget
+    from autohub.modules.settings.creation_form import load_config
+    from autohub.modules.creation.service import WebFlowJobService
+    from tests.fakes import FakeDialogs, FakeWebFlow
+
+    settings = MemorySettings({"tool_version": "Old"})
+    page = SettingsWidget(settings, FakeDialogs(table_answer=False))
+    page._creation._tool_version.setText("New")
+    page._creation._routing.setText("Route")
+    page._creation._change_reason.item(0).setCheckState(Qt.Checked)
+    assert page._apply.isEnabled()
+    page._apply.click()
+    config = load_config(settings)
+    assert config.tool_version == "New" and config.routing == "Route"
+    assert config.change_reason == page._creation._change_reason.item(0).text()
+    page._creation._tool_version.setText("Discard")
+    page._creation._change_reason.item(0).setCheckState(Qt.Unchecked)
+    assert page.confirm_leave()
+    assert page._creation._tool_version.text() == "New"
+    assert page._creation._change_reason.item(0).checkState() == Qt.Checked
+    assert not page._apply.isEnabled()
+    creation = CreationWidget(WebFlowJobService(FakeWebFlow), settings)
+    assert not hasattr(creation, "_settings_btn")

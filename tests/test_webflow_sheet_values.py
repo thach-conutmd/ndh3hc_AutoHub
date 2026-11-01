@@ -97,7 +97,7 @@ def test_job_results_retain_each_variants_allocated_number():
 
 
 def test_ecr_settings_are_loaded_and_editable(qapp):
-    from autohub.modules.creation.config_form import load_config, WebFlowSettingsDialog
+    from autohub.modules.settings.creation_form import load_config, CreationSettingsForm as WebFlowSettingsDialog
     from tests.fakes import MemorySettings
 
     values = {
@@ -115,7 +115,7 @@ def test_ecr_settings_are_loaded_and_editable(qapp):
 
 def test_change_reason_list_matches_webflow_options_and_saves_multiple_selections(qapp):
     from PySide6.QtCore import Qt
-    from autohub.modules.creation.config_form import WebFlowSettingsDialog
+    from autohub.modules.settings.creation_form import CreationSettingsForm as WebFlowSettingsDialog
 
     expected = [
         "Correction of a situation (e.g. out of audits, legal requirements, specification)",
@@ -137,7 +137,7 @@ def test_change_reason_list_matches_webflow_options_and_saves_multiple_selection
 
 
 def test_change_reason_list_preserves_unrecognized_previous_setting(qapp):
-    from autohub.modules.creation.config_form import WebFlowSettingsDialog
+    from autohub.modules.settings.creation_form import CreationSettingsForm as WebFlowSettingsDialog
 
     dialog = WebFlowSettingsDialog(WebFlowConfig("", "", "", "", change_reason="Previously saved reason"))
     assert dialog.values()["change_reason"] == "Previously saved reason"
@@ -145,7 +145,7 @@ def test_change_reason_list_preserves_unrecognized_previous_setting(qapp):
 
 
 def test_creation_settings_width_fits_reason_options_and_input_content(qapp):
-    from autohub.modules.creation.config_form import WebFlowSettingsDialog
+    from autohub.modules.settings.creation_form import CreationSettingsForm as WebFlowSettingsDialog
 
     config = WebFlowConfig("", "https://example.com/" + "wide-content/" * 8, "", "")
     dialog = WebFlowSettingsDialog(config)
@@ -163,7 +163,7 @@ def test_creation_settings_width_fits_reason_options_and_input_content(qapp):
 def test_creation_reason_dropdown_opens_filters_and_keeps_multiple_checks(qapp):
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QPlainTextEdit
-    from autohub.modules.creation.config_form import WebFlowSettingsDialog, CHANGE_REASON_OPTIONS
+    from autohub.modules.settings.creation_form import CreationSettingsForm as WebFlowSettingsDialog, CHANGE_REASON_OPTIONS
 
     dialog = WebFlowSettingsDialog(WebFlowConfig("", "", "", ""))
     dialog.show()

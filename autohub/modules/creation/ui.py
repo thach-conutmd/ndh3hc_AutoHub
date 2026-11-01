@@ -11,7 +11,7 @@ from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
 from autohub.core.workers import TaskRunner
 from autohub.core.webflow_numbers import number_updates
-from autohub.modules.creation.config_form import WebFlowSettingsDialog, load_config
+from autohub.modules.creation.config_form import load_config
 from autohub.modules.creation.service import WebFlowJobService
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.ui.theme import set_muted
@@ -41,11 +41,7 @@ class CreationWidget(QWidget):
         self._create_jobs_btn = QPushButton("Create WebFlow jobs")
         self._create_jobs_btn.setFixedWidth(190)
         self._create_jobs_btn.clicked.connect(self._create_webflow_jobs)
-        self._settings_btn = QPushButton("Settings")
-        self._settings_btn.setFixedWidth(120)
-        self._settings_btn.clicked.connect(self._open_settings)
         create_jobs_row = QHBoxLayout()
-        create_jobs_row.addWidget(self._settings_btn)
         create_jobs_row.addStretch(1)
         create_jobs_row.addWidget(self._create_jobs_btn)
         create_jobs_row.addStretch(1)
@@ -61,11 +57,6 @@ class CreationWidget(QWidget):
     def set_variants(self, variants: list[dict]) -> None:
         """Populate the checklist with variants loaded/created on the Home page."""
         self._checklist.set_variants(variants)
-
-    def _open_settings(self) -> None:
-        dialog = WebFlowSettingsDialog(load_config(self._settings), self)
-        if dialog.exec():
-            self._settings.update(**dialog.values())
 
     def _create_webflow_jobs(self) -> None:
         selected = self._checklist.selected_variants()
