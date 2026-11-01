@@ -535,3 +535,60 @@ def test_home_page_loads_variants_behind_the_startup_dialog(qapp, tmp_path):
     assert isinstance(page, StartupPreload) and not isinstance(page, StartupTask)
     page.preload(lambda _text: None)
     assert page.row_count() == 0
+
+
+def _new_sheet(tmp_path, name="new.xlsx"):
+    path = tmp_path / name
+    path.write_bytes(b"x")
+    return str(path)
+
+
+def test_load_master_sheet_clears_the_table_and_loads_its_variants(tmp_path):
+    master = FakeMasterSheet(rows=[{"_row": 11, "J": "NEW"}], webflow=[{"part_number": "NEW"}])
+    new_path = _new_sheet(tmp_path)
+    dialogs = FakeDialogs(files=[new_path])
+    presenter, view, _, settings = _presenter(tmp_path, _checked_service(master=master), dialogs)
+    view.rows = [{"_row": 5, "J": "OLD"}]
+
+    presenter.browse_master_sheet()
+
+    assert view.rows == [{"_row": 11, "J": "NEW"}]
+    assert view.published == [[], [{"part_number": "NEW"}]]
+    assert settings.load()["master_sheet_path"] == new_path
+    assert view.file_names["Master Sheet"].endswith("new.xlsx")
+    assert dialogs.asked == [] and dialogs.confirmed == [] and dialogs.errors == []
+
+
+def test_load_master_sheet_cancelled_picker_changes_nothing(tmp_path):
+    presenter, view, dialogs, settings = _presenter(tmp_path, _checked_service(), FakeDialogs(files=[]))
+    view.rows = [{"J": "kept"}]
+    before = settings.load()["master_sheet_path"]
+    presenter.browse_master_sheet()
+    assert view.rows == [{"J": "kept"}] and settings.load()["master_sheet_path"] == before
+
+
+def test_load_master_sheet_rejects_an_invalid_file_and_keeps_the_table(tmp_path):
+    dialogs = FakeDialogs(files=[_new_sheet(tmp_path)])
+    presenter, view, _, settings = _presenter(tmp_path, _checked_service("Not a Master Sheet."), dialogs)
+    view.rows = [{"J": "kept"}]
+    before = settings.load()["master_sheet_path"]
+
+    presenter.browse_master_sheet()
+
+    assert view.rows == [{"J": "kept"}] and view.published == []
+    assert dialogs.errors == [("Load Master Sheet", "Not a Master Sheet.")]
+    assert settings.load()["master_sheet_path"] == before
+
+
+def test_load_master_sheet_asks_before_discarding_unsaved_changes(tmp_path):
+    new_path = _new_sheet(tmp_path)
+    dialogs = FakeDialogs(files=[new_path], confirm_answer=False)
+    presenter, view, _, settings = _presenter(tmp_path, _checked_service(), dialogs)
+    view.rows = [{"J": "edited"}]
+    presenter.on_table_edited()
+    before = settings.load()["master_sheet_path"]
+
+    presenter.browse_master_sheet()
+
+    assert len(dialogs.confirmed) == 1
+    assert view.rows == [{"J": "edited"}] and settings.load()["master_sheet_path"] == before
