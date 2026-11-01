@@ -122,8 +122,14 @@ def test_creation_selection_summary_and_create_action_follow_selection(qapp):
     creation._checklist._set_all(True)
     assert creation._selection_summary.text() == "2 selected · 2 available"
     assert creation._create_jobs_btn.text() == "Create 2 WebFlow jobs"
-    creation._checklist.clear_selection()
+    assert creation._checklist._clear_selection_btn.isEnabled()
+    creation._checklist._clear_selection_btn.click()
     assert not creation._create_jobs_btn.isEnabled()
+    assert creation._selection_summary.text() == "0 selected · 2 available"
+    assert not creation._checklist._clear_selection_btn.isEnabled()
+    assert creation._checklist._select_visible_btn.isEnabled()
+    creation._checklist._event_filter.setCurrentText("B")
+    assert not creation._checklist._checkboxes["P2"].isChecked()
 
 
 def test_reloading_variants_clears_the_selection(qapp):
