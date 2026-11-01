@@ -1,0 +1,292 @@
+{
+ "step": "Confirm the job creation",
+ "navigated": false,
+ "dropped": 0,
+ "events": [
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#1000 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#1001 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#1002 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#1051 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#10003 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#1059 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#51001 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#2337 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "class",
+   "new": "p-element p-inputwrapper p-inputwrapper-filled ng-dirty ng-valid ng-touched",
+   "old": "p-element p-inputwrapper p-inputwrapper-filled ng-dirty ng-valid ng-touched p-inputwrapper-focus",
+   "t": 34516,
+   "target": "div#2337 > div:nth-of-type(2) > app-lodcombobox > div > p-dropdown",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-class",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#pn_id_65",
+   "type": "attr"
+  },
+  {
+   "attr": "class",
+   "new": "form-item-dropdown p-dropdown p-component p-inputwrapper p-inputwrapper-filled",
+   "old": "form-item-dropdown p-dropdown p-component p-inputwrapper p-inputwrapper-filled p-focus p-inputwrapper-focus",
+   "t": 34516,
+   "target": "div#pn_id_65",
+   "type": "attr"
+  },
+  {
+   "attr": "class",
+   "new": "form-item-dropdown p-dropdown p-component p-inputwrapper p-inputwrapper-filled",
+   "old": "form-item-dropdown p-dropdown p-component p-inputwrapper p-inputwrapper-filled p-inputwrapper-focus",
+   "t": 34516,
+   "target": "div#pn_id_65",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-class",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34516,
+   "target": "div#pn_id_65 > span",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#1000 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#1001 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#1002 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#1051 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#10003 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#1059 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#51001 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#2337 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-class",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#pn_id_65",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-class",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34517,
+   "target": "div#pn_id_65 > span",
+   "type": "attr"
+  },
+  {
+   "new": " PreCreate validation: No errors or warnings",
+   "old": " No errors or warnings",
+   "t": 34523,
+   "target": "a#pn_id_48_header_action > p-header > span",
+   "type": "text"
+  },
+  {
+   "attr": "ng-reflect-value",
+   "new": "",
+   "old": "",
+   "t": 34523,
+   "target": "div#pn_id_48_content > div > p-table",
+   "type": "attr"
+  },
+  {
+   "new": "bindings={\n  \"ng-reflect-ng-template-outlet-context\": \"[object Object]\"\n}",
+   "old": "bindings={\n  \"ng-reflect-ng-template-outlet-context\": \"[object Object]\"\n}",
+   "t": 34523,
+   "target": "div#pn_id_49 > div",
+   "type": "text"
+  },
+  {
+   "attr": "ng-reflect-value",
+   "new": "",
+   "old": "",
+   "t": 34523,
+   "target": "table#pn_id_49-table > tbody",
+   "type": "attr"
+  },
+  {
+   "new": "bindings={\n  \"ng-reflect-ng-for-of\": \"\"\n}",
+   "old": "bindings={\n  \"ng-reflect-ng-for-track-by\": \"(index, item) => item\"\n}",
+   "t": 34523,
+   "target": "table#pn_id_49-table > tbody",
+   "type": "text"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34523,
+   "target": "div#1000 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34523,
+   "target": "div#1001 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34523,
+   "target": "div#1002 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34523,
+   "target": "div#1051 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34523,
+   "target": "div#10003 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34523,
+   "target": "div#1059 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34523,
+   "target": "div#51001 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  },
+  {
+   "attr": "ng-reflect-ng-style",
+   "new": "[object Object]",
+   "old": "[object Object]",
+   "t": 34523,
+   "target": "div#2337 > div:nth-of-type(2) > app-lodcombobox > div",
+   "type": "attr"
+  }
+ ]
+}
