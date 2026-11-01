@@ -4,7 +4,9 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QGroupBox, QHBoxLayout, QLabel, QMessageBox, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+)
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.progress import ProgressWindow
@@ -32,31 +34,71 @@ class CreationWidget(QWidget):
 
         title = QLabel("Create WebFlow jobs")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
-        subtitle = QLabel("Choose one or more variants loaded from the Master Sheet workflow.")
+        subtitle = QLabel("Select variants to create and fill WebFlow jobs.")
+        subtitle.setWordWrap(True)
         set_muted(subtitle, True)
 
         self._checklist = VariantChecklist()
         self._settings = settings
 
+        selection_title = QLabel("Select variants")
+        selection_title.setStyleSheet("font-size: 16px; font-weight: 600;")
+        self._selection_summary = QLabel("0 selected · 0 available")
+        set_muted(self._selection_summary, True)
+        selection_header = QHBoxLayout()
+        selection_header.addWidget(selection_title)
+        selection_header.addStretch(1)
+        selection_header.addWidget(self._selection_summary)
+        selection_group = QGroupBox()
+        selection_group.setStyleSheet(
+            "QGroupBox { border: 1px solid palette(mid); border-radius: 8px; margin-top: 4px; }"
+        )
+        selection_layout = QVBoxLayout(selection_group)
+        selection_layout.setContentsMargins(14, 14, 14, 14)
+        selection_layout.setSpacing(12)
+        selection_layout.addLayout(selection_header)
+        selection_layout.addWidget(self._checklist, 1)
+
         self._create_jobs_btn = QPushButton("Create WebFlow jobs")
-        self._create_jobs_btn.setFixedWidth(190)
+        self._create_jobs_btn.setMinimumWidth(210)
+        self._create_jobs_btn.setMinimumHeight(36)
+        self._create_jobs_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._create_jobs_btn.setEnabled(False)
         self._create_jobs_btn.clicked.connect(self._create_webflow_jobs)
+        self._footer_hint = QLabel("Select at least one variant to continue.")
+        set_muted(self._footer_hint, True)
         create_jobs_row = QHBoxLayout()
+        create_jobs_row.addWidget(self._footer_hint)
         create_jobs_row.addStretch(1)
         create_jobs_row.addWidget(self._create_jobs_btn)
-        create_jobs_row.addStretch(1)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(12)
         layout.addWidget(title)
         layout.addWidget(subtitle)
-        layout.addSpacing(8)
-        layout.addWidget(self._checklist, stretch=1)
-        layout.addSpacing(8)
+        layout.addWidget(selection_group, stretch=1)
         layout.addLayout(create_jobs_row)
+        self._running = False
+        self._checklist.selectionChanged.connect(self._update_selection_summary)
+        self._update_selection_summary(0, 0)
 
     def set_variants(self, variants: list[dict]) -> None:
         """Populate the checklist with variants loaded/created on the Home page."""
         self._checklist.set_variants(variants)
+
+    def _update_selection_summary(self, selected: int, total: int) -> None:
+        self._selection_summary.setText(f"{selected} selected · {total} available")
+        self._footer_hint.setText(
+            "Ready to create jobs." if selected else
+            "Select at least one variant to continue." if total else
+            "Load variants on Home to get started."
+        )
+        self._create_jobs_btn.setText(
+            f"Create {selected} WebFlow job{'s' if selected != 1 else ''}" if selected
+            else "Create WebFlow jobs"
+        )
+        self._create_jobs_btn.setEnabled(selected > 0 and not self._running)
 
     def _create_webflow_jobs(self) -> None:
         selected = self._checklist.selected_variants()
@@ -100,6 +142,8 @@ class CreationWidget(QWidget):
             self._service.discard_pending_batch()
 
     def _start_task(self, work) -> None:
+        self._running = True
+        self._checklist.setEnabled(False)
         self._create_jobs_btn.setEnabled(False)
         self._create_jobs_btn.setText("Creating jobs...")
         window = QtDialogs(self).open_progress("Create WebFlow jobs")
@@ -134,14 +178,15 @@ class CreationWidget(QWidget):
         return remaining
 
     def _finish_webflow_jobs(self, results: list[dict], window: ProgressWindow) -> None:
-        self._create_jobs_btn.setEnabled(True)
-        self._create_jobs_btn.setText("Create WebFlow jobs")
+        self._running = False
+        self._checklist.setEnabled(True)
         self._checklist.clear_selection()
         links = {item["PartNumber"]: item["Url"] for item in results if item.get("Url")}
         self._checklist.set_links(links)
         self.webflowLinksUpdated.emit(links)
         numbers = number_updates(results)
         self._checklist.set_numbers(numbers)
+        self._update_selection_summary(0, self._checklist.variant_count)
         self.webflowNumbersUpdated.emit(numbers, not any(item.get("NumberError") for item in results))
         _logger.info("Created %d WebFlow job(s)", len(results))
         summary = "\n".join(f"{item['PartNumber']}: {item['JobId']}" for item in results)
@@ -167,9 +212,10 @@ class CreationWidget(QWidget):
         window.succeed(message)
 
     def _fail_webflow_jobs(self, error: str, window: ProgressWindow) -> None:
-        self._create_jobs_btn.setEnabled(True)
-        self._create_jobs_btn.setText("Create WebFlow jobs")
+        self._running = False
+        self._checklist.setEnabled(True)
         self._checklist.clear_selection()
+        self._update_selection_summary(0, self._checklist.variant_count)
         _logger.error("Create WebFlow jobs failed: %s", error)
         window.fail(f"{error}\n\nTotal time: {self._service.last_elapsed_seconds:.1f} seconds.")
 
