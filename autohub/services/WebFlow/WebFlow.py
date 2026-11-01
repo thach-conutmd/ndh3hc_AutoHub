@@ -26,6 +26,10 @@ from .step_trace import StepTrace
 _logger = logging.getLogger(__name__)
 
 
+def _is_browser_error_page(driver) -> bool:
+    return "ERR_UNEXPECTED" in driver.page_source
+
+
 class WebFlow(webdriver.Edge):
 
     def __init__(
@@ -74,8 +78,9 @@ class WebFlow(webdriver.Edge):
             number_attempts += 1
             _logger.info("Dashboard not ready (title %r), refreshed (attempt %d/%d)", self.title, number_attempts, Constants.WEBFLOW_MAX_ATTEMPTS)
 
-        if number_attempts >= Constants.WEBFLOW_MAX_ATTEMPTS:
+        if self.title != Constants.WEBFLOW_TITLE:
             _logger.error("The WebFlow dashboard did not open after %d attempts", number_attempts)
+            self.quit()
             return False
 
         WebDriverWait(self, Constants.WEBFLOW_TIMEOUT).until(
@@ -96,6 +101,22 @@ class WebFlow(webdriver.Edge):
         _logger.info("Opening job %s: %s", job_id, url)
         try:
             self.get(url)
+            for attempt in range(Constants.WEBFLOW_MAX_ATTEMPTS):
+                if not _is_browser_error_page(self):
+                    break
+                _logger.warning(
+                    "Edge showed ERR_UNEXPECTED while opening job %s; refreshing (attempt %d/%d)",
+                    job_id, attempt + 1, Constants.WEBFLOW_MAX_ATTEMPTS,
+                )
+                self.refresh()
+                time.sleep(Constants.WEBFLOW_REFRESH_INTERVAL)
+            if _is_browser_error_page(self):
+                _logger.error(
+                    "Edge still shows ERR_UNEXPECTED after %d refresh attempts for job %s",
+                    Constants.WEBFLOW_MAX_ATTEMPTS, job_id,
+                )
+                self.quit()
+                return False
             WebDriverWait(self, Constants.WEBFLOW_TIMEOUT).until(
                 EC.title_is(Constants.WEBFLOW_TITLE)
             )

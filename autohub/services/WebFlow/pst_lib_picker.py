@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants
 from .components import Section
+from .save_confirmation import SaveBeforeImportConfirmation
 
 _logger = logging.getLogger(__name__)
 
@@ -38,14 +39,20 @@ class PstLibPicker:
                 _logger.error("Pick PST_Lib is not available")
                 return False
             button.click()
+            confirmation = SaveBeforeImportConfirmation(self.driver, "Pick PST_Lib")
 
             def selection_dialog(_driver):
+                if confirmation.pending():
+                    return False
                 for dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"]'):
                     if dialog.is_displayed() and "PST_Lib and PVER selection" in dialog.text:
                         return dialog
                 return False
 
-            dialog = WebDriverWait(self.driver, Constants.WEBFLOW_TIMEOUT).until(selection_dialog)
+            dialog = WebDriverWait(
+                self.driver, Constants.WEBFLOW_TIMEOUT,
+                ignored_exceptions=(StaleElementReferenceException,),
+            ).until(selection_dialog)
             search = dialog.find_element(
                 By.CSS_SELECTOR, 'input[placeholder^="Search for Program identification"]'
             )
@@ -91,6 +98,8 @@ class PstLibPicker:
             pick.click()
 
             def dialog_closed(_driver):
+                if confirmation.pending():
+                    return False
                 try:
                     return not dialog.is_displayed()
                 except StaleElementReferenceException:

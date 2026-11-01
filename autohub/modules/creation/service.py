@@ -248,9 +248,6 @@ class WebFlowJobService:
                     job_variants, tool_version=config.tool_version, routing=config.routing, progress=progress,
                     state=state, checkpoint=checkpoint,
                 )
-                # The batch has finished with the browser; release it now so app
-                # close does not quit an already-stopped driver again.
-                self.shutdown()
                 return results
             except (ValueError, NonRetryableError):
                 self.discard_pending_batch()
@@ -258,6 +255,8 @@ class WebFlowJobService:
             except Exception as error:
                 _logger.exception("WebFlow job creation attempt %d of %d failed", attempt, max_attempts)
                 last_error = error
+            finally:
+                self.shutdown()
         message = f"{last_error}\n\nWebFlow job creation failed after {max_attempts} attempts."
         if self._journal:
             message += " The progress is saved; AutoHub offers to continue the next time it opens."

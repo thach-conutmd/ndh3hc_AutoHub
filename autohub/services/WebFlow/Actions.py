@@ -1,4 +1,5 @@
 import logging
+from typing import Callable
 
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
@@ -10,6 +11,12 @@ from .components import scroll_into_view_if_hidden, wait_for, wait_until_idle
 from .toast import toast_severity
 
 _logger = logging.getLogger(__name__)
+
+
+def save_before_action(save: Callable[[], bool], action: str) -> bool:
+    if not save():
+        raise RuntimeError(f"Could not save the job before {action}; {action} was not started.")
+    return True
 
 
 class Actions:

@@ -1,6 +1,4 @@
 """Single-submit number import and its known save-before-import confirmation."""
-import logging
-
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -8,9 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants
 from .components import Section
-
-_logger = logging.getLogger(__name__)
-
+from .save_confirmation import SaveBeforeImportConfirmation
 
 class NumberImport:
     def __init__(self, driver: WebDriver, section: Section):
@@ -28,25 +24,10 @@ class NumberImport:
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
         # Allocating a number may have server-side effects: never retry the click.
         button.click()
-        confirmed = False
+        confirmation = SaveBeforeImportConfirmation(self.driver, button_label)
 
         def imported(_driver):
-            nonlocal confirmed
-            for dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"], [role="alertdialog"]'):
-                if not dialog.is_displayed():
-                    continue
-                if "Data filled in by you will be saved before import." not in dialog.text:
-                    continue
-                if not confirmed:
-                    yes = dialog.find_element(
-                        By.XPATH, './/button[normalize-space(.)="Yes" or .//span[normalize-space(.)="Yes"]]'
-                    )
-                    if not yes.is_displayed() or not yes.is_enabled():
-                        return False
-                    # Do not repeat confirmation after a stale DOM refresh.
-                    confirmed = True
-                    yes.click()
-                    _logger.info("Confirmed saving changes before %s: Yes", button_label)
+            if confirmation.pending():
                 return False
             field = self.section.body().find_element(
                 By.XPATH,

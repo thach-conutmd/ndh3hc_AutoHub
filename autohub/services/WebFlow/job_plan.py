@@ -5,6 +5,7 @@ from typing import Any, Protocol
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 
+from .Actions import save_before_action
 from .step_log import Step
 
 ECU_FIELDS = (
@@ -73,13 +74,25 @@ class JobPlan:
                     ))
                 steps.append((f"General: {label} = {value}", general.fill_hardware_field, key, value))
                 if key == "lead_plant":
+                    steps.append((
+                        "Save the job before Import from pool",
+                        save_before_action, self.body.actions.save, "Import from pool",
+                    ))
                     steps.append(("General: Import software part number from pool", general.import_software_part_number))
         pver = variant.get("hardware", {}).get("program_version")
         if pver:
+            steps.append((
+                "Save the job before Pick PST_Lib",
+                save_before_action, self.body.actions.save, "Pick PST_Lib",
+            ))
             steps.append((f"General: Pick PST_Lib for PVER {pver}", general.pick_pst_lib, pver))
         if variant.get("ecr"):
             for key, value in variant["ecr"].items():
                 steps.append((f"General: ECR {key} = {value}", general.fill_hardware_field, key, value))
+            steps.append((
+                "Save the job before ECR Import",
+                save_before_action, self.body.actions.save, "ECR Import",
+            ))
             steps.append(("General: ECR Import", general.import_ecr))
         steps.append(("Select the ECU tab", ecu_tab.select_ecu_tab))
         steps += _optional_steps("ECU", ecu_tab, ECU_FIELDS, variant["ecu"])
