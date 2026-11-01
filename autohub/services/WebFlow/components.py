@@ -56,16 +56,27 @@ def select_dropdown(driver: Any, title_xpath: str, button_css: str, value: str, 
             title = wait_for(driver, By.XPATH, title_xpath)
             return title.find_element(By.XPATH, "..").find_element(By.CSS_SELECTOR, button_css)
 
-        # XPath literals must also support option text containing quotation marks.
-        literal = "'" + value + "'" if "'" not in value else 'concat(' + ', "\'", '.join(
-            "'" + part + "'" for part in value.split("'")
-        ) + ')'
+        def xpath_literal(text: str) -> str:
+            if "'" not in text:
+                return "'" + text + "'"
+            return 'concat(' + ', "\'", '.join("'" + part + "'" for part in text.split("'")) + ')'
+
+        literal = xpath_literal(value)
 
         def selected(_driver):
             try:
                 button_element().find_element(By.XPATH, f'.//span[text()={literal}]')
                 return True
             except NoSuchElementException:
+                if value != value.strip():
+                    normalized_literal = xpath_literal(value.strip())
+                    try:
+                        button_element().find_element(
+                            By.XPATH, f'.//span[normalize-space(text())={normalized_literal}]'
+                        )
+                        return True
+                    except NoSuchElementException:
+                        pass
                 return False
 
         if selected(driver):
@@ -76,10 +87,15 @@ def select_dropdown(driver: Any, title_xpath: str, button_css: str, value: str, 
             return False
 
         options = read_options()
-        if not options or value not in options:
+        option = (options or {}).get(value)
+        if option is None and options and value != value.strip():
+            matches = [item for label, item in options.items() if label.strip() == value.strip()]
+            if len(matches) == 1:
+                option = matches[0]
+        if option is None:
             _logger.error("Drop-down %s does not offer %r; available values: %s", title_xpath, value, list(options or {}))
             return False
-        options[value].click()
+        option.click()
         if not wait_until_idle(driver):
             return False
         WebDriverWait(driver, Constants.BODY_TIMEOUT).until(selected)
