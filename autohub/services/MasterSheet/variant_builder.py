@@ -14,6 +14,7 @@ from autohub.core.normalizers import (
     normalize_displacement,
     normalize_emission,
     normalize_project_purpose,
+    project_purpose,
     normalize_model_year,
     normalize_part_number,
     normalize_program_version,
@@ -120,16 +121,13 @@ def build_request_values(
     """Column-letter -> value for one variant's REQ row (including the created date "C")."""
     defaults = WEBFLOW_DEFAULTS
     project = clean_text(general.get("Project"))
-    event = clean_text(ecu.get("Event"))
-    milestone = clean_text(ecu.get("MP"))
     part_number = normalize_part_number(main.get("NumCompID"))
     program_id = clean_text(main.get("NumProgID"))
     hardware = clean_text(system_variant.get("Hardware"))
-    project_purpose = f"{project} - {event} Lot / {milestone}" if project and event and milestone else ""
 
     request_values = {
         "C": now or datetime.now(),
-        "H": project_purpose,
+        "H": project_purpose(project, ecu.get("Event"), ecu.get("MP")),
         "J": part_number,
         "Q": defaults.ecu_generation,
         "R": "Honda",

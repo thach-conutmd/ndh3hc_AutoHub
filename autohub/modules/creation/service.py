@@ -206,7 +206,7 @@ class WebFlowJobService:
             if unknown:
                 raise ValueError(
                     "Cannot write ECR notes: Project Purpose has no project and event for "
-                    f"{', '.join(unknown)}. Use '<Project> - <Event> Lot / <MP>' and reload the variants."
+                    f"{', '.join(unknown)}. Use '<Project> - <Event>_<MP>' and reload the variants."
                 )
             for job_variant in pending:
                 job_variant["ecr"] = {**ecr, "ecr_notes": ecr_notes(job_variant["project"], job_variant["event_name"])}

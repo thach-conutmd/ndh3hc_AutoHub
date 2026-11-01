@@ -16,14 +16,24 @@ def normalize_key_text(value) -> str:
     return re.sub(r"\s+", " ", clean_text(value)).casefold()
 
 
+def event_name(event, milestone) -> str:
+    """"<Event>_<MP>" (CERT + MP0 -> CERT_MP0); the event alone without an MP or when it already ends with it."""
+    event, milestone = clean_text(event), clean_text(milestone)
+    if milestone and not event.casefold().endswith(f"_{milestone}".casefold()):
+        return f"{event}_{milestone}"
+    return event
+
+
+def project_purpose(project, event, milestone) -> str:
+    """Project Purpose for a new variant: "<Project> - <Event>_<MP>", e.g. "6WZX - CERT_MP0"."""
+    project, event = clean_text(project), clean_text(event)
+    return f"{project} - {event_name(event, milestone)}" if project and event else ""
+
+
 def normalize_project_purpose(value) -> str:
-    """Use the current purpose format for comparisons with legacy Master Sheet rows."""
-    text = clean_text(value)
-    match = re.fullmatch(r"(.+?)\s+for\s+(.+?)/(.+?)\s+event", text, re.IGNORECASE)
-    if match:
-        project, event, milestone = (part.strip() for part in match.groups())
-        text = f"{project} - {event} Lot / {milestone}"
-    return normalize_key_text(text)
+    """Use the current purpose format for comparisons with older Master Sheet rows."""
+    project, event = project_event(value)
+    return normalize_key_text(f"{project} - {event}" if project else value)
 
 
 def normalize_displacement(value) -> str:
@@ -116,16 +126,25 @@ def hex_text(value) -> str:
 
 
 def project_event(project_purpose) -> tuple[str, str]:
-    """(project, event name) from current or legacy Project Purpose text; blanks when not recognised."""
+    """(project, event name) from Project Purpose text; blanks when not recognised.
+
+    The event name includes the MP: "6WZX - CERT_MP0", "6WZX - CERT Lot / MP0" and
+    "6WZX for CERT/MP0 event" all give ("6WZX", "CERT_MP0")."""
     text = clean_text(project_purpose)
-    match = re.fullmatch(r"(.+?)\s+-\s+(.+?)\s+Lot\s*/\s*.+", text, re.IGNORECASE)
-    if not match:
-        match = re.fullmatch(r"(.+?)\s+for\s+([^/]+?)(?:\s*/\s*.+?)?\s+event", text, re.IGNORECASE)
-    return (match.group(1).strip(), match.group(2).strip()) if match else ("", "")
+    for pattern in (
+        r"(.+?)\s+-\s+(.+?)\s+Lot\s*/\s*(.+)",
+        r"(.+?)\s+for\s+([^/]+?)(?:\s*/\s*(.+?))?\s+event",
+        r"(\S+?)\s+-\s+(\S.*)",
+    ):
+        match = re.fullmatch(pattern, text, re.IGNORECASE)
+        if match:
+            project, event, *milestone = (clean_text(part) for part in match.groups())
+            return project, event_name(event, milestone[0] if milestone else "")
+    return ("", "")
 
 
 def parse_event(project_purpose) -> str:
-    """Extract a project-version/event label from current or legacy Project Purpose text."""
+    """The "<Project> - <Event>_<MP>" label of any Project Purpose format; other text is kept."""
     project, event = project_event(project_purpose)
     return f"{project} - {event}" if project else clean_text(project_purpose)
 

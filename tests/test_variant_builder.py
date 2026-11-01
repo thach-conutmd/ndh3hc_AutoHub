@@ -42,25 +42,32 @@ SYSTEM = {"Hardware": "MG1CS022", "Destination": "M", "Market": "Brazil", "SSID"
         (n.development_number, "0261B00DA8", "0261B00DA8"),
         (n.development_number, "0261B00-001", "0261B00-001"),
         (n.ascii_hex, "37805", "3337383035"),
-        (n.parse_event, "62XS for DAN/MP1 event", "62XS - DAN"),
-        (n.parse_event, "62XS - HIN Lot / MP1", "62XS - HIN"),
+        (n.parse_event, "62XS for DAN/MP1 event", "62XS - DAN_MP1"),
+        (n.parse_event, "62XS - HIN Lot / MP1", "62XS - HIN_MP1"),
+        (n.parse_event, "6WZX - CERT_MP0", "6WZX - CERT_MP0"),
         (n.parse_event, "6WZX for MP0 event", "6WZX - MP0"),
-        (n.parse_event, " 62XS  -  HIN  lot / MP1 ", "62XS - HIN"),
+        (n.parse_event, " 62XS  -  HIN  lot / MP1 ", "62XS - HIN_MP1"),
         (n.parse_event, None, ""),
-        (n.normalize_project_purpose, "62XS for HIN/MP1 event", "62xs - hin lot / mp1"),
-        (n.normalize_project_purpose, "62XS - HIN Lot / MP1", "62xs - hin lot / mp1"),
+        (n.normalize_project_purpose, "62XS for HIN/MP1 event", "62xs - hin_mp1"),
+        (n.normalize_project_purpose, "62XS - HIN Lot / MP1", "62xs - hin_mp1"),
+        (n.normalize_project_purpose, "62XS - HIN_MP1", "62xs - hin_mp1"),
+        (n.normalize_project_purpose, "free  Text", "free text"),
+        (n.project_purpose, ("6WZX", "CERT", "MP0"), "6WZX - CERT_MP0"),
+        (n.project_purpose, ("6WZX", "CERT_MP0", "MP0"), "6WZX - CERT_MP0"),
+        (n.project_purpose, ("6WZX", "CERT", ""), "6WZX - CERT"),
+        (n.project_purpose, ("", "CERT", "MP0"), ""),
         (n.parse_event, "free text", "free text"),
     ],
 )
 def test_normalizers(function, value, expected):
-    assert function(value) == expected
+    assert (function(*value) if isinstance(value, tuple) else function(value)) == expected
 
 
 def test_request_values_for_a_variant():
     values = build_request_values(GENERAL, ECU, MAIN, {"SK1": ""}, SYSTEM, now=datetime(2026, 1, 2))
     assert values["J"] == values["CS"] == "37820-62X-MD10-M6"  # DWG NO. is the part number
     assert values["CX"] == "37820-62X-MD1"  # CUST PART NO. is DWG NO. without the last 4 characters
-    assert values["H"] == "62XS - DAN Lot / MP1"
+    assert values["H"] == "62XS - DAN_MP1"
     assert values["AJ"] == "Brazil"  # Market comes from the DESTINATION row
     assert values["S"] == values["BD"] == "MG1CS022"
     assert values["CY"] == "7C8" and values["CZ"] == "41X"
@@ -70,10 +77,12 @@ def test_request_values_for_a_variant():
 
 
 def test_project_purpose_uses_project_event_and_milestone():
-    values = build_request_values(GENERAL, {**ECU, "Event": "HIN"}, MAIN, {}, SYSTEM)
-    assert values["H"] == "62XS - HIN Lot / MP1"
+    values = build_request_values(GENERAL, {**ECU, "Event": "CERT", "MP": "MP0"}, MAIN, {}, SYSTEM)
+    assert values["H"] == "62XS - CERT_MP0"
     variant = webflow_variant_from_row(values["J"], values)
-    assert (variant["event"], variant["project"], variant["event_name"]) == ("62XS - HIN", "62XS", "HIN")
+    assert (variant["event"], variant["project"], variant["event_name"]) == ("62XS - CERT_MP0", "62XS", "CERT_MP0")
+    older = webflow_variant_from_row("P", {"H": "62XS - HIN Lot / MP1"})
+    assert (older["project"], older["event_name"]) == ("62XS", "HIN_MP1")
     legacy = webflow_variant_from_row("P", {"H": "6WZX for MP0 event"})
     assert (legacy["project"], legacy["event_name"]) == ("6WZX", "MP0")
     assert (webflow_variant_from_row("P", {"H": "free text"})["project"], webflow_variant_from_row("P", {})["event_name"]) == ("", "")
@@ -179,7 +188,7 @@ def test_webflow_variant_uses_sheet_values_instead_of_defaults():
            "V": "Program", "W": "YES", "X": "No", "Y": "Yes", "Z": False, "AA": True,
            "BE": "62XS", "BF": "V030", "BH": "FFFF", "CL": "33", "CM": "00", "CN": "FF", "CQ": "01"}
     variant = webflow_variant_from_row("37820-62X-MD10-M6", row)
-    assert variant["event"] == "62XS - DAN" and variant["ecu_type"] == "MED17.9"
+    assert variant["event"] == "62XS - DAN_MP1" and variant["ecu_type"] == "MED17.9"
     assert variant["ecu_generation"] == "MED17" and variant["brand"] == "Honda"
     assert variant["general"] == {
         "delivery_type": "Custom delivery", "release_class": "Pilot", "release_scope": "Program", "limitations": "YES",
