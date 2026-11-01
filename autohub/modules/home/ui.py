@@ -3,15 +3,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
-from autohub.config import HOME_BANNER_PATH
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import LATEST_COUNT_KEY, SHOW_WEBFLOW_LINK_KEY
 from autohub.core.workers import TaskRunner
-from autohub.modules.home.banner import BannerLabel
 from autohub.modules.home.presenter import (
     LOAD_TEXT,
     MASTER_SHEET,
@@ -35,31 +33,54 @@ class HomeWidget(QWidget):
         super().__init__()
 
         self._settings = settings
-        self._banner = BannerLabel(HOME_BANNER_PATH)
         self._file_name_labels: dict[str, QLabel] = {}
         self._variant_table = VariantTable()
+
+        title = QLabel("Variant workspace")
+        title.setStyleSheet("font-size: 24px; font-weight: 700;")
+        subtitle = QLabel("Load a Master Sheet, review variants, and prepare your WebFlow jobs.")
+        subtitle.setWordWrap(True)
+        set_muted(subtitle, True)
 
         browse_btn = QPushButton(f"Load {MASTER_SHEET}")
         browse_btn.setMinimumWidth(140)
         name_label = QLabel("Not selected")
         name_label.setMinimumWidth(_FILE_NAME_LABEL_WIDTH)
+        name_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        name_label.setWordWrap(True)
         set_muted(name_label, True)
         self._file_name_labels[MASTER_SHEET] = name_label
         files_row = QHBoxLayout()
         files_row.setSpacing(16)
+        files_row.addWidget(name_label, 1)
         files_row.addWidget(browse_btn)
-        files_row.addWidget(name_label)
-        files_row.addStretch(1)
 
         self._create_btn = QPushButton(NEW_VARIANT_TEXT)
         self._create_btn.setMinimumWidth(120)
         self._create_btn.setToolTip(NEW_VARIANT_TIP)
         self._load_btn = QPushButton(LOAD_TEXT)
         self._load_btn.setMinimumWidth(120)
-        files_row.addWidget(self._create_btn)
         files_row.addWidget(self._load_btn)
 
+        sheet_group = QGroupBox("Master Sheet")
+        sheet_group.setStyleSheet(
+            "QGroupBox { border: 1px solid palette(mid); border-radius: 8px; "
+            "margin-top: 12px; font-weight: 600; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 14px; padding: 0 6px; }"
+        )
+        sheet_layout = QVBoxLayout(sheet_group)
+        sheet_layout.setContentsMargins(16, 24, 16, 14)
+        sheet_layout.addLayout(files_row)
 
+        self._row_summary = QLabel("No variants loaded")
+        set_muted(self._row_summary, True)
+        table_title = QLabel("Variants")
+        table_title.setStyleSheet("font-size: 16px; font-weight: 600;")
+        table_header = QHBoxLayout()
+        table_header.addWidget(table_title)
+        table_header.addWidget(self._row_summary)
+        table_header.addStretch(1)
+        table_header.addWidget(self._create_btn)
         self._update_btn = QPushButton(UPDATE_TEXT)
         self._update_btn.setEnabled(False)
         self._clear_btn = QPushButton("Clear table")
@@ -72,15 +93,25 @@ class HomeWidget(QWidget):
         write_row.addWidget(self._delete_btn)
         write_row.addStretch(1)
         write_row.addWidget(self._update_btn)
+        for button in (browse_btn, self._load_btn, self._create_btn, self._update_btn, self._clear_btn, self._delete_btn):
+            button.setMinimumHeight(32)
 
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
-        layout.setSpacing(14)
-        layout.addWidget(self._banner)
-        layout.addLayout(files_row)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(12)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addWidget(sheet_group)
+        layout.addSpacing(4)
+        layout.addLayout(table_header)
         layout.addWidget(self._variant_table, 1)
         layout.addLayout(write_row)
 
+        model = self._variant_table.model()
+        model.rowsInserted.connect(self._refresh_row_summary)
+        model.rowsRemoved.connect(self._refresh_row_summary)
+        model.modelReset.connect(self._refresh_row_summary)
+        self._variant_table.selectionModel().selectionChanged.connect(self._refresh_row_summary)
         self._tasks = TaskRunner()
         self._presenter = HomePresenter(self, service, settings, dialogs or QtDialogs(self), self._tasks.start)
         browse_btn.clicked.connect(lambda _checked: self._presenter.browse_master_sheet())
@@ -97,6 +128,14 @@ class HomeWidget(QWidget):
         self._variant_table.set_webflow_link_visible(self._show_webflow_link())
 
     # -- HomeView ----------------------------------------------------------------------
+
+    def _refresh_row_summary(self, *_args) -> None:
+        count = self.row_count()
+        selected = len(self.selected_rows())
+        summary = f"{count} variant{'s' if count != 1 else ''}" if count else "No variants loaded"
+        if selected:
+            summary += f" | {selected} selected"
+        self._row_summary.setText(summary)
 
     def show_file_name(self, field_name: str, path: str) -> None:
         label = self._file_name_labels.get(field_name)
