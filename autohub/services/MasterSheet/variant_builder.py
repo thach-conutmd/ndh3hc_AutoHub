@@ -166,7 +166,7 @@ def build_request_values(
         "BC": defaults.indi_spec(hardware),
         "AU": "HONDA",
     }
-    security_type_1 = security_type_1_value(boot)
+    security_type_1 = "FFFFFFFFFFFF" if hardware.casefold() == "mg1cs022" else security_type_1_value(boot)
     if security_type_1:
         request_values["CN"] = security_type_1
     if hw:
