@@ -35,6 +35,9 @@ def test_save_waits_for_readiness_and_confirmation(
     toast = Mock()
     toast.get_attribute.return_value = toast_class
     toast.text = toast_text
+    toast.is_displayed.return_value = True
+    toast.find_element.return_value.get_attribute.return_value = None
+    toast.find_element.return_value.click.side_effect = lambda: setattr(toast.is_displayed, "return_value", False)
     driver = Mock()
     driver.find_elements.return_value = [toast]
     button = Mock()
@@ -62,7 +65,9 @@ def test_save_waits_for_readiness_and_confirmation(
 
     assert actions.save() is expected
     button.click.assert_called_once_with()
-    assert waits == [actions_module.Constants.SAVE_TIMEOUT] * 2
+    assert waits == [actions_module.Constants.SAVE_TIMEOUT] * 2 + (
+        [actions_module.Constants.BODY_TIMEOUT] if expected else []
+    )
     assert collapse.call_count == (1 if expected else 0)
 
 
@@ -95,6 +100,7 @@ def test_collapse_runs_only_after_confirmed_save(monkeypatch, collapsed):
     button.get_attribute.return_value = None
     button.click.side_effect = lambda: events.append("click")
     actions = Actions(Mock())
+    actions.driver.find_elements.return_value = []
     actions.get_button_by_text = Mock(return_value=button)
     actions._saved_toast_shown = Mock(side_effect=lambda: events.append("saved") or True)
     monkeypatch.setattr(
@@ -134,6 +140,7 @@ def test_save_relocates_after_click_was_not_dispatched(monkeypatch, exception):
         button.get_attribute.return_value = None
     first.click.side_effect = exception()
     actions = Actions(Mock())
+    actions.driver.find_elements.return_value = []
     actions.get_button_by_text = Mock(side_effect=[first, second])
     actions._saved_toast_shown = Mock(return_value=True)
     monkeypatch.setattr(actions_module, "wait_until_idle", Mock(return_value=True))
@@ -169,11 +176,12 @@ def test_import_success_toast_does_not_hide_save_confirmation():
 
 @pytest.mark.parametrize("severity,text,should_close", [
     ("success", "Success\nImported successfully", True),
-    ("success", "Success Saved successfully", False),
+    ("success", "Success Saved successfully", True),
+    ("success", "Success Operation completed", True),
     ("error", "Error Imported successfully", False),
     ("warn", "Warning Import failed", False),
 ])
-def test_closes_only_known_import_success_toast(severity, text, should_close):
+def test_closes_only_success_notifications(severity, text, should_close):
     toast = Mock()
     toast.text = text
     toast.get_attribute.return_value = f"p-toast-message-{severity}"
@@ -183,7 +191,7 @@ def test_closes_only_known_import_success_toast(severity, text, should_close):
     close.click.side_effect = lambda: setattr(toast.is_displayed, "return_value", False)
     driver = Mock()
     driver.find_elements.return_value = [toast]
-    assert actions_module.close_import_success(driver)
+    assert actions_module.close_success_notifications(driver)
     assert close.click.call_count == (1 if should_close else 0)
 
 
@@ -195,7 +203,7 @@ def test_import_success_close_failure_is_reported(monkeypatch):
     driver = Mock()
     driver.find_elements.return_value = [toast]
     monkeypatch.setattr(actions_module.Constants, "BODY_TIMEOUT", 0)
-    assert not actions_module.close_import_success(driver)
+    assert not actions_module.close_success_notifications(driver)
     toast.find_element.return_value.click.assert_called_once()
 
 
