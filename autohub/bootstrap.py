@@ -14,7 +14,7 @@ from autohub.modules.settings.module import SettingsModule
 from autohub.services.EcuInfoSheet.EcuInfoSheet import EcuInfoSheet
 from autohub.services.HWInfo.HWInfo import HWInfo
 from autohub.services.KickOff.KickOff import KickOffMeeting
-from autohub.services.MasterSheet.master_sheet_factory import open_master_sheet
+from autohub.services.MasterSheet.master_sheet_factory import master_sheet_format_error, open_master_sheet
 from autohub.services.SystemMatrix.SystemMatrix import SystemMatrix
 from autohub.services.WebFlow.WebFlow import WebFlow
 
@@ -27,6 +27,7 @@ def build_variant_service() -> VariantService:
         hw_info_factory=HWInfo,
         session_factory=com_session,
         kick_off_factory=KickOffMeeting,
+        master_sheet_checker=master_sheet_format_error,
     )
 
 

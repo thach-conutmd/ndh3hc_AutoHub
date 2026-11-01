@@ -28,6 +28,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 ### Home module
 
 - Browse and remember the Master Sheet (`.xlsx`).
+- **Load at startup**: when the remembered Master Sheet still exists and its format is valid (an `.xlsx` workbook, password-protected or not, containing the MG1 `Master sheet` or Mx17 `ECU Container Release Honda GDI` sheet), its variants load automatically after the main window opens, with the usual Load variants progress window, and are passed to Creation. The check reads only the workbook's sheet list (no Excel). A missing or invalid file is skipped and logged; use Browse / Load variants as usual.
 - **New variant**:
   - Prompts for the ECU Info Sheet CR and System Matrix CR.
   - Hover tooltip: "Create new variant by reading ECU Info Sheet CR and System Matrix CR."
