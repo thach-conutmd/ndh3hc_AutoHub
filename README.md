@@ -82,6 +82,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 - Variant checklist:
   - Fed from Home.
   - Read-only grid table with a separate Select checkbox column, followed by Part Number, Family Name, FSWID Project Version, FSWID Program Version and WebFlow Link. Version values come from the same ECU data used to fill the WebFlow job. No variant count is shown above the table.
+  - Event labels combine the project version and event from Project Purpose (e.g. `62XS - HIN`), supporting both current and legacy purpose formats. Different projects with the same event remain separate filter options.
   - The event selector is left-aligned and table text is centered. Part Number is always the widest column and receives spare width. Other columns fit their content where space permits; narrower windows proportionally shrink the columns to keep the entire table within the available width.
   - Filter by event (the latest event is selected automatically when variants are loaded, until you pick one yourself), select all or clear.
   - The selection always starts empty: it is cleared whenever variants arrive from Home (Load variants, New variant, Update Master Sheet, ...) and after every Create WebFlow jobs run, whether it succeeded or failed. It is not saved between sessions.
