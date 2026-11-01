@@ -87,13 +87,17 @@ def test_dropdown_already_showing_the_value_is_not_clicked(page):
     assert button.clicks == 0
 
 
-def test_dropdown_opens_and_clicks_the_option(page):
+def test_dropdown_opens_and_clicks_the_option_without_fixed_pause(page, monkeypatch):
     button = dropdown(page)
     option = Element()
+
     def click_option():
         option.clicks += 1
         button.children[".//span[text()='MG1']"] = Element()
+
     option.click = click_option
+    monkeypatch.setattr(components, "pause", lambda: pytest.fail("dropdown should use explicit waits"))
+
     assert select_dropdown(Driver(), "//title", "div.btn", "MG1", lambda: {"MG1": option, "MX17": Element()}) is True
     assert button.clicks == 1 and option.clicks == 1
 
