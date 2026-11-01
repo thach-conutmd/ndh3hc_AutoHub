@@ -21,25 +21,24 @@ def save_before_action(save: Callable[[], bool], action: str) -> bool:
     return True
 
 
-def close_import_success(driver: WebDriver) -> bool:
+def close_success_notifications(driver: WebDriver) -> bool:
     for toast in driver.find_elements(By.CSS_SELECTOR, Constants.TOAST_MESSAGE_CSS):
         if (
             not toast.is_displayed()
             or toast_severity(toast.get_attribute("class")) != "success"
-            or " ".join((toast.text or "").split()).casefold() != "success imported successfully"
         ):
             continue
         try:
             close = toast.find_element(By.CSS_SELECTOR, 'button.p-toast-icon-close[aria-label="Close"]')
             if not button_is_enabled(close):
-                _logger.error("Import-success toast Close button is disabled")
+                _logger.error("Success notification Close button is disabled")
                 return False
             close.click()
             WebDriverWait(driver, Constants.BODY_TIMEOUT).until(lambda _driver: not toast.is_displayed())
         except StaleElementReferenceException:
-            _logger.debug("Import-success toast disappeared before it could be closed")
+            _logger.debug("Success notification disappeared before it could be closed")
         except TimeoutException:
-            _logger.exception("Import-success toast did not close")
+            _logger.exception("Success notification did not close")
             return False
     return True
 
@@ -95,6 +94,11 @@ class Actions:
             _logger.info("Save is disabled; no changes to save")
             return True
         if not self._saved_toast_shown():
+            return False
+        if not run_step(
+            _logger, "Close success notifications after Save",
+            close_success_notifications, self.driver,
+        ):
             return False
         return run_step(
             _logger, "Collapse the job information after Save",
