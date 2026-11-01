@@ -12,10 +12,11 @@ from autohub.core.batch_journal import BatchJournal, NonRetryableError
 from autohub.core.ports import SheetSession, WebFlowLinkWriter, WebFlowNumberWriter
 from autohub.core.webflow_numbers import number_updates
 from autohub.core.progress import ProgressCallback, no_progress
+from autohub.core.settings_keys import DEFAULT_WEBFLOW_MAX_ATTEMPTS, WEBFLOW_ATTEMPTS_LIMIT
 
 _logger = logging.getLogger(__name__)
 
-MAX_ATTEMPTS = 5
+MAX_ATTEMPTS = DEFAULT_WEBFLOW_MAX_ATTEMPTS
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,11 @@ class WebFlowConfig:
     cost_allocation: str = ""
     change_reason: str = ""
     ecr_notes: str = ""
+    max_attempts: int = DEFAULT_WEBFLOW_MAX_ATTEMPTS
+
+    def __post_init__(self) -> None:
+        if type(self.max_attempts) is not int or not 1 <= self.max_attempts <= WEBFLOW_ATTEMPTS_LIMIT:
+            raise ValueError(f"Maximum WebFlow attempts must be an integer from 1 to {WEBFLOW_ATTEMPTS_LIMIT}.")
 
 
 class WebFlowSession(Protocol):
@@ -202,20 +208,21 @@ class WebFlowJobService:
                     variant["imported_ecr_number"] = job_variant["imported_ecr_number"]
 
     def _attempts(self, state: dict, config: WebFlowConfig, progress: ProgressCallback) -> list[dict]:
-        """Runs the batch up to MAX_ATTEMPTS times, each attempt resuming from the saved progress."""
+        """Runs the configured number of attempts, resuming from saved progress each time."""
         job_variants = state["variants"]
+        max_attempts = config.max_attempts
 
         def checkpoint() -> None:
             if self._journal:
                 self._journal.save(state)
 
         last_error: Exception | None = None
-        for attempt in range(1, MAX_ATTEMPTS + 1):
+        for attempt in range(1, max_attempts + 1):
             state["attempt"] = attempt
             checkpoint()
             if attempt > 1:
-                _logger.warning("Retrying WebFlow job creation (attempt %d of %d) after: %s", attempt, MAX_ATTEMPTS, last_error)
-                progress(f"Attempt {attempt} of {MAX_ATTEMPTS} after error: {last_error}")
+                _logger.warning("Retrying WebFlow job creation (attempt %d of %d) after: %s", attempt, max_attempts, last_error)
+                progress(f"Attempt {attempt} of {max_attempts} after error: {last_error}")
                 self._sleep(self._retry_delay)
             self.shutdown()
             try:
@@ -236,9 +243,9 @@ class WebFlowJobService:
                 self.discard_pending_batch()
                 raise
             except Exception as error:
-                _logger.exception("WebFlow job creation attempt %d of %d failed", attempt, MAX_ATTEMPTS)
+                _logger.exception("WebFlow job creation attempt %d of %d failed", attempt, max_attempts)
                 last_error = error
-        message = f"{last_error}\n\nWebFlow job creation failed after {MAX_ATTEMPTS} attempts."
+        message = f"{last_error}\n\nWebFlow job creation failed after {max_attempts} attempts."
         if self._journal:
             message += " The progress is saved; AutoHub offers to continue the next time it opens."
         raise RuntimeError(message)

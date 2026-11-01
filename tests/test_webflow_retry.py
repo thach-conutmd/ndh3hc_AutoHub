@@ -1,5 +1,6 @@
 """Retrying and resuming WebFlow batches without repeating server-side effects."""
 import logging
+from dataclasses import asdict, replace
 from unittest.mock import Mock
 
 import pytest
@@ -186,6 +187,43 @@ def test_service_gives_up_after_five_attempts_and_keeps_progress():
         service.create_jobs([{"part_number": "P1"}], CONFIG)
     assert len(FlakyWebFlow.instances) == 5
     assert service.pending_batch()["variants"] == [{"part_number": "P1"}]
+
+
+@pytest.mark.parametrize("attempts", [1, 2, 7])
+def test_service_respects_configured_attempt_limit_and_retains_recovery(attempts):
+    journal = MemoryJournal()
+    service, sleeps = flaky_service(99, journal)
+    config = replace(CONFIG, max_attempts=attempts)
+    with pytest.raises(RuntimeError, match=f"after {attempts} attempts"):
+        service.create_jobs([{"part_number": "P1"}], config)
+    assert len(FlakyWebFlow.instances) == attempts
+    assert sleeps == [5.0] * (attempts - 1)
+    assert service.pending_batch()["config"]["max_attempts"] == attempts
+
+
+def test_resume_uses_saved_attempt_limit():
+    state = {
+        "config": asdict(replace(CONFIG, max_attempts=2)),
+        "variants": [{"part_number": "P1"}], "attempt": 2,
+    }
+    service, sleeps = flaky_service(99, MemoryJournal(state))
+    with pytest.raises(RuntimeError, match="after 2 attempts"):
+        service.resume_jobs()
+    assert len(FlakyWebFlow.instances) == 2
+    assert sleeps == [5.0]
+
+
+@pytest.mark.parametrize("attempts", [0, -1, 101, True, "5", 1.5, None])
+def test_invalid_attempt_limit_is_rejected(attempts):
+    with pytest.raises(ValueError, match="Maximum WebFlow attempts"):
+        replace(CONFIG, max_attempts=attempts)
+
+
+def test_loaded_settings_supply_attempt_limit():
+    from autohub.modules.creation.config_form import load_config
+
+    assert load_config(MemorySettings()).max_attempts == 5
+    assert load_config(MemorySettings({"webflow_max_attempts": 1})).max_attempts == 1
 
 
 def test_service_does_not_retry_errors_that_could_duplicate_jobs():

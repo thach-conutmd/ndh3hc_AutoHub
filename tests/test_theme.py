@@ -170,3 +170,31 @@ def test_settings_page_saves_the_page_recording_option():
     assert page._apply.isEnabled()
     page._apply.click()
     assert settings.load()["record_webflow_pages"] is False
+
+
+def test_settings_attempt_count_is_saved_and_loaded(qapp):
+    from autohub.modules.creation.config_form import load_config
+
+    settings = MemorySettings()
+    page = SettingsWidget(settings)
+    assert page._attempts.value() == 5
+    assert page._attempts.minimum() == 1 and page._attempts.maximum() == 100
+    page._attempts.setValue(1)
+    assert page._apply.isEnabled()
+    assert "webflow_max_attempts" not in settings.load()
+    page._apply.click()
+    assert not page._apply.isEnabled()
+    assert load_config(settings).max_attempts == 1
+    assert SettingsWidget(settings)._attempts.value() == 1
+
+
+def test_attempt_changes_support_apply_discard_and_cancel(qapp):
+    from tests.fakes import FakeDialogs
+
+    for answer in (True, False, None):
+        settings = MemorySettings({"webflow_max_attempts": 3})
+        page = SettingsWidget(settings, FakeDialogs(table_answer=answer))
+        page._attempts.setValue(7)
+        assert page.confirm_leave() is (answer is not None)
+        assert settings.load()["webflow_max_attempts"] == (7 if answer else 3)
+        assert page._attempts.value() == (3 if answer is False else 7)
