@@ -1,4 +1,4 @@
-"""Variant checklist with event filter; persists the selection through a SettingsStore."""
+"""Variant checklist with event filter; the selection is cleared whenever the variants are reloaded."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
 from autohub.core.latest_event import NO_EVENT, latest_event
 from autohub.core.webflow_links import webflow_link_text
 from autohub.core.webflow_numbers import NUMBER_FIELDS
-from autohub.core.settings import SettingsStore
 from autohub.ui.link_label import LinkLabel
 
 _ALL_EVENTS = "All events"
@@ -60,15 +59,14 @@ class CreationTable(QTableWidget):
 
 
 class VariantChecklist(QWidget):
-    def __init__(self, settings: SettingsStore):
+    def __init__(self):
         super().__init__()
-        self._settings = settings
         # Only the latest variant per part number is kept by MasterSheet; this is the
         # full set, independent of whatever the event filter is currently showing.
         self._variants: list[dict] = []
         self._checkboxes: dict[str, QCheckBox] = {}
         self._links: dict[str, str] = {}  # part number -> WebFlow job link
-        self._selected: set[str] = set(settings.load().get("selected_variants", []))
+        self._selected: set[str] = set()
 
         self._event_filter = QComboBox()
         self._event_filter.addItem(_ALL_EVENTS)
@@ -112,8 +110,16 @@ class VariantChecklist(QWidget):
     def has_link(self, part_number: str) -> bool:
         return bool(self._links.get(part_number))
 
+    def clear_selection(self) -> None:
+        """Unchecks every variant, including ones hidden by the event filter."""
+        self._selected.clear()
+        for checkbox in self._checkboxes.values():
+            checkbox.setChecked(False)
+
     def set_variants(self, variants: list[dict]) -> None:
+        """Shows a fresh variant list; any previous selection is cleared."""
         self._variants = variants
+        self._selected.clear()
         for variant in variants:
             if variant.get("webflow_link"):
                 self._links[variant["part_number"]] = variant["webflow_link"]
@@ -196,7 +202,6 @@ class VariantChecklist(QWidget):
             self._selected.add(part_number)
         else:
             self._selected.discard(part_number)
-        self._settings.update(selected_variants=sorted(self._selected))
 
     def _set_all(self, checked: bool) -> None:
         for checkbox in self._checkboxes.values():

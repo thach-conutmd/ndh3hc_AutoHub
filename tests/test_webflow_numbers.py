@@ -8,7 +8,6 @@ from autohub.services.MasterSheet.row_writer import VariantRowWriter
 from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
 from autohub.services.MasterSheet.mx17_layout import home_from_main
 from autohub.modules.creation.variant_checklist import VariantChecklist
-from tests.fakes import MemorySettings
 
 
 @pytest.mark.parametrize("columns,addresses", [
@@ -107,7 +106,7 @@ def test_saved_numbers_reload_into_creation_columns(qapp, mx17):
     row = {address[:-2]: value for address, value in cells.items()}
     home = home_from_main(row) if mx17 else row
     variant = webflow_variant_from_row("P", home)
-    checklist = VariantChecklist(MemorySettings())
+    checklist = VariantChecklist()
     checklist.set_variants([variant])
     assert checklist._table.item(0, 6).text() == "00123"
     assert checklist._table.item(0, 7).text() == "ECR42"

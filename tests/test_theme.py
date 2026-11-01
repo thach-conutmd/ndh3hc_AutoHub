@@ -85,7 +85,7 @@ def test_checklist_selects_the_latest_event_until_the_user_chooses():
     from autohub.modules.creation.variant_checklist import VariantChecklist
 
     QApplication.instance() or QApplication([])
-    box = VariantChecklist(MemorySettings())
+    box = VariantChecklist()
     rows = [
         {"part_number": "1", "ecu_type": "x", "event": "OLD", "created_at": datetime(2025, 1, 1)},
         {"part_number": "2", "ecu_type": "x", "event": "NEW", "created_at": datetime(2025, 6, 1)},
