@@ -167,7 +167,6 @@ class SettingsWidget(QWidget):
             self._creation._change_engineer, self._creation._cost_allocation,
         ):
             field.textChanged.connect(self._refresh_apply)
-        self._creation._ecr_notes.textChanged.connect(self._refresh_apply)
         self._creation._change_reason.itemChanged.connect(self._refresh_apply)
         self._refresh_apply()
         footer = QHBoxLayout()

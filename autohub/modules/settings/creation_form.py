@@ -6,7 +6,7 @@ from datetime import datetime
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QDialog, QFormLayout, QLineEdit,
-    QListWidget, QListWidgetItem, QPlainTextEdit, QToolButton, QVBoxLayout, QWidget,
+    QListWidget, QListWidgetItem, QToolButton, QVBoxLayout, QWidget,
 )
 
 from autohub.config import LOG_DIR
@@ -45,7 +45,6 @@ def load_config(settings: SettingsStore) -> WebFlowConfig:
         change_engineer=str(saved.get("change_engineer", "")).strip(),
         cost_allocation=str(saved.get("cost_allocation", "")).strip(),
         change_reason=str(saved.get("change_reason", "")).strip(),
-        ecr_notes=str(saved.get("ecr_notes", "")).strip(),
         max_attempts=saved.get(WEBFLOW_MAX_ATTEMPTS_KEY, DEFAULT_WEBFLOW_MAX_ATTEMPTS),
         retry_enabled=saved.get(WEBFLOW_RETRY_ENABLED_KEY, True),
     )
@@ -100,8 +99,6 @@ class CreationSettingsForm(QWidget):
         self._reason_all.clicked.connect(self._select_all_reasons)
         self._change_reason.itemChanged.connect(self._update_reason_summary)
         self._update_reason_summary()
-        self._ecr_notes = QPlainTextEdit(config.ecr_notes)
-        self._ecr_notes.setFixedHeight(self._ecr_notes.sizeHint().height() // 2)
         for field in (
             self._base_url, self._tool_version, self._routing,
             self._change_engineer, self._cost_allocation,
@@ -118,7 +115,6 @@ class CreationSettingsForm(QWidget):
         form.addRow("Change engineer:", self._change_engineer)
         form.addRow("Cost allocation:", self._cost_allocation)
         form.addRow("Change Reason:", self._reason_button)
-        form.addRow("ECR notes:", self._ecr_notes)
 
     def restore(self, values: dict) -> None:
         for key, field in (
@@ -131,7 +127,6 @@ class CreationSettingsForm(QWidget):
         for index in range(self._change_reason.count()):
             item = self._change_reason.item(index)
             item.setCheckState(Qt.Checked if item.text().casefold() in selected else Qt.Unchecked)
-        self._ecr_notes.setPlainText(values["ecr_notes"])
 
     def _show_reasons(self) -> None:
         self._reason_search.clear()
@@ -179,5 +174,4 @@ class CreationSettingsForm(QWidget):
                 for index in range(self._change_reason.count())
                 if self._change_reason.item(index).checkState() == Qt.Checked
             ),
-            "ecr_notes": self._ecr_notes.toPlainText().strip(),
         }
