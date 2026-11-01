@@ -2,11 +2,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHeaderView, QLabel
 
 from autohub.modules.creation.variant_checklist import VariantChecklist
-from tests.fakes import MemorySettings
 
 
 def test_creation_headers_and_ecu_values(qapp):
-    checklist = VariantChecklist(MemorySettings())
+    checklist = VariantChecklist()
     checklist.set_variants([{
         "part_number": "P", "ecu_type": "MG1CS022",
         "ecu": {"family_name": "MG1CS022", "project_version": "6WZX", "program_version": "V037"},
@@ -34,7 +33,7 @@ def test_creation_headers_and_ecu_values(qapp):
 
 
 def test_missing_ecu_values_and_event_filter(qapp):
-    checklist = VariantChecklist(MemorySettings())
+    checklist = VariantChecklist()
     checklist.set_variants([
         {"part_number": "P", "ecu_type": "MG1", "event": "A"},
         {"part_number": "Q", "ecu_type": "MG2", "event": "B"},
@@ -52,7 +51,7 @@ def test_missing_ecu_values_and_event_filter(qapp):
 
 
 def test_event_is_left_aligned_and_columns_fit_individual_content(qapp):
-    checklist = VariantChecklist(MemorySettings())
+    checklist = VariantChecklist()
     checklist.set_variants([{
         "part_number": "37820-6WZ-M610-M6", "ecu_type": "MG1CS022",
         "webflow_link": "https://webflow/app/ShowJob/16413",
@@ -81,7 +80,7 @@ def test_event_is_left_aligned_and_columns_fit_individual_content(qapp):
 
 
 def test_columns_resize_after_import_and_filter_changes(qapp):
-    checklist = VariantChecklist(MemorySettings())
+    checklist = VariantChecklist()
     checklist.set_variants([
         {"part_number": "P", "ecu_type": "MG1", "event": "A"},
         {"part_number": "Q", "ecu_type": "MG1", "event": "B"},

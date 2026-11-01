@@ -35,7 +35,7 @@ class CreationWidget(QWidget):
         subtitle = QLabel("Choose one or more variants loaded from the Master Sheet workflow.")
         set_muted(subtitle, True)
 
-        self._checklist = VariantChecklist(settings)
+        self._checklist = VariantChecklist()
         self._settings = settings
 
         self._create_jobs_btn = QPushButton("Create WebFlow jobs")
@@ -145,6 +145,7 @@ class CreationWidget(QWidget):
     def _finish_webflow_jobs(self, results: list[dict], window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)
         self._create_jobs_btn.setText("Create WebFlow jobs")
+        self._checklist.clear_selection()
         links = {item["PartNumber"]: item["Url"] for item in results if item.get("Url")}
         self._checklist.set_links(links)
         self.webflowLinksUpdated.emit(links)
@@ -177,6 +178,7 @@ class CreationWidget(QWidget):
     def _fail_webflow_jobs(self, error: str, window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)
         self._create_jobs_btn.setText("Create WebFlow jobs")
+        self._checklist.clear_selection()
         _logger.error("Create WebFlow jobs failed: %s", error)
         window.fail(f"{error}\n\nTotal time: {self._service.last_elapsed_seconds:.1f} seconds.")
 

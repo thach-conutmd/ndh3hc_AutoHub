@@ -6,12 +6,11 @@ from PySide6.QtTest import QTest
 
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.ui import link_label
-from tests.fakes import MemorySettings
 
 
 def test_creation_link_requires_left_double_click(qapp, monkeypatch):
     url = "https://webflow/app/ShowJob/16409"
-    row = VariantChecklist(MemorySettings())
+    row = VariantChecklist()
     row.set_variants([{"part_number": "P", "ecu_type": "MG1CS022", "webflow_link": url}])
     row.show()
     qapp.processEvents()

@@ -70,19 +70,59 @@ def test_pages_expose_capabilities(qapp):
     assert isinstance(creation, StartupTask)
 
 
-def test_checklist_selection_persists_through_injected_settings(qapp):
-    settings = MemorySettings({"selected_variants": ["P2"]})
-    creation = CreationWidget(WebFlowJobService(webflow_factory=FakeWebFlow), settings)
+def _two_variant_creation(settings=None):
+    creation = CreationWidget(WebFlowJobService(webflow_factory=FakeWebFlow), settings or MemorySettings())
     creation.set_variants(
         [
             {"part_number": "P1", "ecu_type": "E", "event": "A"},
-            {"part_number": "P2", "ecu_type": "E", "event": "B"},
+            {"part_number": "P2", "ecu_type": "E", "event": "A"},
         ]
     )
-    assert [v["part_number"] for v in creation._checklist.selected_variants()] == ["P2"]
-    creation._checklist._event_filter.setCurrentText("All events")  # the latest event is picked on load
-    creation._checklist._checkboxes["P1"].setChecked(True)
-    assert settings.data["selected_variants"] == ["P1", "P2"]
+    for checkbox in creation._checklist._checkboxes.values():
+        checkbox.setChecked(True)
+    return creation
+
+
+def selected_part_numbers(creation):
+    return [v["part_number"] for v in creation._checklist.selected_variants()]
+
+
+def test_checklist_selection_starts_empty_and_is_not_persisted(qapp):
+    settings = MemorySettings({"selected_variants": ["P2"]})
+    creation = CreationWidget(WebFlowJobService(webflow_factory=FakeWebFlow), settings)
+    creation.set_variants([{"part_number": "P2", "ecu_type": "E", "event": "B"}])
+    assert selected_part_numbers(creation) == []
+    creation._checklist._checkboxes["P2"].setChecked(True)
+    assert selected_part_numbers(creation) == ["P2"]
+    assert settings.data["selected_variants"] == ["P2"]  # untouched stale value
+
+
+def test_reloading_variants_clears_the_selection(qapp):
+    creation = _two_variant_creation()
+    assert selected_part_numbers(creation) == ["P1", "P2"]
+    creation.set_variants([{"part_number": "P1", "ecu_type": "E", "event": "A"}])
+    assert selected_part_numbers(creation) == []
+    assert not creation._checklist._checkboxes["P1"].isChecked()
+
+
+def test_selection_hidden_by_the_event_filter_is_cleared_too(qapp):
+    creation = _two_variant_creation()
+    creation._checklist._event_filter.setCurrentText("No such event")
+    creation._checklist.clear_selection()
+    assert selected_part_numbers(creation) == []
+
+
+def test_finished_or_failed_webflow_run_clears_the_selection(qapp):
+    from unittest.mock import Mock
+
+    creation = _two_variant_creation()
+    creation._finish_webflow_jobs([{"PartNumber": "P1", "JobId": "7", "Url": "http://x/app/ShowJob/7"}], Mock())
+    assert selected_part_numbers(creation) == []
+    assert not any(cb.isChecked() for cb in creation._checklist._checkboxes.values())
+
+    creation = _two_variant_creation()
+    creation._fail_webflow_jobs("Failed", Mock())
+    assert selected_part_numbers(creation) == []
 
 
 def test_progress_dialog_can_only_be_closed_after_the_action_finished():
@@ -202,12 +242,14 @@ def _creation_with_link(qapp, answer):
     from tests.fakes import FakeDialogs
 
     dialogs = FakeDialogs(table_answer=answer)
-    settings = MemorySettings({"selected_variants": ["P1", "P2"]})
+    settings = MemorySettings()
     creation = CreationWidget(WebFlowJobService(webflow_factory=FakeWebFlow), settings, dialogs=dialogs)
     creation.set_variants([
         {"part_number": "P1", "ecu_type": "E", "event": "A", "webflow_link": "https://h/app/ShowJob/1"},
         {"part_number": "P2", "ecu_type": "E", "event": "A"},
     ])
+    for checkbox in creation._checklist._checkboxes.values():
+        checkbox.setChecked(True)
     return creation, dialogs
 
 
