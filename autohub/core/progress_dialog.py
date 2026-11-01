@@ -1,4 +1,4 @@
-"""Qt progress window: steps while running, then the result or error. It can only be closed once finished."""
+"""Qt progress window with a compact result heading and full details in a scrollable log."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
@@ -56,14 +56,14 @@ class ProgressDialog(QDialog):
         self._done.emit(text, False)
 
     def _show_step(self, text: str) -> None:
-        self._status.setText(text)
+        self._status.setText(text.partition("\n")[0])
         self._log.appendPlainText(text)
 
     def _show_result(self, text: str, ok: bool) -> None:
         self._finished = True
         self._bar.setRange(0, 1)
         self._bar.setValue(1 if ok else 0)
-        self._status.setText(text)
+        self._status.setText(text.partition("\n")[0])
         self._status.setStyleSheet("" if ok else "color: #c0392b; font-weight: bold;")
         self._log.appendPlainText(("Done: " if ok else "Error: ") + text)
         self._buttons.setEnabled(True)

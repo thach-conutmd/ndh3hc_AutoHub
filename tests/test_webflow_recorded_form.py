@@ -22,7 +22,7 @@ class RecordedPanels(HTMLParser):
         attrs = dict(attrs)
         panel = self.stack[-1]["panel"] if self.stack else None
         if tag == "app-uigroupbox":
-            panel = {"title": "", "labels": set()}
+            panel = {"title": "", "labels": set(), "buttons": set()}
             self.panels.append(panel)
         if tag not in _VOID_TAGS:
             self.stack.append({"tag": tag, "attrs": attrs, "text": [], "panel": panel})
@@ -46,6 +46,8 @@ class RecordedPanels(HTMLParser):
             panel["title"] = text
         if tag == "div" and "control-label" in classes:
             panel["labels"].add(text)
+        if tag == "span" and "p-button-label" in classes:
+            panel["buttons"].add(text)
 
 
 @pytest.fixture(scope="module")
@@ -61,6 +63,14 @@ def recorded_panels():
 def test_field_exists_in_its_actual_recorded_panel(recorded_panels, column, key, label, kind):
     assert label in recorded_panels[_FIELD_PANELS[key]]
     assert label not in recorded_panels["Hardware/Plant information"]
+
+
+def test_race_import_button_is_in_recorded_classification_panel():
+    capture = next((_ROOT / "logs/webflow_trace/20261030_161609").glob("037_*Hardware_part_number*.html"))
+    parser = RecordedPanels()
+    parser.feed(capture.read_text(encoding="utf-8"))
+    panel = next(panel for panel in parser.panels if panel["title"] == "Classification")
+    assert "Import from Race" in panel["buttons"]
 
 
 @pytest.mark.parametrize("key", ["change_engineer", "cost_allocation", "change_reason", "ecr_notes"])

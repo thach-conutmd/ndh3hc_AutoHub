@@ -1,7 +1,8 @@
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
+from selenium.common.exceptions import TimeoutException
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 from autohub.modules.creation import service as creation_service
@@ -271,6 +272,70 @@ def _hardware(monkeypatch):
     monkeypatch.setattr(hardware_module, "pause", lambda: None)
     monkeypatch.setattr(hardware_module, "wait_until_idle", lambda driver, timeout=None: True)
     return fields, form
+
+
+@pytest.mark.parametrize(
+    ("key", "filled", "imported", "expected"),
+    [
+        ("hardware_part_number", True, True, True),
+        ("hardware_part_number", False, True, False),
+        ("hardware_part_number", True, False, False),
+        ("development_number", True, False, True),
+        ("customer_hardware_part_number", True, False, True),
+    ],
+)
+def test_race_import_follows_only_successfully_filled_hardware_number(key, filled, imported, expected):
+    from autohub.services.WebFlow.GeneralTab import GeneralTab
+
+    general = GeneralTab(Mock())
+    general._hardware = Mock()
+    general._hardware.fill.return_value = filled
+    general._hardware.import_from_race.return_value = imported
+
+    assert general.fill_hardware_field(key, "part number") is expected
+    general._hardware.fill.assert_called_once_with(key, "part number")
+    if key == "hardware_part_number" and filled:
+        assert general._hardware.method_calls == [
+            call.fill(key, "part number"), call.import_from_race(),
+        ]
+    else:
+        general._hardware.import_from_race.assert_not_called()
+
+
+def test_race_import_clicks_classification_button_once_and_waits(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    section = fields.sections["Classification"]
+    button = section.body.return_value.find_element.return_value
+    idle = Mock(return_value=True)
+    monkeypatch.setattr(hardware_module, "wait_until_idle", idle)
+
+    assert fields.import_from_race()
+    section.expand.assert_called_once()
+    section.body.return_value.find_element.assert_called_once_with(
+        hardware_module.By.XPATH, './/button[.//span[normalize-space(.)="Import from Race"]]'
+    )
+    button.click.assert_called_once()
+    idle.assert_called_once_with(fields.driver, hardware_module.Constants.WEBFLOW_TIMEOUT)
+
+
+@pytest.mark.parametrize("failure", ["expand", "disabled", "click", "wait"])
+def test_race_import_reports_failures_without_repeating_click(monkeypatch, failure, caplog):
+    fields, _ = _hardware(monkeypatch)
+    section = fields.sections["Classification"]
+    button = section.body.return_value.find_element.return_value
+    monkeypatch.setattr(hardware_module.Constants, "BODY_TIMEOUT", 0)
+    if failure == "expand":
+        section.expand.return_value = False
+    elif failure == "disabled":
+        button.is_enabled.return_value = False
+    elif failure == "click":
+        button.click.side_effect = RuntimeError("connection lost")
+    else:
+        monkeypatch.setattr(hardware_module, "wait_until_idle", Mock(side_effect=TimeoutException()))
+
+    assert fields.import_from_race() is False
+    assert button.click.call_count == (1 if failure in ("click", "wait") else 0)
+    assert "import from Race" in caplog.text
 
 
 @pytest.mark.parametrize("column,key,label,kind", [field for field in HARDWARE_FIELDS if field[3] == "text"])

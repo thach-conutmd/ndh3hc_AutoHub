@@ -146,6 +146,30 @@ class HardwareFields:
             _logger.exception("Could not import the software part number from pool")
             return False
 
+    def import_from_race(self) -> bool:
+        section = self.sections["Classification"]
+        if not section.expand():
+            _logger.error("Could not open Classification to import from Race")
+            return False
+        try:
+            def available_button(_driver):
+                button = section.body().find_element(
+                    By.XPATH, './/button[.//span[normalize-space(.)="Import from Race"]]'
+                )
+                return button if button.is_displayed() and button.is_enabled() else False
+
+            button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(available_button)
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+            button.click()
+            if not wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT):
+                _logger.error("WebFlow did not become idle after Import from Race")
+                return False
+            _logger.info("WebFlow Import from Race clicked after filling Hardware part number")
+            return True
+        except Exception:
+            _logger.exception("Could not import from Race after filling Hardware part number")
+            return False
+
     def pick_pst_lib(self, pver: str) -> bool:
         """Selects the unique Program Identification matching the sheet PVER, excluding its revision."""
         return PstLibPicker(self.driver, self.sections["Ident Numbers"]).select(pver)

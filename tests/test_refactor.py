@@ -149,6 +149,28 @@ def test_progress_dialog_can_only_be_closed_after_the_action_finished():
     dialog.reject()
 
 
+@pytest.mark.parametrize("action", ["step", "succeed", "fail"])
+def test_all_progress_messages_keep_details_out_of_the_heading(qapp, action):
+    from autohub.core.progress_dialog import ProgressDialog
+
+    dialog = ProgressDialog("Progress")
+    qapp.processEvents()
+    initial_height = dialog.height()
+    details = "\n".join(f"Variant {number}" for number in range(100))
+    message = f"Summary\n{details}"
+
+    getattr(dialog, action)(message)
+    qapp.processEvents()
+
+    assert dialog._status.text() == "Summary"
+    assert message in dialog._log.toPlainText()
+    assert dialog.height() == initial_height
+    if action == "step":
+        dialog.succeed("Finished")
+        qapp.processEvents()
+    dialog.close()
+
+
 def test_file_form_dialog_needs_the_required_files(tmp_path):
     from PySide6.QtWidgets import QApplication, QDialogButtonBox
 
@@ -188,6 +210,31 @@ def test_creation_completion_and_failure_show_total_time(qapp):
     assert "Total time: 125.5 seconds." in window.succeed.call_args.args[0]
     creation._fail_webflow_jobs("Failed", window)
     assert "Failed\n\nTotal time: 125.5 seconds." == window.fail.call_args.args[0]
+
+
+def test_many_created_variants_stay_in_scrollable_progress_log(qapp):
+    from autohub.core.progress_dialog import ProgressDialog
+
+    service = WebFlowJobService(FakeWebFlow)
+    service.last_elapsed_seconds = 125.5
+    creation = CreationWidget(service, MemorySettings())
+    window = ProgressDialog("Create WebFlow jobs")
+    qapp.processEvents()
+    initial_height = window.height()
+    results = [
+        {"PartNumber": f"P{number}", "JobId": str(number)}
+        for number in range(100)
+    ]
+
+    creation._finish_webflow_jobs(results, window)
+    qapp.processEvents()
+
+    assert window._status.text() == "Created and filled 100 WebFlow job(s)."
+    assert window.height() == initial_height
+    log = window._log.toPlainText()
+    assert all(f"{item['PartNumber']}: {item['JobId']}" in log for item in results)
+    assert "Total time: 125.5 seconds." in log
+    window.close()
 
 
 class _LinkSheet:
