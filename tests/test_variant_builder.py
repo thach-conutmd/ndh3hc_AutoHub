@@ -73,7 +73,7 @@ def test_request_values_for_a_variant():
     assert values["CY"] == "7C8" and values["CZ"] == "41X"
     assert values["CL"] == n.ascii_hex("37805-62X-MD10")
     assert values["C"] == datetime(2026, 1, 2)
-    assert "CN" not in values
+    assert values["CN"] == "FFFFFFFFFFFF"
 
 
 def test_project_purpose_uses_project_event_and_milestone():
@@ -91,8 +91,24 @@ def test_project_purpose_uses_project_event_and_milestone():
 def test_security_type_1_joins_sk1_sk2_sk3():
     boot = {"SK1": "3670", "SK2": " 1A2B ", "SK3": None}
     assert security_type_1_value(boot) == "36701A2B"
-    assert build_request_values(GENERAL, ECU, MAIN, {**boot, "SK3": "FF"}, SYSTEM)["CN"] == "36701A2BFF"
+    assert build_request_values(
+        GENERAL, ECU, MAIN, {**boot, "SK3": "FF"}, {**SYSTEM, "Hardware": "MG1CS020"}
+    )["CN"] == "36701A2BFF"
     assert security_type_1_value({}) == ""
+
+
+@pytest.mark.parametrize("hardware", ["MG1CS022", "mg1cs022", " MG1CS022 "])
+@pytest.mark.parametrize("boot", [{}, {"SK1": "2025", "SK2": "020B9", "SK3": "010"}])
+def test_mg1cs022_security_type_1_always_uses_fixed_value(hardware, boot):
+    values = build_request_values(GENERAL, ECU, MAIN, boot, {**SYSTEM, "Hardware": hardware})
+    assert values["CN"] == "FFFFFFFFFFFF"
+    assert webflow_variant_from_row(values["J"], values)["customer"]["security_coefficient"] == "FFFFFFFFFFFF"
+
+
+@pytest.mark.parametrize("hardware", ["MG1CS020", "MG1CS022X", ""])
+def test_other_hardware_without_boot_security_value_leaves_it_unset(hardware):
+    values = build_request_values(GENERAL, ECU, MAIN, {}, {**SYSTEM, "Hardware": hardware})
+    assert "CN" not in values
 
 
 def test_hw_info_fills_hw_columns_but_not_over_the_system_matrix():
