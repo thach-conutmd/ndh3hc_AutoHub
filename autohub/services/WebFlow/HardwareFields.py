@@ -10,7 +10,7 @@ from autohub.core.webflow_fields import HARDWARE_FIELDS
 from autohub.core.webflow_options import resolve_option_values
 
 from . import Constants
-from .components import Section, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
+from .components import Section, checkbox_is_disabled, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
 from .number_import import NumberImport
 from .pst_lib_picker import PstLibPicker
 
@@ -64,18 +64,20 @@ class HardwareFields:
                 form = section.body().find_element(
                     By.XPATH, f'.//div[contains(@class,"control-label") and normalize-space(.)="{label}"]/..'
                 )
-                for _ in range(3):
+                for attempt in range(4):
                     checkbox = form.find_element(By.CSS_SELECTOR, 'div[role="checkbox"]')
                     if checkbox_value(checkbox) is False:
                         break
-                    if checkbox.get_attribute("aria-disabled") == "true":
+                    if attempt == 3:
+                        _logger.error("Classification checkbox %s did not reach X (false)", label)
+                        return False
+                    if checkbox_is_disabled(form, checkbox):
                         _logger.error("Classification checkbox %s is disabled", label)
                         return False
+                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
+                    WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(EC.element_to_be_clickable(checkbox))
                     checkbox.click()
                     pause()
-                else:
-                    _logger.error("Classification checkbox %s did not reach X (false)", label)
-                    return False
                 _logger.info("WebFlow %s = False (X)", label)
             _logger.info("WebFlow Number of variants = 1")
             return True

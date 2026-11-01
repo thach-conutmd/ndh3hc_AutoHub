@@ -588,6 +588,7 @@ def test_classification_sets_one_variant_and_x_checkboxes(monkeypatch, initial):
     fields, _ = _hardware(monkeypatch)
     section = fields.sections["Classification"]
     checkbox = section.body.return_value.find_element.return_value.find_element.return_value
+    checkbox.get_attribute.return_value = None
     states = [initial]
     def value(_checkbox):
         return states[0]
@@ -595,9 +596,47 @@ def test_classification_sets_one_variant_and_x_checkboxes(monkeypatch, initial):
         states[0] = {None: True, True: False, False: None}[states[0]]
     checkbox.click.side_effect = click
     monkeypatch.setattr(hardware_module, "checkbox_value", value)
+    monkeypatch.setattr(hardware_module.EC, "element_to_be_clickable", lambda element: lambda _driver: element)
     assert fields.prepare_classification() is True
     assert section.fill_input.call_args.args[1] == "1"
     assert states[0] is False
+
+
+def test_classification_scrolls_before_clicking_and_checks_final_transition(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    checkbox = fields.sections["Classification"].body.return_value.find_element.return_value.find_element.return_value
+    states = iter([None, True, None, False, False])
+    monkeypatch.setattr(hardware_module, "checkbox_value", lambda _checkbox: next(states))
+    monkeypatch.setattr(hardware_module, "checkbox_is_disabled", lambda *_: False)
+    events = []
+    fields.driver.execute_script.side_effect = lambda *_: events.append("scroll")
+    monkeypatch.setattr(
+        hardware_module.EC, "element_to_be_clickable",
+        lambda _element: lambda _driver: events.append("ready") or True,
+    )
+    checkbox.click.side_effect = lambda: events.append("click")
+    assert fields.prepare_classification() is True
+    assert events == ["scroll", "ready", "click"] * 3
+
+
+def test_classification_disabled_host_is_not_clicked(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    checkbox = fields.sections["Classification"].body.return_value.find_element.return_value.find_element.return_value
+    monkeypatch.setattr(hardware_module, "checkbox_value", lambda _checkbox: None)
+    monkeypatch.setattr(hardware_module, "checkbox_is_disabled", lambda *_: True)
+    assert fields.prepare_classification() is False
+    checkbox.click.assert_not_called()
+
+
+def test_classification_nonclickable_checkbox_fails_explicitly(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    checkbox = fields.sections["Classification"].body.return_value.find_element.return_value.find_element.return_value
+    monkeypatch.setattr(hardware_module.Constants, "BODY_TIMEOUT", 0)
+    monkeypatch.setattr(hardware_module, "checkbox_value", lambda _checkbox: None)
+    monkeypatch.setattr(hardware_module, "checkbox_is_disabled", lambda *_: False)
+    monkeypatch.setattr(hardware_module.EC, "element_to_be_clickable", lambda _element: lambda _driver: False)
+    assert fields.prepare_classification() is False
+    checkbox.click.assert_not_called()
 
 
 def test_classification_failure_is_reported(monkeypatch):
