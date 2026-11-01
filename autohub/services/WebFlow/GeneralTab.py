@@ -42,7 +42,9 @@ class GeneralTab:
         return self._tab.is_selected()
 
     def fill_hardware_field(self, key: str, value: str) -> bool:
-        return self._hardware.fill(key, value)
+        if not self._hardware.fill(key, value):
+            return False
+        return self._hardware.import_from_race() if key == "hardware_part_number" else True
 
     def import_software_part_number(self) -> bool:
         return self._hardware.import_software_part_number()
