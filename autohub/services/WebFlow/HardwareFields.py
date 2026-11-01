@@ -239,6 +239,7 @@ class HardwareFields:
         if control.get_attribute("ng-reflect-disabled") == "true":
             _logger.error("WebFlow multiselect is disabled; requested %r", value)
             return False
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", control)
         control.find_element(By.CSS_SELECTOR, ".p-multiselect").click()
         try:
             panel = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(

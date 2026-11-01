@@ -5,6 +5,7 @@ from selenium.webdriver.common.keys import Keys
 
 from autohub.services.WebFlow import Constants, components
 from autohub.services.WebFlow.Information import Information
+from autohub.services.WebFlow import Information as information_module
 from autohub.services.WebFlow import ECUTab as ecu_tab_module
 from autohub.services.WebFlow import pst_lib_picker as picker_module
 from autohub.services.WebFlow.ECUTab import ECUTab
@@ -85,6 +86,18 @@ def test_dropdown_already_showing_the_value_is_not_clicked(page):
     button = dropdown(page, selected="MG1")
     assert select_dropdown(Driver(), "//title", "div.btn", "MG1", lambda: pytest.fail("options read")) is True
     assert button.clicks == 0
+
+
+def test_idle_wait_covers_loading_overlay_without_activity_spinner():
+    from unittest.mock import Mock
+
+    driver = Mock()
+    overlay = Mock()
+    overlay.is_displayed.return_value = True
+    driver.find_elements.side_effect = [[overlay], []]
+    assert components.wait_until_idle(driver, 1)
+    assert "loading-screen-wrapper" in driver.find_elements.call_args.args[1]
+    assert driver.find_elements.call_count == 2
 
 
 def test_dropdown_opens_and_clicks_the_option_without_fixed_pause(page, monkeypatch):
@@ -229,6 +242,11 @@ def test_job_information_reports_whether_it_clicked(page, monkeypatch):
     monkeypatch.setattr(Constants, "BODY_INFORMATION_TITLE_XPATH", "//section")
     monkeypatch.setattr(Constants, "BODY_INFORMATION_BODY_CSS", "div.body")
     header, body = section(page, "display: block;")
+    monkeypatch.setattr(information_module, "wait_until_idle", lambda *_: True)
+    def toggle():
+        header.clicks += 1
+        body.attrs["style"] = "display: none;" if "block" in body.attrs["style"] else "display: block;"
+    header.click = toggle
     info = Information(Driver())
     assert info.collapse_job_information() is True and header.clicks == 1
     body.attrs["style"] = "display: none;"
