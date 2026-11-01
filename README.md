@@ -12,6 +12,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 ### Main window
 
 - Fixed-size window (1024x700) with a dark theme and dark title bar.
+- Startup dialog: a themed loading card (logo, version, current step, progress bar) appears immediately at launch while AutoHub applies settings and logging, prepares the interface, loads modules and configuration, and builds the main window. Each step is logged. If a step fails, the dialog closes and an error message explains why AutoHub could not start.
 - Collapsible sidebar (220px to 56px icon-only) with the logo and Home / Creation / Comparison navigation.
 - The window title shows the active module.
 - Cross-module wiring: variants loaded on Home are passed to Creation automatically.
