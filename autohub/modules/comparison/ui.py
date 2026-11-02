@@ -22,9 +22,8 @@ from .progress import ComparisonProgressDialog
 from .service import ComparisonService, VariantResult
 from .xml_parser import ParameterValue
 
-_TARGET_HEADERS = ("Variant", "SW Part Number", "Parameter", "Master", "Target", "Status")
-_BASE_HEADERS = ("Variant", "SW Part Number", "Parameter", "Master", "Base", "Target", "Status")
-_VARIANT_HEADERS = ("Select", "Variant", "SW Part Number", "WebFlow Link", "Base WebFlow Link", "Status", "Error")
+_TARGET_HEADERS = ("Variant", "Parameter", "Master", "Base", "Target", "Status")
+_VARIANT_HEADERS = ("Select", "Variant", "WebFlow", "Base WebFlow Link", "Status", "Error")
 
 
 def _display(value: ParameterValue) -> str:
@@ -73,7 +72,7 @@ class ComparisonWidget(QWidget):
         self._variants_table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self._variants_table.verticalHeader().setVisible(False)
         self._variants_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        for column, width in enumerate((55, 130, 130, 240, 240, 125, 180)):
+        for column, width in enumerate((55, 130, 240, 240, 125, 180)):
             self._variants_table.setColumnWidth(column, width)
         self._variants_table.setMaximumHeight(160)
         self._select_all_btn = QPushButton("Select all")
@@ -146,9 +145,9 @@ class ComparisonWidget(QWidget):
 
     def _refresh_variants(self) -> None:
         previous = {
-            tuple(self._variants_table.item(row, column).text() for column in (1, 2, 3)): (
+            self._variants_table.item(row, 0).data(Qt.UserRole + 1): (
                 self._variants_table.item(row, 0).checkState(),
-                self._variants_table.item(row, 4).text(),
+                self._variants_table.item(row, 3).text(),
             )
             for row in range(self._variants_table.rowCount())
         }
@@ -168,10 +167,11 @@ class ComparisonWidget(QWidget):
             checked, base_link = previous.get(identity, (Qt.Unchecked, ""))
             checkbox.setCheckState(checked)
             checkbox.setData(Qt.UserRole, index)
+            checkbox.setData(Qt.UserRole + 1, identity)
             self._variants_table.setItem(row, 0, checkbox)
-            for column, text in enumerate((*identity, base_link, "Pending", ""), 1):
+            for column, text in enumerate((identity[0], identity[2], base_link, "Pending", ""), 1):
                 item = QTableWidgetItem(str(text))
-                if column != 4:
+                if column != 3:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 item.setToolTip(str(text))
                 self._variants_table.setItem(row, column, item)
@@ -198,7 +198,7 @@ class ComparisonWidget(QWidget):
         self._source_changed()
 
     def _selection_changed(self, item: QTableWidgetItem) -> None:
-        if item.column() in (0, 4):
+        if item.column() in (0, 3):
             self._variants_table.blockSignals(True)
             item.setToolTip(item.text())
             self._variants_table.blockSignals(False)
@@ -210,13 +210,12 @@ class ComparisonWidget(QWidget):
         self._table.setRowCount(0)
         self._summary.setText("Select linked variants, then Compare selected.")
         self._base_variants = {
-            (self._variants_table.item(row, 1).text(), self._variants_table.item(row, 2).text())
-            for row in self._selected_rows() if self._variants_table.item(row, 4).text().strip()
+            tuple(self._variants_table.item(row, 0).data(Qt.UserRole + 1)[:2])
+            for row in self._selected_rows() if self._variants_table.item(row, 3).text().strip()
         }
         self._base_mode = bool(self._base_variants)
-        headers = _BASE_HEADERS if self._base_mode else _TARGET_HEADERS
-        self._table.setColumnCount(len(headers))
-        self._table.setHorizontalHeaderLabels(headers)
+        self._table.setColumnCount(len(_TARGET_HEADERS))
+        self._table.setHorizontalHeaderLabels(_TARGET_HEADERS)
         self._variant_filter.blockSignals(True)
         self._variant_filter.clear()
         self._variant_filter.addItem("All variants", None)
@@ -253,7 +252,7 @@ class ComparisonWidget(QWidget):
             self._variants[self._variants_table.item(row, 0).data(Qt.UserRole)] for row in rows
         ])
         for row, variant in zip(rows, selected):
-            variant["base_webflow_link"] = self._variants_table.item(row, 4).text().strip()
+            variant["base_webflow_link"] = self._variants_table.item(row, 3).text().strip()
         masters = deepcopy(self._variants)
         saved = self._settings.load() if self._settings is not None else {}
         connection = {"driver_path": ""}
@@ -271,7 +270,7 @@ class ComparisonWidget(QWidget):
             self._progress_dialog.close()
             self._progress_dialog.deleteLater()
         self._progress_dialog = ComparisonProgressDialog([
-            (str(variant["part_number"]), str(variant.get("hardware", {}).get("software_part_number") or ""))
+            str(variant["part_number"])
             for variant in selected
         ], self)
         self._progress_dialog.cancel_requested.connect(self._cancel.set)
@@ -288,9 +287,9 @@ class ComparisonWidget(QWidget):
         self._worker.start()
 
     def _set_variant_status(self, row: int, status: str, error: str) -> None:
-        self._variants_table.item(row, 5).setText(status)
-        self._variants_table.item(row, 6).setText(error)
-        self._variants_table.item(row, 6).setToolTip(error)
+        self._variants_table.item(row, 4).setText(status)
+        self._variants_table.item(row, 5).setText(error)
+        self._variants_table.item(row, 5).setToolTip(error)
 
     def _on_progress(self, index: int, status: str, error: str) -> None:
         if self._progress_dialog is not None:
@@ -338,17 +337,15 @@ class ComparisonWidget(QWidget):
         self._variant_filter.blockSignals(True)
         self._variant_filter.clear()
         self._variant_filter.addItem("All variants", None)
-        for part, software in dict.fromkeys((part, software) for part, software, _ in self._rows):
-            self._variant_filter.addItem(f"{part} | {software}", (part, software))
+        for part in dict.fromkeys(part for part, _, _ in self._rows):
+            self._variant_filter.addItem(part, part)
         self._variant_filter.blockSignals(False)
         self._table.setRowCount(len(self._rows))
         for index, (part, software, row) in enumerate(self._rows):
             values = (
-                (part, software, row.parameter, _display(row.master),
+                (part, row.parameter, _display(row.master),
                  _display(row.base) if (part, software) in self._base_variants else "",
                  _display(row.target), row.status.value)
-                if self._base_mode else
-                (part, software, row.parameter, _display(row.master), _display(row.target), row.status.value)
             )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
@@ -368,7 +365,7 @@ class ComparisonWidget(QWidget):
             text = " ".join(self._table.item(index, column).text() for column in range(self._table.columnCount()))
             show = (
                 (not search or search in text.casefold())
-                and (variant is None or variant == (part, software))
+                and (variant is None or variant == part)
                 and (status == "All statuses" or status == row.status.value)
                 and (not self._deviations.isChecked() or row.deviation)
             )

@@ -94,7 +94,7 @@ class ComparisonService:
                     progress(index, "Comparing", "")
                     matched = match_variant(master_variants, target)
                     if variant_identity(matched) != variant_identity(variant):
-                        raise ValueError("Export XML does not match the selected Variant + SW Part Number.")
+                        raise ValueError("Export XML does not match the selected variant's Master Sheet identity.")
                     result.rows = compare_parameters(master_parameters(matched), target, base)
                     progress(index, "Completed", "")
                 except Exception as error:

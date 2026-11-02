@@ -60,7 +60,7 @@ def compare_parameters(
     base: Mapping[str, ParameterValue] | None = None,
 ) -> list[ComparisonRow]:
     """Blank/absent target values are never a match, even if the references are also blank."""
-    paths = master.keys() | target.keys() | (base.keys() if base is not None else set())
+    paths = master.keys()
     rows = []
     for path in sorted(paths):
         master_value, target_value = master.get(path), target.get(path)

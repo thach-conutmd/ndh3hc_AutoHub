@@ -98,7 +98,7 @@ def _identity(part: object, software: object) -> tuple[str, str]:
 def export_identity(parameters: Mapping[str, ParameterValue]) -> tuple[str, str]:
     values = (parameters.get(VARIANT_PATH), parameters.get(SOFTWARE_PATH))
     if any(not isinstance(value, str) or not value.strip() or value.strip() in ("---", "0") for value in values):
-        raise ValueError("XML must contain a nonblank CustomerOrderNumber (Variant) and SoftwarePartNumber.")
+        raise ValueError("XML must contain nonblank required variant matching fields.")
     return _identity(*values)
 
 
@@ -106,9 +106,9 @@ def match_variant(variants: Sequence[dict], parameters: Mapping[str, ParameterVa
     identity = export_identity(parameters)
     matches = [variant for variant in variants if variant_identity(variant) == identity]
     if not matches:
-        raise ValueError(f"No Master Sheet variant matches Variant {identity[0]} + SW Part Number {identity[1]}.")
+        raise ValueError(f"No Master Sheet variant matches the exported identity for Variant {identity[0]}.")
     if len(matches) != 1:
-        raise ValueError(f"Multiple Master Sheet variants match {identity[0]} + {identity[1]}; reload an unambiguous sheet.")
+        raise ValueError(f"Multiple Master Sheet variants match {identity[0]}; reload an unambiguous sheet.")
     return matches[0]
 
 
