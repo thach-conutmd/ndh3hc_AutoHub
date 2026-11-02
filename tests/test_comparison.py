@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
-from autohub.modules.comparison.comparison import Status, compare_parameters
+from autohub.modules.comparison.comparison import Status, compare_parameters, compare_xml_parameters
 from autohub.modules.comparison.matching import (
     JOB_PATH, SOFTWARE_PATH, VARIANT_PATH, export_identity, master_parameters,
     match_variant, validate_export_link, validate_link,
@@ -223,3 +223,33 @@ def test_xml_only_paths_are_ignored_even_with_an_empty_master():
     assert compare_parameters({}, {"target_only": "x"}, {"base_only": "y"}) == []
     rows = compare_parameters({"scope": "x"}, {"scope": "x", "extra": "y"}, {"extra": "z"})
     assert [row.parameter for row in rows] == ["scope"]
+
+
+def test_manual_xml_comparison_uses_union_and_shared_value_semantics():
+    base = parse_xml(export_xml({
+        "General/Power": " 0 ", "General/Enabled": False, "General/BaseOnly": "base",
+        "General/Blank": None, "General/BlankBase": None, "General/Market": ("UK", "Brazil"),
+        "ECU/TP_Level": "TP3", "Customer/SW_Version": "0010",
+    }, job_id=None))
+    target = parse_xml(export_xml({
+        "General/Power": "0", "General/Enabled": False, "General/TargetOnly": "target",
+        "General/Blank": None, "General/BlankBase": "value", "General/Market": ("Brazil", "GB"),
+        "ECU/TP_Level": "3", "Customer/SW_Version": "10",
+    }, job_id=None))
+    rows = {row.parameter: row for row in compare_xml_parameters(base, target)}
+    assert list(rows) == sorted(base.keys() | target.keys())
+    for path in ("General/Power", "General/Enabled", "General/Market", "ECU/TP_Level"):
+        assert rows[path].status == Status.MATCH and not rows[path].deviation
+    assert rows["General/BaseOnly"].status == Status.MISSING_IN_TARGET
+    assert rows["General/TargetOnly"].status == Status.MISSING_IN_BASE
+    assert rows["General/Blank"].status == Status.MISSING_IN_TARGET
+    assert rows["General/BlankBase"].status == Status.MISSING_IN_BASE
+    assert rows["Customer/SW_Version"].status == Status.VALUE_MISMATCH
+    assert rows["Customer/SW_Version"].base == "0010"
+    assert rows["Customer/SW_Version"].target == "10"
+    assert rows["Customer/SW_Version"].master is None
+
+
+def test_manual_xml_missing_paths_take_precedence_over_blank_values():
+    assert compare_xml_parameters({}, {"blank": None})[0].status == Status.MISSING_IN_BASE
+    assert compare_xml_parameters({"blank": None}, {})[0].status == Status.MISSING_IN_TARGET

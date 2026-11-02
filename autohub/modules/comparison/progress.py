@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 class ComparisonProgressDialog(QDialog):
     cancel_requested = Signal()
 
-    def __init__(self, identities: list[str], parent=None):
+    def __init__(self, identities: list[str], parent=None, *, identity_header: str = "Variant"):
         super().__init__(parent)
         self.setWindowTitle("Comparison Progress")
         self.setWindowModality(Qt.ApplicationModal)
@@ -24,7 +24,7 @@ class ComparisonProgressDialog(QDialog):
         self._operation = QLabel("Pending")
         self._operation.setWordWrap(True)
         self._items = QTableWidget(len(identities), 3)
-        self._items.setHorizontalHeaderLabels(("Variant", "Status", "Error"))
+        self._items.setHorizontalHeaderLabels((identity_header, "Status", "Error"))
         self._items.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._items.verticalHeader().hide()
         self._items.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
@@ -42,6 +42,10 @@ class ComparisonProgressDialog(QDialog):
         self._button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._button.setAutoDefault(False)
         self._button.clicked.connect(self._clicked)
+        self._cancel_message = (
+            "Stopping XML comparison safely." if identity_header != "Variant"
+            else "Finishing the active variant safely; remaining variants will be skipped."
+        )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(10)
@@ -80,7 +84,7 @@ class ComparisonProgressDialog(QDialog):
         if self._active:
             self._button.setEnabled(False)
             self._button.setText("Cancelling...")
-            self._summary.setText("Finishing the active variant safely; remaining variants will be skipped.")
+            self._summary.setText(self._cancel_message)
             self.cancel_requested.emit()
         else:
             self.accept()

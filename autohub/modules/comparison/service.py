@@ -3,16 +3,45 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable, Protocol
 
-from .comparison import ComparisonRow, compare_parameters
+from .comparison import ComparisonRow, compare_parameters, compare_xml_parameters
 from .matching import (
     master_parameters, match_variant, validate_export_link, validate_link, variant_identity,
 )
-from .xml_parser import parse_xml
+from .xml_parser import MAX_XML_BYTES, parse_xml
 
 _logger = logging.getLogger(__name__)
 Progress = Callable[[int, str, str], None]
+
+
+def compare_xml_files(
+    base_path: str, target_path: str, progress: Progress = lambda *_: None,
+    cancelled: Callable[[], bool] = lambda: False,
+) -> list[ComparisonRow] | None:
+    """Read local exports without a browser or Master Sheet; never write either source."""
+    for label, path in (("Base", base_path), ("Target", target_path)):
+        if not path or not Path(path).is_file() or Path(path).suffix.casefold() != ".xml":
+            raise ValueError(f"{label} XML: select an existing XML file.")
+    parameters = []
+    for label, path in (("Base", base_path), ("Target", target_path)):
+        if cancelled():
+            progress(0, "Cancelled", "")
+            return None
+        progress(0, f"Parsing {label} XML", "")
+        try:
+            with open(path, "rb") as source:
+                parameters.append(parse_xml(source.read(MAX_XML_BYTES + 1)))
+        except (OSError, ValueError) as error:
+            raise ValueError(f"{label} XML: {error}") from error
+    if cancelled():
+        progress(0, "Cancelled", "")
+        return None
+    progress(0, "Comparing", "")
+    rows = compare_xml_parameters(parameters[0], parameters[1])
+    progress(0, "Completed", "")
+    return rows
 
 
 class ExportSession(Protocol):
