@@ -1,4 +1,7 @@
 """Home workflows through the presenter and service, with fakes instead of Excel, Qt dialogs and threads."""
+from unittest.mock import Mock
+
+from autohub.modules.home import ui as home_ui
 from autohub.modules.home.presenter import HomePresenter
 from tests.fakes import (
     FakeDialogs,
@@ -25,6 +28,54 @@ def _presenter(tmp_path, service, dialogs=None, view=None, settings=None):
 def test_restore_saved_paths_shows_the_master_sheet_name(tmp_path):
     _, view, _, _ = _presenter(tmp_path, build_service())
     assert view.file_names["Master Sheet"].endswith("master.xlsx")
+
+
+def test_home_opens_selected_master_sheet_in_default_application(qapp, tmp_path, monkeypatch):
+    from autohub.modules.home.ui import HomeWidget
+
+    master = tmp_path / "master.xlsx"
+    master.touch()
+    dialogs = FakeDialogs()
+    settings = MemorySettings({"master_sheet_path": str(master)})
+    opened = Mock(return_value=True)
+    monkeypatch.setattr(home_ui.QDesktopServices, "openUrl", opened)
+    page = HomeWidget(build_service(), settings, dialogs)
+
+    assert page._open_master_btn.isEnabled()
+    page._open_master_btn.click()
+
+    assert opened.call_args.args[0].toLocalFile() == str(master)
+    assert dialogs.errors == []
+
+
+def test_home_open_master_reports_missing_file(qapp, tmp_path, monkeypatch):
+    from autohub.modules.home.ui import HomeWidget
+
+    missing = tmp_path / "missing.xlsx"
+    dialogs = FakeDialogs()
+    opened = Mock()
+    monkeypatch.setattr(home_ui.QDesktopServices, "openUrl", opened)
+    page = HomeWidget(build_service(), MemorySettings({"master_sheet_path": str(missing)}), dialogs)
+
+    assert page._open_master_btn.isEnabled()
+    page._open_master_btn.click()
+
+    opened.assert_not_called()
+    assert dialogs.errors == [("Open Master Sheet", "Select a valid Master Sheet file.")]
+
+
+def test_home_open_master_reports_default_application_failure(qapp, tmp_path, monkeypatch):
+    from autohub.modules.home.ui import HomeWidget
+
+    master = tmp_path / "master.xlsx"
+    master.touch()
+    dialogs = FakeDialogs()
+    monkeypatch.setattr(home_ui.QDesktopServices, "openUrl", Mock(return_value=False))
+    page = HomeWidget(build_service(), MemorySettings({"master_sheet_path": str(master)}), dialogs)
+
+    page._open_master_btn.click()
+
+    assert dialogs.errors == [("Open Master Sheet", f"Could not open the Master Sheet:\n{master}")]
 
 
 def test_new_variant_enables_update_without_editing(tmp_path):
