@@ -98,6 +98,15 @@ class JobPlan:
         steps += _optional_steps("ECU", ecu_tab, ECU_FIELDS, variant["ecu"])
         steps.append(("Select the Customer tab", customer_tab.select_customer_tab))
         steps += _optional_steps("Customer", customer_tab, CUSTOMER_FIELDS, variant["customer"])
+        hex_path = variant.get("_calibration_hex_path")
+        if hex_path:
+            files_tab = self.body.tab.filestab
+            steps.append(("Select the Files tab", files_tab.select_files_tab))
+            steps.append((
+                f"Files: Upload calibration HEX {hex_path}",
+                files_tab.upload_calibration_hex,
+                hex_path,
+            ))
         steps.append(("Save the job", self.body.actions.save))
         return steps
 

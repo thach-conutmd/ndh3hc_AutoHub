@@ -201,6 +201,20 @@ def test_service_retries_until_success_and_clears_progress():
     assert journal.state is None
 
 
+def test_service_exposes_general_options_observed_during_job_creation():
+    FlakyWebFlow.failures = 0
+    FlakyWebFlow.instances = []
+
+    class OptionWebFlow(FlakyWebFlow):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.general_options = {"market": ["Brazil", "Japan"]}
+
+    service = WebFlowJobService(OptionWebFlow)
+    service.create_jobs([{"part_number": "P1"}], CONFIG)
+    assert service.last_general_options == {"market": ["Brazil", "Japan"]}
+
+
 def test_service_gives_up_after_five_attempts_and_keeps_progress():
     journal = MemoryJournal()
     service, _ = flaky_service(99, journal)

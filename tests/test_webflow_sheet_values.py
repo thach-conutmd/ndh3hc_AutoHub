@@ -489,7 +489,8 @@ def test_hardware_multiselect_replaces_previous_selection(monkeypatch):
     panel = Mock()
     panel.find_elements.return_value = [first, second]
     fields.driver.find_elements.return_value = [panel]
-    assert fields._select_multiple(form, "Brazil") is True
+    assert fields._select_multiple(form, "Brazil", "market") is True
+    assert fields.general_options["market"] == ["Brazil", "Japan"]
     fields.driver.execute_script.assert_any_call("arguments[0].scrollIntoView({block: 'center'});", form.find_element.return_value)
     first.click.assert_called_once()
     second.click.assert_called_once()

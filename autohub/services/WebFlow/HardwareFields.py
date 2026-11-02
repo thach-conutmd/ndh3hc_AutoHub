@@ -7,7 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
-from autohub.core.webflow_options import resolve_option_values
+from autohub.core.webflow_options import GENERAL_OPTION_FIELDS, resolve_option_values
 
 from . import Constants
 from .components import Section, button_is_enabled, checkbox_is_disabled, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
@@ -49,6 +49,7 @@ class HardwareFields:
         self.driver = driver
         self.imported_software_part_number = ""
         self.imported_ecr_number = ""
+        self.general_options: dict[str, list[str]] = {}
         self.sections = {
             panel: Section(driver, f'//span[normalize-space(.)="{panel}"]', 'div[style^="display:"]')
             for panel in _PANEL_FIELDS
@@ -269,6 +270,9 @@ class HardwareFields:
             )
             items = panel.find_elements(By.CSS_SELECTOR, "li.p-multiselect-item")
             options = {(item.get_attribute("aria-label") or item.text): item for item in items}
+            if key in GENERAL_OPTION_FIELDS:
+                cached = self.general_options.setdefault(key, [])
+                cached.extend(name for name in options if name not in cached)
             try:
                 requested = resolve_option_values(key, value, options)
             except ValueError as error:

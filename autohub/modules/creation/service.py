@@ -73,6 +73,7 @@ class WebFlowJobService:
         self._session = session_factory
         self._webflow: WebFlowSession | None = None
         self.last_elapsed_seconds = 0.0
+        self.last_general_options: dict[str, list[str]] = {}
 
     def create_jobs(
         self,
@@ -109,6 +110,7 @@ class WebFlowJobService:
     def _run(self, state: dict, variants: list[dict], progress: ProgressCallback) -> list[dict]:
         started = time.perf_counter()
         self.last_elapsed_seconds = 0.0
+        self.last_general_options = {}
         completed = False
         try:
             results = self._create_jobs(state, variants, progress)
@@ -248,6 +250,13 @@ class WebFlowJobService:
                     job_variants, tool_version=config.tool_version, routing=config.routing, progress=progress,
                     state=state, checkpoint=checkpoint,
                 )
+                observed_options = getattr(self._webflow, "general_options", {})
+                if isinstance(observed_options, dict):
+                    self.last_general_options = {
+                        key: list(values)
+                        for key, values in observed_options.items()
+                        if isinstance(values, (list, tuple)) and values
+                    }
                 return results
             except (ValueError, NonRetryableError):
                 self.discard_pending_batch()

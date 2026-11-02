@@ -10,6 +10,7 @@ from autohub.config import APP_NAME, APP_VERSION, LOGO_PATH
 from autohub.core.capabilities import (
     Closable, LeaveGuard, StartupPreload, StartupTask, VariantSink, VariantSource, WebFlowLinkSink, WebFlowLinkSource,
     WebFlowNumberSink, WebFlowNumberSource,
+    WebFlowOptionsSink, WebFlowOptionsSource,
     SettingsSink, SettingsSource,
 )
 from autohub.core.module_base import AutoHubModule
@@ -69,6 +70,9 @@ class MainWindow(QMainWindow):
         for source in (w for w in widgets if isinstance(w, WebFlowNumberSource)):
             for sink in (w for w in widgets if isinstance(w, WebFlowNumberSink)):
                 source.webflowNumbersUpdated.connect(sink.set_webflow_numbers)
+        for source in (w for w in widgets if isinstance(w, WebFlowOptionsSource)):
+            for sink in (w for w in widgets if isinstance(w, WebFlowOptionsSink)):
+                source.webflowOptionsUpdated.connect(sink.set_webflow_options)
         for source in (w for w in widgets if isinstance(w, SettingsSource)):
             for sink in (w for w in widgets if isinstance(w, SettingsSink)):
                 source.settingsChanged.connect(sink.apply_settings)

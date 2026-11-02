@@ -64,6 +64,7 @@ def test_new_variant_passes_hw_info_to_the_master_sheet(tmp_path):
 
 def test_new_variant_uses_optional_hex_filename_as_data_version(tmp_path):
     from tests.test_a2l_hex import write_calibration_folder
+    from autohub.core.settings_keys import CALIBRATION_FOLDER_PATH_KEY
 
     folder = write_calibration_folder(tmp_path, "P1", "CustomCompId")
     master = FakeMasterSheet(new_rows=[{"J": "P1"}, {"J": "P2"}])
@@ -71,7 +72,7 @@ def test_new_variant_uses_optional_hex_filename_as_data_version(tmp_path):
     settings = MemorySettings(
         {"master_sheet_path": str(tmp_path / "master.xlsx"), "a2l_comp_id_symbol": "CustomCompId"}
     )
-    presenter, view, dialogs, _ = _presenter(
+    presenter, view, dialogs, saved_settings = _presenter(
         tmp_path, build_service(master=master), dialogs, settings=settings
     )
 
@@ -79,6 +80,7 @@ def test_new_variant_uses_optional_hex_filename_as_data_version(tmp_path):
 
     assert [row.get("AZ") for row in view.rows] == ["calibration-v3.hex", None]
     assert "P2: no calibration HEX file matches the DWG number" in dialogs.infos[-1][1]
+    assert saved_settings.load()[CALIBRATION_FOLDER_PATH_KEY] == str(folder)
 
 
 def test_new_variant_matches_each_dwg_to_its_hex_file(tmp_path):

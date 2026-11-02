@@ -249,6 +249,79 @@ def test_tab_link_clicks_only_an_unselected_tab(page):
     assert TabLink(Driver(), "//missing").select() is False
 
 
+def test_files_tab_uploads_the_selected_hex_into_the_calibration_file_row(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+
+    from autohub.services.WebFlow import FilesTab as files_tab_module
+    from autohub.services.WebFlow.FilesTab import FilesTab
+
+    hex_file = tmp_path / "calibration.hex"
+    hex_file.write_text(":00000001FF\n", encoding="ascii")
+    filename_cell = Mock()
+    filename_cell.text = ""
+    class_cell = Mock()
+    class_cell.text = "Calibration file"
+    row = Mock()
+    row.find_elements.return_value = [class_cell, Mock(), filename_cell]
+    request_files = Mock()
+    request_files.find_elements.return_value = [row]
+    upload = Mock()
+    upload.send_keys.side_effect = lambda _path: setattr(filename_cell, "text", hex_file.name)
+    driver = Mock()
+    driver.find_element.return_value = request_files
+    request_files.find_element.return_value = upload
+
+    class ImmediateWait:
+        def __init__(self, _driver, _timeout):
+            pass
+
+        def until(self, condition):
+            return condition(driver)
+
+    monkeypatch.setattr(files_tab_module, "WebDriverWait", ImmediateWait)
+    monkeypatch.setattr(files_tab_module, "wait_until_idle", lambda *_args: True)
+
+    assert FilesTab(driver).upload_calibration_hex(str(hex_file))
+    assert row.click.call_count == 1
+    upload.send_keys.assert_called_once_with(str(hex_file.resolve()))
+    assert driver.execute_script.call_count == 2
+
+
+def test_files_tab_does_not_upload_a_calibration_file_twice(tmp_path):
+    from unittest.mock import Mock
+
+    from autohub.services.WebFlow.FilesTab import FilesTab
+
+    hex_file = tmp_path / "calibration.hex"
+    hex_file.write_text(":00000001FF\n", encoding="ascii")
+    class_cell, filename_cell = Mock(), Mock()
+    class_cell.text = "Calibration file"
+    filename_cell.text = hex_file.name
+    row = Mock()
+    row.find_elements.return_value = [class_cell, Mock(), filename_cell]
+    request_files = Mock()
+    request_files.find_elements.return_value = [row]
+    driver = Mock()
+    driver.find_element.return_value = request_files
+
+    assert FilesTab(driver).upload_calibration_hex(str(hex_file))
+    row.click.assert_not_called()
+    request_files.find_element.assert_not_called()
+
+
+def test_files_tab_rejects_missing_or_non_hex_files(tmp_path):
+    from unittest.mock import Mock
+
+    from autohub.services.WebFlow.FilesTab import FilesTab
+
+    assert not FilesTab(Mock()).upload_calibration_hex(str(tmp_path / "missing.hex"))
+    other_file = tmp_path / "readme.txt"
+    other_file.write_text("not a calibration", encoding="utf-8")
+    driver = Mock()
+    assert not FilesTab(driver).upload_calibration_hex(str(other_file))
+    driver.find_element.assert_not_called()
+
+
 def test_job_information_reports_whether_it_clicked(page, monkeypatch):
     monkeypatch.setattr(Constants, "BODY_INFORMATION_TITLE_XPATH", "//section")
     monkeypatch.setattr(Constants, "BODY_INFORMATION_BODY_CSS", "div.body")
@@ -358,6 +431,27 @@ def test_job_filler_plans_the_legacy_steps_in_order():
         "Customer: component_id = C",
         "Save the job",
     ]
+
+
+def test_job_plan_adds_calibration_upload_steps_only_when_a_hex_path_is_available():
+    job_filler, calls, _ = filler()
+    tabs = job_filler.body.tab
+    tabs.filestab = job_filler.side_menu_bar
+
+    plain_steps = [step[0] for step in job_filler.steps(VARIANT)]
+    with_hex = {**VARIANT, "_calibration_hex_path": "/calibration/P1.hex"}
+    upload_steps = job_filler.steps(with_hex)
+    upload_names = [step[0] for step in upload_steps]
+
+    assert "Select the Files tab" not in plain_steps
+    assert upload_names[-3:] == [
+        "Select the Files tab",
+        "Files: Upload calibration HEX /calibration/P1.hex",
+        "Save the job",
+    ]
+    assert upload_steps[-3][0] == "Select the Files tab"
+    assert upload_steps[-2][2] == "/calibration/P1.hex"
+    assert callable(upload_steps[-2][1])
 
 
 @pytest.mark.parametrize("part_number", ["37820-6WZ-M610-M6", "37820-6WZ-M710-M6"])

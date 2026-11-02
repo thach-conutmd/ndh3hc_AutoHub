@@ -12,6 +12,7 @@ from autohub.core.progress import ProgressCallback, ProgressWindow, no_progress
 from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import (
     A2L_COMP_ID_SYMBOL_KEY,
+    CALIBRATION_FOLDER_PATH_KEY,
     LATEST_COUNT_CHOICES,
     LATEST_COUNT_KEY,
     normalize_latest_count,
@@ -345,6 +346,9 @@ class HomePresenter:
         for field in _SOURCE_FIELDS:
             if chosen.get(field.name):
                 _logger.info("%s file selected: %s", field.name, chosen[field.name])
+        calibration_folder = chosen.get("Calibration folder", "")
+        if calibration_folder:
+            self._settings.update(**{CALIBRATION_FOLDER_PATH_KEY: calibration_folder})
         return {field.name: chosen.get(field.name, "") for field in _SOURCE_FIELDS}
 
     def _finish_new_variant(self, result: NewVariantResult, window: ProgressWindow, keep_rows: bool) -> None:

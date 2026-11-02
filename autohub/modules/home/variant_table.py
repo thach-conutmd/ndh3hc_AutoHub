@@ -9,9 +9,10 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QAbstractItemView, QApplication, QTableWidget, QTableWidgetItem
 
 from autohub.core.variant_choices import VARIANT_CHOICES
+from autohub.core.webflow_fields import GENERAL_OPTION_COLUMNS
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS, VARIANT_FIELD_ORDER
 from autohub.core.webflow_links import webflow_link_text
-from autohub.modules.home.choice_delegate import ChoiceDelegate
+from autohub.modules.home.choice_delegate import ChoiceDelegate, MultiChoiceDelegate
 from autohub.modules.home.column_limits import ColumnLimits
 from autohub.modules.home.frozen_columns import FrozenColumns
 from autohub.ui.hover_cursor import HoverCursor
@@ -42,6 +43,7 @@ class VariantTable(QTableWidget):
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         #: Excel row per table row (None means "not yet in the sheet", insert on update).
         self._row_numbers: list[int | None] = []
+        self._webflow_option_choices: dict[str, tuple[str, ...]] = {}
         self.itemChanged.connect(lambda _item: self.userEdited.emit())
 
         for col, column_name in enumerate(VARIANT_FIELD_ORDER):
@@ -88,6 +90,20 @@ class VariantTable(QTableWidget):
         if visible:
             self._limits.apply()
             self.setColumnWidth(self._link_column, max(self.columnWidth(self._link_column), 110))
+
+    def set_webflow_option_choices(self, choices: dict) -> None:
+        """Install multi-select editors for General-info columns with cached WebFlow options."""
+        if not isinstance(choices, dict):
+            choices = {}
+        self._webflow_option_choices = {
+            key: tuple(dict.fromkeys(value.strip() for value in values if isinstance(value, str) and value.strip()))
+            for key, values in choices.items()
+            if key in GENERAL_OPTION_COLUMNS.values() and isinstance(values, (list, tuple))
+        }
+        for column, key in GENERAL_OPTION_COLUMNS.items():
+            index = VARIANT_FIELD_ORDER.index(column) + 1
+            options = self._webflow_option_choices.get(key, ())
+            self.setItemDelegateForColumn(index, MultiChoiceDelegate(options, self) if options else None)
 
     def set_webflow_links(self, links: dict[str, str]) -> None:
         part_column = 1 + VARIANT_FIELD_ORDER.index("J")

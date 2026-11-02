@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
+from autohub.core.settings_keys import WEBFLOW_GENERAL_OPTIONS_KEY
 from autohub.core.workers import TaskRunner
 from autohub.core.webflow_numbers import number_updates
 from autohub.modules.creation.config_form import load_config
@@ -24,6 +25,7 @@ _logger = logging.getLogger(__name__)
 class CreationWidget(QWidget):
     webflowLinksUpdated = Signal(dict)
     webflowNumbersUpdated = Signal(dict, bool)
+    webflowOptionsUpdated = Signal(dict)
 
     def __init__(self, service: WebFlowJobService, settings: SettingsStore, dialogs: Dialogs | None = None):
         super().__init__()
@@ -188,6 +190,14 @@ class CreationWidget(QWidget):
         self._checklist.set_numbers(numbers)
         self._update_selection_summary(0, self._checklist.variant_count)
         self.webflowNumbersUpdated.emit(numbers, not any(item.get("NumberError") for item in results))
+        latest_options = getattr(self._service, "last_general_options", {})
+        options = self._merge_general_options(
+            self._settings.load().get(WEBFLOW_GENERAL_OPTIONS_KEY, {}),
+            latest_options if isinstance(latest_options, dict) else {},
+        )
+        if options:
+            self._settings.update(**{WEBFLOW_GENERAL_OPTIONS_KEY: options})
+            self.webflowOptionsUpdated.emit(options)
         _logger.info("Created %d WebFlow job(s)", len(results))
         summary = "\n".join(f"{item['PartNumber']}: {item['JobId']}" for item in results)
         warnings = [
@@ -210,6 +220,19 @@ class CreationWidget(QWidget):
             message += f"\n\nThe numbers were not written to the Master Sheet: {number_error}"
         message += f"\n\nTotal time: {self._service.last_elapsed_seconds:.1f} seconds."
         window.succeed(message)
+
+    @staticmethod
+    def _merge_general_options(saved: dict, latest: dict) -> dict[str, list[str]]:
+        merged = {
+            key: list(dict.fromkeys(value for value in values if isinstance(value, str) and value.strip()))
+            for key, values in saved.items()
+            if isinstance(key, str) and isinstance(values, (list, tuple))
+        } if isinstance(saved, dict) else {}
+        for key, values in latest.items():
+            current = merged.setdefault(key, [])
+            if isinstance(values, (list, tuple)):
+                current.extend(value for value in values if isinstance(value, str) and value.strip() and value not in current)
+        return {key: values for key, values in merged.items() if values}
 
     def _fail_webflow_jobs(self, error: str, window: ProgressWindow) -> None:
         self._running = False

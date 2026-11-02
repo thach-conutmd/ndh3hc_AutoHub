@@ -49,6 +49,7 @@ class WebFlow(webdriver.Edge):
         self.side_menu_bar = SideMenuBar(self)
         self.body = Body(self)
         self.job_filler = JobFiller(self.side_menu_bar, self.body)
+        self.general_options: dict[str, list[str]] = {}
         _logger.info("Edge browser started")
         if trace_dir:  # record the page after every step
             set_step_observer(StepTrace(self, Path(trace_dir)))
@@ -153,7 +154,9 @@ class WebFlow(webdriver.Edge):
             self.open_job, self._fill_job, self.job_url, self.quit, _logger,
             max_jobs_per_creation=Constants.BODY_JOBCREATION_MAX_JOBS,
         )
-        return batch.run(variants, tool_version, routing, customer_group, working_mode, progress, state, checkpoint)
+        results = batch.run(variants, tool_version, routing, customer_group, working_mode, progress, state, checkpoint)
+        self.general_options = self.body.tab.generaltab.general_options
+        return results
 
     def _fill_job(self, variant: dict) -> list[str]:
         return self.job_filler.fill(variant)
