@@ -395,7 +395,7 @@ def test_settings_controls_are_organized_in_groups(qapp):
 
     page = SettingsWidget(MemorySettings())
     groups = {group.title(): group for group in page.findChildren(QGroupBox)}
-    assert set(groups) == {"Theme", "Logging", "Analysis", "Home", "Creation", "WebFlow Retry", "XML Comparison Exclusions"}
+    assert set(groups) == {"Theme", "Logging", "Analysis", "Home", "Creation", "WebFlow Retry", "Exclude Compare Data"}
     assert page._theme.parentWidget() is groups["Theme"]
     assert page._logging.parentWidget() is groups["Logging"]
     assert page._record.parentWidget() is groups["Analysis"]
@@ -433,6 +433,25 @@ def test_xml_exclusion_settings_add_edit_delete_restore_and_save(qapp):
     assert settings.load()["xml_comparison_exclusions"] == ["Files/", "Notes/"]
 
 
+def test_exclusion_scope_is_saved_loaded_and_emitted(qapp):
+    settings = MemorySettings()
+    page = SettingsWidget(settings)
+    changes = []
+    page.settingsChanged.connect(changes.append)
+    assert not page._exclusions_master_only.isChecked()
+    page._exclusions_master_only.setChecked(True)
+    assert page._apply.isEnabled()
+    page._apply.click()
+    assert settings.load()["xml_comparison_exclusions_master_only"] is True
+    assert changes == [{"xml_comparison_exclusions_master_only": True}]
+    restored = SettingsWidget(settings)
+    assert restored._exclusions_master_only.isChecked()
+    assert not restored._apply.isEnabled()
+    restored._exclusions_master_only.setChecked(False)
+    restored._apply.click()
+    assert settings.load()["xml_comparison_exclusions_master_only"] is False
+
+
 @pytest.mark.parametrize("answer", [True, False, None])
 def test_xml_exclusion_settings_follow_apply_discard_cancel(qapp, answer):
     from tests.fakes import FakeDialogs
@@ -440,9 +459,12 @@ def test_xml_exclusion_settings_follow_apply_discard_cancel(qapp, answer):
     settings = MemorySettings()
     page = SettingsWidget(settings, FakeDialogs(table_answer=answer))
     page._exclusions.item(0, 0).setText("Custom/")
+    page._exclusions_master_only.setChecked(True)
     assert page.confirm_leave() is (answer is not None)
     assert settings.load().get("xml_comparison_exclusions") == (["Custom/", "Notes/"] if answer else None)
     assert page._exclusion_values()[0] == ("Files/" if answer is False else "Custom/")
+    assert settings.load().get("xml_comparison_exclusions_master_only") is (True if answer else None)
+    assert page._exclusions_master_only.isChecked() is (answer is not False)
 
 
 def test_home_settings_apply_to_existing_home_page(qapp):

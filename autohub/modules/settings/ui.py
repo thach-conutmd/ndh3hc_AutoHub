@@ -28,6 +28,7 @@ from autohub.core.settings_keys import (
     normalize_latest_count,
     DEFAULT_XML_COMPARISON_EXCLUSIONS,
     XML_COMPARISON_EXCLUSIONS_KEY,
+    XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY,
 )
 from autohub.modules.comparison.xml_parser import comparison_exclusions
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode, set_muted
@@ -125,8 +126,13 @@ class SettingsWidget(QWidget):
         self._creation = CreationSettingsForm(load_config(settings))
         QVBoxLayout(creation_group).addWidget(self._creation)
 
-        exclusions_group = QGroupBox("XML Comparison Exclusions")
+        exclusions_group = QGroupBox("Exclude Compare Data")
         exclusions_layout = QVBoxLayout(exclusions_group)
+        self._exclusions_master_only = QCheckBox("Apply only to Master Sheet Compare")
+        self._exclusions_master_only.setChecked(
+            bool(settings.load().get(XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY, False))
+        )
+        exclusions_layout.addWidget(self._exclusions_master_only)
         self._exclusions = QTableWidget(0, 3)
         self._exclusions.setHorizontalHeaderLabels(("Path prefix", "", ""))
         self._exclusions.verticalHeader().hide()
@@ -170,8 +176,10 @@ class SettingsWidget(QWidget):
                             "fields empty to skip ECR import, or complete all four to enable it.",
             retry_group: "Recover from browser failures without recreating completed jobs. "
                          "After an app crash, AutoHub asks before resuming saved progress.",
-            exclusions_group: "Exclude normalized parameter paths starting with these prefixes in all XML "
-                              "comparisons. A trailing / excludes an entire hierarchy. An empty list excludes nothing. "
+            exclusions_group: "Exclude parameters/rows whose normalized paths start with these prefixes. "
+                              "A trailing / excludes an entire hierarchy. Excluded rows are not compared or shown. "
+                              "Apply to both modes, or only Master Sheet Compare using the option below. "
+                              "An empty list excludes nothing. "
                               "Changes apply to new comparisons after Apply changes.",
         }
         for tab_name, groups in (
@@ -225,6 +233,7 @@ class SettingsWidget(QWidget):
         self._latest.currentIndexChanged.connect(self._refresh_apply)
         self._show_link.toggled.connect(self._refresh_apply)
         self._a2l_comp_id_symbol.textChanged.connect(self._refresh_apply)
+        self._exclusions_master_only.toggled.connect(self._refresh_apply)
         self._exclusions.itemChanged.connect(self._refresh_apply)
         for field in (
             self._creation._tool_version, self._creation._routing,
@@ -296,7 +305,8 @@ class SettingsWidget(QWidget):
             self._theme.currentData(), self._logging.isChecked(), self._record.isChecked(),
             self._attempts.value(), self._retry.isChecked(),
             self._latest.currentData(), self._show_link.isChecked(),
-            *self._creation.values().values(), self._a2l_comp_id_symbol.text().strip(),
+            *self._creation.values().values(), self._exclusions_master_only.isChecked(),
+            self._a2l_comp_id_symbol.text().strip(),
             self._exclusion_values(),
         )
 
@@ -326,7 +336,8 @@ class SettingsWidget(QWidget):
             self._retry.setChecked(self._applied[4])
             self._latest.setCurrentIndex(self._latest.findData(self._applied[5]))
             self._show_link.setChecked(self._applied[6])
-            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:-2])))
+            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:-3])))
+            self._exclusions_master_only.setChecked(self._applied[-3])
             self._a2l_comp_id_symbol.setText(self._applied[-2])
             self._restore_exclusions(self._applied[-1])
         return True
@@ -345,6 +356,7 @@ class SettingsWidget(QWidget):
             WEBFLOW_RETRY_ENABLED_KEY: retry,
             LATEST_COUNT_KEY: latest, SHOW_WEBFLOW_LINK_KEY: show_link,
             **self._creation.values(),
+            XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY: self._exclusions_master_only.isChecked(),
             A2L_COMP_ID_SYMBOL_KEY: self._a2l_comp_id_symbol.text().strip(),
             XML_COMPARISON_EXCLUSIONS_KEY: list(exclusions),
         }

@@ -202,6 +202,7 @@ class ComparisonWidget(QWidget):
         self._clear_selection_btn = QPushButton("Clear selection")
         self._export_btn = QPushButton("Export Comparison")
         self._export_btn.setEnabled(False)
+        self._clear_data_btn = QPushButton("Clear Data")
         self._impl_btn = QPushButton("Update Master Sheet")
         self._impl_btn.setToolTip("Write the exported Target values of successfully compared variants into the Master Sheet.")
         self._impl_btn.setEnabled(False)
@@ -211,6 +212,7 @@ class ComparisonWidget(QWidget):
         sources.addWidget(self._clear_selection_btn)
         sources.addStretch(1)
         sources.addWidget(self._export_btn)
+        sources.addWidget(self._clear_data_btn)
         sources.addWidget(self._impl_btn)
         sources.addWidget(self._compare_btn)
         self._table = ResultTable(0, len(_TARGET_HEADERS))
@@ -257,6 +259,7 @@ class ComparisonWidget(QWidget):
         self._table.customContextMenuRequested.connect(self._open_result_menu)
         self._compare_btn.clicked.connect(self._compare)
         self._export_btn.clicked.connect(self._export)
+        self._clear_data_btn.clicked.connect(self._clear_data)
         self._impl_btn.clicked.connect(self._update_impl)
         self._table.model().layoutChanged.connect(self._apply_filters)
         self._progress.connect(self._on_progress)
@@ -343,6 +346,28 @@ class ComparisonWidget(QWidget):
     def _clear_targets(self) -> None:
         self._target_paths.clear()
         self._refresh_target_files()
+
+    def _clear_data(self) -> None:
+        if self._running:
+            return
+        self._xml_paths["Base"] = ""
+        self._base_chips.set_files([])
+        self._xml_labels["Base"].show()
+        self._target_paths.clear()
+        self._refresh_target_files()
+        self._set_selection(Qt.Unchecked)
+        self._mode_results.clear()
+        self._revision += 1
+        self._rows = []
+        self._reviews = {}
+        self._impl_updates = {}
+        self._base_variants = set()
+        self._compared_files = None
+        self._run_files = ()
+        for row in range(self._variants_table.rowCount()):
+            self._set_variant_status(row, "Pending", "")
+        self._render_results()
+        self._source_changed()
 
     def _result_values(self, index: int) -> tuple[str, ...]:
         part, software, row = self._rows[index]
@@ -619,6 +644,7 @@ class ComparisonWidget(QWidget):
         self._target_chips.setEnabled(not running)
         self._base_chips.setEnabled(not running)
         self._clear_targets_btn.setEnabled(not running)
+        self._clear_data_btn.setEnabled(not running)
         self._variants_table.setEnabled(not running)
         self._select_all_btn.setEnabled(not running and self._variants_table.rowCount() > 0)
         self._clear_selection_btn.setEnabled(not running and bool(self._selected_rows()))
@@ -631,7 +657,9 @@ class ComparisonWidget(QWidget):
         if self._running:
             return
         try:
-            exclusions = comparison_exclusions(self._settings.load() if self._settings is not None else {})
+            exclusions = comparison_exclusions(
+                self._settings.load() if self._settings is not None else {}, manual=self._manual_mode,
+            )
         except ValueError as error:
             self._dialogs.error("Comparison", str(error))
             return
