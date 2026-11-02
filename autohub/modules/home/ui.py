@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from autohub.core.dialogs import Dialogs, QtDialogs
@@ -38,6 +39,7 @@ class HomeWidget(QWidget):
         super().__init__()
 
         self._settings = settings
+        self._dialogs = dialogs or QtDialogs(self)
         self._file_name_labels: dict[str, QLabel] = {}
         self._variant_table = VariantTable()
         self._variant_table.set_webflow_option_choices(settings.load().get(WEBFLOW_GENERAL_OPTIONS_KEY, {}))
@@ -50,6 +52,9 @@ class HomeWidget(QWidget):
 
         browse_btn = QPushButton(f"Load {MASTER_SHEET}")
         browse_btn.setMinimumWidth(140)
+        self._open_master_btn = QPushButton(f"Open {MASTER_SHEET}")
+        self._open_master_btn.setEnabled(False)
+        self._open_master_btn.setToolTip("Open the selected Master Sheet in its default application.")
         name_label = QLabel("Not selected")
         name_label.setMinimumWidth(_FILE_NAME_LABEL_WIDTH)
         name_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
@@ -60,6 +65,7 @@ class HomeWidget(QWidget):
         files_row.setSpacing(16)
         files_row.addWidget(name_label, 1)
         files_row.addWidget(browse_btn)
+        files_row.addWidget(self._open_master_btn)
 
         self._create_btn = QPushButton(NEW_VARIANT_TEXT)
         self._create_btn.setMinimumWidth(120)
@@ -120,8 +126,9 @@ class HomeWidget(QWidget):
         model.modelReset.connect(self._refresh_row_summary)
         self._variant_table.selectionModel().selectionChanged.connect(self._refresh_row_summary)
         self._tasks = TaskRunner()
-        self._presenter = HomePresenter(self, service, settings, dialogs or QtDialogs(self), self._tasks.start)
+        self._presenter = HomePresenter(self, service, settings, self._dialogs, self._tasks.start)
         browse_btn.clicked.connect(lambda _checked: self._presenter.browse_master_sheet())
+        self._open_master_btn.clicked.connect(self._on_open_master_sheet)
         self._create_btn.clicked.connect(self._presenter.new_variant)
         self._load_btn.clicked.connect(self._presenter.load_variants)
         self._update_btn.clicked.connect(self._presenter.update_master_sheet)
@@ -154,6 +161,16 @@ class HomeWidget(QWidget):
         label.setText(Path(path).name)
         label.setToolTip(path)
         set_muted(label, False)
+        if field_name == MASTER_SHEET:
+            self._open_master_btn.setEnabled(bool(path))
+
+    def _on_open_master_sheet(self) -> None:
+        path = str(self._settings.load().get("master_sheet_path", "")).strip()
+        if not path or not Path(path).is_file():
+            self._dialogs.error("Open Master Sheet", "Select a valid Master Sheet file.")
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).resolve()))):
+            self._dialogs.error("Open Master Sheet", f"Could not open the Master Sheet:\n{path}")
 
     def show_rows(self, rows: list[dict]) -> None:
         self._variant_table.populate(rows)
