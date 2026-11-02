@@ -93,6 +93,7 @@ def build_service(master=None, ecu=None, matrix=None, hw=None, kick_off=None) ->
         hw_info_factory=lambda path: hw or FakeDocument(path),
         session_factory=no_session,
         kick_off_factory=lambda path: kick_off or FakeDocument(path, info={}),
+        master_sheet_checker=lambda _path: "",
     )
 
 
@@ -135,6 +136,13 @@ class FakeDialogs:
     def pick_file(self, title, file_filter):
         self.picked.append(title)
         return self.files.pop(0) if self.files else ""
+
+    def pick_files(self, title, file_filter):
+        self.picked.append(title)
+        if not self.files:
+            return []
+        selected = self.files.pop(0)
+        return selected if isinstance(selected, list) else [selected]
 
     def save_file(self, title, default_name, file_filter):
         self.saved = (title, default_name, file_filter)
@@ -230,6 +238,9 @@ class FakeView:
 
     def publish_variants(self, variants):
         self.published.append(variants)
+
+    def set_workspace_enabled(self, enabled, busy=False):
+        self.states["workspace"] = enabled
 
 
 def run_inline(func, on_ok, on_error):

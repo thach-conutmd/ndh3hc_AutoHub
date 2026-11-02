@@ -13,13 +13,23 @@ from autohub.ui import webflow_link_delegate
 from autohub.modules.creation.ui import CreationWidget
 from autohub.modules.home.ui import HomeWidget
 from autohub.ui.main_window import MainWindow
-from tests.fakes import MemorySettings
+from tests.fakes import FakeDialogs, MemorySettings
+
+
+def _validated_home(tmp_path, settings=None):
+    settings = settings or MemorySettings()
+    master = tmp_path / "master.xlsx"
+    master.touch()
+    settings.update(master_sheet_path=str(master))
+    service = Mock()
+    service.master_sheet_problem.return_value = ""
+    return HomeWidget(service, settings, FakeDialogs())
 
 
 @pytest.mark.parametrize("fresh_link", ["", None, "https://webflow/app/ShowJob/221486"])
-def test_home_reload_replaces_creation_data_including_blank_links(qapp, fresh_link):
+def test_home_reload_replaces_creation_data_including_blank_links(qapp, fresh_link, tmp_path):
     settings = MemorySettings()
-    home = HomeWidget(Mock(), settings)
+    home = _validated_home(tmp_path, settings)
     creation = CreationWidget(Mock(), settings)
     MainWindow._wire_cross_module_signals([home, creation])
     creation.set_variants([{
@@ -78,9 +88,9 @@ def test_created_link_updates_creation_payload_as_well_as_its_display(qapp):
     assert checklist._table.cellWidget(0, 5).text() == "WF42"
 
 
-def test_created_links_reach_home_without_discarding_edits(qapp):
+def test_created_links_reach_home_without_discarding_edits(qapp, tmp_path):
     settings = MemorySettings({"show_webflow_link": True})
-    home = HomeWidget(Mock(), settings)
+    home = _validated_home(tmp_path, settings)
     creation = CreationWidget(Mock(last_elapsed_seconds=0.0), settings)
     MainWindow._wire_cross_module_signals([home, creation])
     rows = [
@@ -119,9 +129,9 @@ def test_created_links_reach_home_without_discarding_edits(qapp):
 
 
 @pytest.mark.parametrize("persisted", [True, False])
-def test_allocated_numbers_sync_creation_home_and_preserve_other_edits(qapp, persisted):
+def test_allocated_numbers_sync_creation_home_and_preserve_other_edits(qapp, persisted, tmp_path):
     settings = MemorySettings()
-    home = HomeWidget(Mock(), settings)
+    home = _validated_home(tmp_path, settings)
     creation = CreationWidget(Mock(last_elapsed_seconds=0.0), settings)
     MainWindow._wire_cross_module_signals([home, creation])
     rows = [{"_row": 11, "J": "P", "AX": "old SW", "AW": "old ECR", "H": "event"}]
@@ -144,8 +154,8 @@ def test_allocated_numbers_sync_creation_home_and_preserve_other_edits(qapp, per
         assert "Workbook locked" in window.succeed.call_args.args[0]
 
 
-def test_number_updates_preserve_unrelated_edits_and_deletions(qapp):
-    home = HomeWidget(Mock(), MemorySettings())
+def test_number_updates_preserve_unrelated_edits_and_deletions(qapp, tmp_path):
+    home = _validated_home(tmp_path)
     home._presenter._show_rows([{"_row": 11, "J": "P", "H": "original"}])
     table = home._variant_table
     table.item(0, 1 + VARIANT_FIELD_ORDER.index("H")).setText("edited")
@@ -160,8 +170,8 @@ def test_number_updates_preserve_unrelated_edits_and_deletions(qapp):
     assert home._update_btn.isEnabled()
 
 
-def test_link_updates_preserve_hidden_column_and_ignore_unknown_parts(qapp):
-    home = HomeWidget(Mock(), MemorySettings())
+def test_link_updates_preserve_hidden_column_and_ignore_unknown_parts(qapp, tmp_path):
+    home = _validated_home(tmp_path)
     home.show_rows([{"J": "P"}])
     home.set_webflow_links({"P": "https://webflow/app/ShowJob/3", "UNKNOWN": "unused"})
 
@@ -173,8 +183,8 @@ def test_link_updates_preserve_hidden_column_and_ignore_unknown_parts(qapp):
 
 
 @pytest.mark.parametrize("frozen", [False, True])
-def test_home_link_context_menu_copies_full_url_without_changing_row_state(qapp, monkeypatch, frozen):
-    home = HomeWidget(Mock(), MemorySettings({"show_webflow_link": True}))
+def test_home_link_context_menu_copies_full_url_without_changing_row_state(qapp, monkeypatch, frozen, tmp_path):
+    home = _validated_home(tmp_path, MemorySettings({"show_webflow_link": True}))
     link = "https://webflow/app/ShowJob/16409"
     home.show_rows([{"J": "P", "_webflow_link": link}])
     table = home._variant_table

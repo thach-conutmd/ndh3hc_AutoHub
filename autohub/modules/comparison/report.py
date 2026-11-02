@@ -28,6 +28,7 @@ td.manual{font-style:italic;outline:2px dashed #7b61ff;outline-offset:-3px}
 td.manual::after{content:" \u270E";font-style:normal}
 tbody tr.deviation{background:#fff5f5}
 tr.deviation td.status{background:#fde2e1;color:#b42318;font-weight:700}
+td.target-deviation{background:#fde2e1;color:#b42318}
 tr.hidden{display:none}
 .report-info{break-inside:avoid;page-break-inside:avoid;margin-bottom:20px}
 .report-info .grid{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:10px 16px;max-width:720px;align-items:center}
@@ -81,7 +82,7 @@ apply();
 
 
 def _report_information(
-    exported_at: datetime, reviewer: str, xml_files: tuple[str, str] | None = None,
+    exported_at: datetime, reviewer: str, xml_files: tuple[str, ...] | None = None,
 ) -> str:
     fields = (
         ("report-date", "Date", f"{exported_at:%Y-%m-%d}"),
@@ -90,9 +91,11 @@ def _report_information(
         ("approved-by", "Approved by", ""),
     )
     if xml_files is not None:
-        fields += (
-            ("base-xml", "Base XML filename", xml_files[0]),
-            ("target-xml", "Target XML filename", xml_files[1]),
+        fields += (("base-xml", "Base XML filename", xml_files[0]),)
+        fields += tuple(
+            ("target-xml" if len(xml_files) == 2 else f"target-xml-{index}",
+             "Target XML filename" if len(xml_files) == 2 else f"Target {index} XML filename", filename)
+            for index, filename in enumerate(xml_files[1:], 1)
         )
     inputs = "".join(
         f'<label for="{key}">{label}:</label><div>'
@@ -113,7 +116,7 @@ def _report_information(
 def build_report(
     headers: Sequence[str], rows: Sequence[Sequence[str]], deviations: Sequence[bool], variants: Sequence[str],
     exported_at: datetime, calculated: Sequence[str] = (), reviewer: str = "",
-    *, xml_files: tuple[str, str] | None = None,
+    *, xml_files: tuple[str, ...] | None = None, target_statuses: Sequence[Sequence[str]] = (),
 ) -> str:
     deviation_count = sum(deviations)
     head = "".join(f"<th>{escape(header)}</th>" for header in headers)
@@ -128,9 +131,23 @@ def build_report(
         if xml_files is None else ""
     )
     calculated = list(calculated) + [""] * (len(rows) - len(calculated))
+    target_summary = ""
+    if xml_files is not None and len(xml_files) > 2:
+        target_summary = "".join(
+            f'<p class="meta"><b>Target {index + 1} ({escape(filename)}):</b> '
+            f'Match: {matches} | Deviation: {len(rows) - matches}</p>'
+            for index, filename in enumerate(xml_files[1:])
+            for matches in [sum(statuses[index] == "MATCH" for statuses in target_statuses)]
+        )
 
-    def cell(column: int, value: str, original: str) -> str:
+    def cell(column: int, value: str, original: str, statuses: Sequence[str]) -> str:
         if column != status_column:
+            if xml_files is not None and 2 <= column < status_column and statuses:
+                status = statuses[column - 2]
+                return (
+                    f'<td class="{"target-match" if status == "MATCH" else "target-deviation"}" '
+                    f'data-status="{escape(status)}" title="Calculated: {escape(status)}">{escape(value)}</td>'
+                )
             return f"<td>{escape(value)}</td>"
         note = (
             f' title="Calculated: {escape(original)} | Manually changed" data-calculated="{escape(original)}"'
@@ -140,9 +157,10 @@ def build_report(
 
     body = "".join(
         f'<tr class="{"deviation" if deviation else "match"}">'
-        + "".join(cell(column, value, original) for column, value in enumerate(row))
+        + "".join(cell(column, value, original, target_statuses[index] if target_statuses else ())
+                  for column, value in enumerate(row))
         + "</tr>"
-        for row, deviation, original in zip(rows, deviations, calculated)
+        for index, (row, deviation, original) in enumerate(zip(rows, deviations, calculated))
     )
     return (
         '<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8">'
@@ -155,6 +173,7 @@ def build_report(
         f'<div class="card"><b>{len(rows)}</b>Total</div>'
         f'<div class="card match"><b>{len(rows) - deviation_count}</b>Match</div>'
         f'<div class="card deviation"><b>{deviation_count}</b>Deviation</div></div>'
+        f'{target_summary}'
         '<div class="controls">'
         '<input type="search" id="search" placeholder="Search all columns...">'
         f'{variant_filter}'

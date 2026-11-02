@@ -6,6 +6,9 @@ import types
 import openpyxl
 import pytest
 
+from autohub.core.variant_schema import VARIANT_FIELD_LABELS
+from autohub.services.MasterSheet import mx17_layout
+
 try:
     import win32com.client  # noqa: F401
 except ImportError:  # Windows-only; the format check never touches Excel
@@ -25,6 +28,18 @@ def _workbook(path, *sheets):
     book.active.title = sheets[0]
     for name in sheets[1:]:
         book.create_sheet(name)
+    if "Master sheet" in sheets:
+        sheet = book["Master sheet"]
+        for column, label in VARIANT_FIELD_LABELS.items():
+            sheet[f"{column}7"] = label
+        sheet["D7"] = "Requirement or Implementation?"
+        sheet["J7"] = "DWG NO."
+    if mx17_layout.MAIN_SHEET_NAME in sheets:
+        sheet = book[mx17_layout.MAIN_SHEET_NAME]
+        for key, column in mx17_layout.MAIN_COLUMNS.items():
+            sheet[f"{column}5"] = VARIANT_FIELD_LABELS[key]
+        for column, label in {"E": "ECU", "P": "Purpose", "W": "Customer order number", "X": "BOSCH SW No."}.items():
+            sheet[f"{column}5"] = label
     book.save(path)
     return path
 
@@ -64,3 +79,36 @@ def test_password_protected_master_sheet_is_read_in_memory(tmp_path):
     with open(plain, "rb") as source, open(tmp_path / "other.xlsx", "wb") as target:
         OOXMLFile(source).encrypt("another password", target)
     assert "could not be read" in master_sheet_format_error(str(tmp_path / "other.xlsx"))
+
+
+@pytest.mark.parametrize("sheet_name,cell", [
+    ("Master sheet", "D7"), ("Master sheet", "J7"), ("Master sheet", "CZ7"),
+    (mx17_layout.MAIN_SHEET_NAME, "W5"), (mx17_layout.MAIN_SHEET_NAME, "X5"),
+])
+def test_missing_required_column_headers_are_rejected(tmp_path, sheet_name, cell):
+    path = _workbook(tmp_path / "missing-column.xlsx", sheet_name)
+    workbook = openpyxl.load_workbook(path)
+    workbook[sheet_name][cell] = None
+    workbook.save(path)
+    workbook.close()
+    error = master_sheet_format_error(str(path))
+    assert "missing required Master Sheet columns/headers" in error and cell in error
+
+
+@pytest.mark.parametrize("sheet_name", ["Master sheet", mx17_layout.MAIN_SHEET_NAME])
+def test_a_named_but_empty_sheet_is_not_a_valid_master(tmp_path, sheet_name):
+    workbook = openpyxl.Workbook()
+    workbook.active.title = sheet_name
+    path = tmp_path / "empty.xlsx"
+    workbook.save(path)
+    workbook.close()
+    assert "missing required Master Sheet columns/headers" in master_sheet_format_error(str(path))
+
+
+def test_shifted_identity_column_is_rejected(tmp_path):
+    path = _workbook(tmp_path / "shifted.xlsx", "Master sheet")
+    workbook = openpyxl.load_workbook(path)
+    workbook["Master sheet"].delete_cols(10)
+    workbook.save(path)
+    workbook.close()
+    assert "J7" in master_sheet_format_error(str(path))

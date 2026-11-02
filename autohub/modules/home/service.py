@@ -37,7 +37,7 @@ class VariantService:
         hw_info_factory: Callable[[str], HWInfoDocument],
         session_factory: SessionFactory,
         kick_off_factory: Callable[[str], KickOffDocument],
-        master_sheet_checker: Callable[[str], str] = lambda _path: "",
+        master_sheet_checker: Callable[[str], str],
     ):
         self._master_sheet_factory = master_sheet_factory
         self._ecu_info_factory = ecu_info_factory
@@ -50,6 +50,11 @@ class VariantService:
     def master_sheet_problem(self, master_sheet_path: str) -> str:
         """Why the file is not a readable Master Sheet (missing, wrong format or layout); empty when it is."""
         return self._master_sheet_checker(master_sheet_path)
+
+    def _require_master_sheet(self, path: str) -> None:
+        problem = self.master_sheet_problem(path)
+        if problem:
+            raise ValueError(problem)
 
     @staticmethod
     def _load(document, description: str) -> None:
@@ -67,6 +72,7 @@ class VariantService:
         hex_folder_path: str = "",
         a2l_symbol_name: str = "I14229_numCompID_CA",
     ) -> NewVariantResult:
+        self._require_master_sheet(master_sheet_path)
         with self._session():
             progress("Opening the source files...")
             system_matrix = self._system_matrix_factory(system_matrix_path)
@@ -146,6 +152,7 @@ class VariantService:
 
         Deleting comes last so the "_row" numbers of the written variants are still right while writing.
         Returns (saved, reloaded table rows, WebFlow-ready variants)."""
+        self._require_master_sheet(master_sheet_path)
         with self._session():
             master_sheet = self._master_sheet_factory(master_sheet_path)
             try:
@@ -170,6 +177,7 @@ class VariantService:
         self, master_sheet_path: str, progress: ProgressCallback = no_progress
     ) -> tuple[list[dict], list[dict]]:
         """Returns (table rows, WebFlow-ready variants)."""
+        self._require_master_sheet(master_sheet_path)
         with self._session():
             master_sheet = self._master_sheet_factory(master_sheet_path)
             try:

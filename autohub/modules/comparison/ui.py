@@ -11,7 +11,7 @@ from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QColor, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QButtonGroup, QHBoxLayout, QHeaderView, QLabel,
-    QMenu, QPushButton, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
+    QListWidget, QListWidgetItem, QMenu, QPushButton, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -38,7 +38,6 @@ from .progress import ComparisonProgressDialog
 from .service import ComparisonService, VariantResult, compare_xml_files
 from .xml_parser import ParameterValue
 
-_COMMENT_COLUMN = 6
 _STATUS_COLUMN = 5
 _TARGET_HEADERS = ("Part Number", "Parameter", "Master", "Base", "Target", "Status", "Comment")
 _MANUAL_HEADERS = ("Parameter", "Base", "Target", "Status", "Comment")
@@ -119,9 +118,10 @@ class ComparisonWidget(QWidget):
         self._progress_dialog: ComparisonProgressDialog | None = None
         self._manual_mode = False
         self._mode_results: dict[bool, _ResultState] = {}
-        self._xml_paths = {"Base": "", "Target": ""}
-        self._compared_files: tuple[str, str] | None = None
-        self._run_files = ("", "")
+        self._xml_paths = {"Base": ""}
+        self._target_paths: list[str] = []
+        self._compared_files: tuple[str, ...] | None = None
+        self._run_files: tuple[str, ...] = ()
 
         title = QLabel("Comparison")
         title.setStyleSheet("font-size: 20px; font-weight: 600;")
@@ -150,7 +150,7 @@ class ComparisonWidget(QWidget):
         for label in ("Base", "Target"):
             source_row = QHBoxLayout()
             source_row.addWidget(QLabel(f"{label} XML:"))
-            button = QPushButton("Select XML...")
+            button = QPushButton("Select XML(s)..." if label == "Target" else "Select XML...")
             button.clicked.connect(lambda _=False, source=label: self._select_xml(source))
             filename = QLabel("No file selected")
             filename.setTextFormat(Qt.PlainText)
@@ -159,6 +159,14 @@ class ComparisonWidget(QWidget):
             manual_layout.addLayout(source_row)
             self._xml_buttons[label] = button
             self._xml_labels[label] = filename
+        self._target_list = QListWidget()
+        self._target_list.setMaximumHeight(120)
+        self._target_list.hide()
+        manual_layout.addWidget(self._target_list)
+        self._clear_targets_btn = QPushButton("Clear All")
+        self._clear_targets_btn.clicked.connect(self._clear_targets)
+        self._clear_targets_btn.hide()
+        manual_layout.addWidget(self._clear_targets_btn, 0, Qt.AlignLeft)
         self._manual_sources.hide()
         self._file_info = QLabel()
         self._file_info.setTextFormat(Qt.PlainText)
@@ -222,6 +230,7 @@ class ComparisonWidget(QWidget):
         self._table.frozen.view.customContextMenuRequested.connect(self._open_frozen_result_menu)
         self._table.frozen.view.clicked.connect(lambda _: self._table.setFocus())
         self._summary = QLabel("Load a Master Sheet on Home and select linked variants.")
+        self._summary.setTextFormat(Qt.PlainText)
         self._summary.setWordWrap(True)
         self._header_filter = TableFilter(
             self._table, (self._table.frozen.view,), first_column=0,
@@ -255,11 +264,22 @@ class ComparisonWidget(QWidget):
 
     @property
     def _status_column(self) -> int:
-        return 3 if self._manual_mode else _STATUS_COLUMN
+        return len(self._result_headers()) - 2
 
     @property
     def _comment_column(self) -> int:
-        return 4 if self._manual_mode else _COMMENT_COLUMN
+        return len(self._result_headers()) - 1
+
+    def _result_headers(self) -> tuple[str, ...]:
+        if not self._manual_mode:
+            return _TARGET_HEADERS
+        if self._compared_files is None or len(self._compared_files) == 2:
+            return _MANUAL_HEADERS
+        return (
+            "Parameter", "Base",
+            *(f"Target {index}: {os.path.basename(path)}" for index, path in enumerate(self._compared_files[1:], 1)),
+            "Status", "Comment",
+        )
 
     def _change_mode(self, manual: bool) -> None:
         self._mode_results[self._manual_mode] = _ResultState(
@@ -283,6 +303,20 @@ class ComparisonWidget(QWidget):
         self._set_running(False)
 
     def _select_xml(self, source: str) -> None:
+        if source == "Target":
+            paths = self._dialogs.pick_files("Select Target WebFlow Export XML files", "XML Files (*.xml)")
+            try:
+                for path in paths:
+                    if not any(
+                        os.path.realpath(path) == os.path.realpath(existing)
+                        or (os.path.exists(path) and os.path.exists(existing) and os.path.samefile(path, existing))
+                        for existing in self._target_paths
+                    ):
+                        self._target_paths.append(path)
+            except OSError as error:
+                self._dialogs.error("Comparison", f"Could not add Target XML files: {error}")
+            self._refresh_target_files()
+            return
         path = self._dialogs.pick_file(f"Select {source} WebFlow Export XML", "XML Files (*.xml)")
         if path:
             self._xml_paths[source] = path
@@ -290,10 +324,43 @@ class ComparisonWidget(QWidget):
             self._xml_labels[source].setToolTip(path)
             self._source_changed()
 
+    def _refresh_target_files(self) -> None:
+        self._target_list.clear()
+        for path in self._target_paths:
+            item = QListWidgetItem(self._target_list)
+            container = QWidget()
+            row = QHBoxLayout(container)
+            row.setContentsMargins(6, 2, 6, 2)
+            label = QLabel(os.path.basename(path))
+            label.setTextFormat(Qt.PlainText)
+            label.setToolTip(path)
+            row.addWidget(label, 1)
+            remove = QPushButton("x")
+            remove.setToolTip(f"Remove {os.path.basename(path)}")
+            remove.setAccessibleName(f"Remove {os.path.basename(path)}")
+            remove.clicked.connect(lambda _=False, value=path: self._remove_target(value))
+            row.addWidget(remove)
+            item.setSizeHint(container.sizeHint())
+            self._target_list.setItemWidget(item, container)
+        count = len(self._target_paths)
+        self._xml_labels["Target"].setText(f"{count} file{'s' if count != 1 else ''} selected")
+        self._xml_labels["Target"].setToolTip("")
+        self._target_list.setVisible(count > 0)
+        self._clear_targets_btn.setVisible(count > 1)
+        self._source_changed()
+
+    def _remove_target(self, path: str) -> None:
+        self._target_paths.remove(path)
+        self._refresh_target_files()
+
+    def _clear_targets(self) -> None:
+        self._target_paths.clear()
+        self._refresh_target_files()
+
     def _result_values(self, index: int) -> tuple[str, ...]:
         part, software, row = self._rows[index]
         if self._manual_mode:
-            return (row.parameter, _display(row.base), _display(row.target),
+            return (row.parameter, _display(row.base), *(_display(value) for value in (row.targets or (row.target,))),
                     self._effective_status(index).value, self._comment(index))
         return (part, row.parameter, _display(row.master),
                 _display(row.base) if (part, software) in self._base_variants else "",
@@ -302,9 +369,11 @@ class ComparisonWidget(QWidget):
     def _update_file_info(self) -> None:
         self._file_info.setVisible(self._manual_mode and self._compared_files is not None)
         if self._compared_files is not None:
-            base, target = self._compared_files
-            self._file_info.setText(f"Base: {os.path.basename(base)}\nTarget: {os.path.basename(target)}")
-            self._file_info.setToolTip(f"Base: {base}\nTarget: {target}")
+            base, *targets = self._compared_files
+            self._file_info.setText(
+                f"Base: {os.path.basename(base)}\nTarget: " + ", ".join(os.path.basename(path) for path in targets)
+            )
+            self._file_info.setToolTip(f"Base: {base}\nTarget: " + "\n".join(targets))
 
     def set_variants(self, variants: list[dict]) -> None:
         keep, self._keep_results = self._keep_results, False
@@ -431,15 +500,15 @@ class ComparisonWidget(QWidget):
                 if any(
                     os.path.realpath(path) == os.path.realpath(source)
                     or (os.path.exists(path) and os.path.exists(source) and os.path.samefile(path, source))
-                    for source in self._compared_files
+                    for source in (*self._compared_files, self._xml_paths["Base"], *self._target_paths)
                 ):
-                    self._dialogs.error("Comparison", "Choose a report destination other than either source XML file.")
+                    self._dialogs.error("Comparison", "Choose a report destination other than a source XML file.")
                     return
         except OSError as error:
             self._dialogs.error("Comparison", f"Could not validate the report destination: {error}")
             return
         report = build_report(
-            _MANUAL_HEADERS if self._manual_mode else _TARGET_HEADERS,
+            self._result_headers(),
             [self._result_values(index) for index in range(len(self._rows))],
             [self._is_deviation(index) for index in range(len(self._rows))],
             list(dict.fromkeys(part for part, _, _ in self._rows)),
@@ -450,8 +519,12 @@ class ComparisonWidget(QWidget):
             ],
             self._reviewer(),
             xml_files=(
-                (os.path.basename(self._compared_files[0]), os.path.basename(self._compared_files[1]))
+                tuple(os.path.basename(path) for path in self._compared_files)
                 if self._manual_mode and self._compared_files is not None else None
+            ),
+            target_statuses=(
+                [tuple(status.value for status in row.target_statuses) for _, _, row in self._rows]
+                if self._manual_mode else ()
             ),
         )
         try:
@@ -565,10 +638,12 @@ class ComparisonWidget(QWidget):
         self._manual_mode_btn.setEnabled(not running)
         for button in self._xml_buttons.values():
             button.setEnabled(not running)
+        self._target_list.setEnabled(not running)
+        self._clear_targets_btn.setEnabled(not running)
         self._variants_table.setEnabled(not running)
         self._select_all_btn.setEnabled(not running and self._variants_table.rowCount() > 0)
         self._clear_selection_btn.setEnabled(not running and bool(self._selected_rows()))
-        ready = all(self._xml_paths.values()) if self._manual_mode else bool(self._selected_rows())
+        ready = bool(self._xml_paths["Base"] and self._target_paths) if self._manual_mode else bool(self._selected_rows())
         self._compare_btn.setEnabled(not running and ready)
         self._export_btn.setEnabled(not running and bool(self._rows))
         self._impl_btn.setEnabled(not running and not self._manual_mode and bool(self._impl_updates))
@@ -626,7 +701,7 @@ class ComparisonWidget(QWidget):
         self._worker.start()
 
     def _compare_manual(self) -> None:
-        self._run_files = (self._xml_paths["Base"], self._xml_paths["Target"])
+        self._run_files = (self._xml_paths["Base"], *self._target_paths)
         self._run_rows = []
         self._run_revision = self._revision
         self._cancel = Event()
@@ -636,14 +711,14 @@ class ComparisonWidget(QWidget):
             self._progress_dialog.close()
             self._progress_dialog.deleteLater()
         self._progress_dialog = ComparisonProgressDialog(
-            ["Base XML / Target XML"], self, identity_header="XML Comparison",
+            [os.path.basename(path) for path in self._target_paths], self, identity_header="Target XML",
         )
         self._progress_dialog.cancel_requested.connect(self._cancel.set)
         self._progress_dialog.show()
-        base, target = self._run_files
+        base, *targets = self._run_files
         self._worker = FunctionWorker(
             lambda: compare_xml_files(
-                base, target, progress=self._progress.emit, cancelled=self._cancel.is_set,
+                base, targets, progress=self._progress.emit, cancelled=self._cancel.is_set,
             ), self,
         )
         self._worker.finished_ok.connect(self._finish_manual)
@@ -728,7 +803,7 @@ class ComparisonWidget(QWidget):
     def _render_results(self) -> None:
         self._table.setSortingEnabled(False)
         self._table.setRowCount(0)
-        headers = _MANUAL_HEADERS if self._manual_mode else _TARGET_HEADERS
+        headers = self._result_headers()
         self._table.setColumnCount(len(headers))
         self._table.setHorizontalHeaderLabels(headers)
         for column in range(len(headers)):
@@ -741,6 +816,12 @@ class ComparisonWidget(QWidget):
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 item.setToolTip(value)
+                if self._manual_mode and 2 <= column < self._status_column and row.target_statuses:
+                    status = row.target_statuses[column - 2]
+                    item.setToolTip(f"{value}\nCalculated: {status.value}")
+                    if status != Status.MATCH:
+                        item.setForeground(QColor("#b42318"))
+                        item.setBackground(QColor("#fde2e1"))
                 if column != self._comment_column:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 self._table.setItem(index, column, item)
@@ -753,7 +834,10 @@ class ComparisonWidget(QWidget):
         self._apply_filters()
 
     def _size_result_columns(self) -> None:
-        widths = {0: 260, 1: 160, 2: 160, 3: 180} if self._manual_mode else {
+        widths = {
+            0: 260, **{column: 160 for column in range(1, self._status_column)},
+            self._status_column: 180,
+        } if self._manual_mode else {
             0: max(100, self._table.sizeHintForColumn(0)),
             _STATUS_COLUMN: max(90, self._table.sizeHintForColumn(_STATUS_COLUMN)),
             1: 160, 2: 110, 3: 110, 4: 110,
@@ -850,19 +934,30 @@ class ComparisonWidget(QWidget):
 
     def _comment(self, index: int) -> str:
         review = self._review(index)
-        return review.comment if review else ""
+        return review.comment if review else self._default_comment(index)
+
+    def _default_comment(self, index: int) -> str:
+        row = self._rows[index][2]
+        if not self._manual_mode or self._compared_files is None or len(self._compared_files) <= 2:
+            return ""
+        return "; ".join(
+            f"Target {target + 1} ({os.path.basename(path)}): {status.value}"
+            for target, (path, status) in enumerate(zip(self._compared_files[1:], row.target_statuses))
+            if status != Status.MATCH
+        )
 
     def _is_deviation(self, index: int) -> bool:
         return replace(self._rows[index][2], status=self._effective_status(index)).deviation
 
     def _store_review(self, index: int, status: Status | None = None, comment: str | None = None) -> None:
         part, _, row = self._rows[index]
-        current = self._reviews.get((part, row.parameter), Review())
+        default_comment = self._default_comment(index)
+        current = self._reviews.get((part, row.parameter), Review(comment=default_comment))
         updated = Review(
             current.status if status is None else (None if status == row.status else status),
             current.comment if comment is None else comment,
         )
-        if updated.status is None and not updated.comment:
+        if updated.status is None and updated.comment == default_comment:
             self._reviews.pop((part, row.parameter), None)
         else:
             self._reviews[(part, row.parameter)] = updated
@@ -977,15 +1072,28 @@ class ComparisonWidget(QWidget):
         visible = sum(not self._table.isRowHidden(index) for index in range(self._table.rowCount()))
         deviations = sum(self._is_deviation(index) for index in range(len(self._rows)))
         if self._manual_mode:
+            prefix = "Overall: " if self._compared_files and len(self._compared_files) > 2 else "Summary: "
             self._summary.setText(
-                f"Summary: Total: {len(self._rows)} | Match: {len(self._rows) - deviations} | Deviation: {deviations}"
+                f"{prefix}Total: {len(self._rows)} | Match: {len(self._rows) - deviations} | Deviation: {deviations}"
                 f" | {visible} / {len(self._rows)} parameters shown"
+                + "".join(
+                    f"\nTarget {target + 1} ({os.path.basename(path)}): Match: {matches} | Deviation: {len(self._rows) - matches}"
+                    for target, path, matches in self._per_target_summary()
+                )
             )
             return
         self._summary.setText(
             f"{visible} / {len(self._rows)} parameters shown; "
             f"{sum(self._is_deviation(index) for index in range(len(self._rows)))} deviations from Master."
         )
+
+    def _per_target_summary(self) -> list[tuple[int, str, int]]:
+        if not self._manual_mode or not self._compared_files or len(self._compared_files) <= 2:
+            return []
+        return [
+            (target, path, sum(row.target_statuses[target] == Status.MATCH for _, _, row in self._rows))
+            for target, path in enumerate(self._compared_files[1:])
+        ]
 
     def confirm_leave(self) -> bool:
         if self._running:

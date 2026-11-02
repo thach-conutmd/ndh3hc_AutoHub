@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QUrl, Signal
+from PySide6.QtCore import QFileSystemWatcher, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
@@ -51,6 +51,7 @@ class HomeWidget(QWidget):
         set_muted(subtitle, True)
 
         browse_btn = QPushButton(f"Load {MASTER_SHEET}")
+        self._browse_btn = browse_btn
         browse_btn.setMinimumWidth(140)
         self._open_master_btn = QPushButton(f"Open {MASTER_SHEET}")
         self._open_master_btn.setEnabled(False)
@@ -68,9 +69,11 @@ class HomeWidget(QWidget):
         files_row.addWidget(self._open_master_btn)
 
         self._create_btn = QPushButton(NEW_VARIANT_TEXT)
+        self._create_btn.setEnabled(False)
         self._create_btn.setMinimumWidth(120)
         self._create_btn.setToolTip(NEW_VARIANT_TIP)
         self._load_btn = QPushButton(LOAD_TEXT)
+        self._load_btn.setEnabled(False)
         self._load_btn.setMinimumWidth(120)
         files_row.addWidget(self._load_btn)
 
@@ -126,6 +129,13 @@ class HomeWidget(QWidget):
         model.modelReset.connect(self._refresh_row_summary)
         self._variant_table.selectionModel().selectionChanged.connect(self._refresh_row_summary)
         self._tasks = TaskRunner()
+        self._master_watcher = QFileSystemWatcher(self)
+        self._master_check_timer = QTimer(self)
+        self._master_check_timer.setSingleShot(True)
+        self._master_check_timer.setInterval(250)
+        self._master_check_timer.timeout.connect(self._revalidate_master)
+        self._master_watcher.fileChanged.connect(lambda _: self._master_check_timer.start())
+        self._master_watcher.directoryChanged.connect(lambda _: self._master_check_timer.start())
         self._presenter = HomePresenter(self, service, settings, self._dialogs, self._tasks.start)
         browse_btn.clicked.connect(lambda _checked: self._presenter.browse_master_sheet())
         self._open_master_btn.clicked.connect(self._on_open_master_sheet)
@@ -164,13 +174,24 @@ class HomeWidget(QWidget):
         set_muted(label, not valid)
         if field_name == MASTER_SHEET:
             self._open_master_btn.setEnabled(valid)
+            watched = self._master_watcher.files() + self._master_watcher.directories()
+            if watched:
+                self._master_watcher.removePaths(watched)
+            if valid:
+                self._master_watcher.addPaths([str(Path(path).resolve()), str(Path(path).resolve().parent)])
+
+    def _revalidate_master(self) -> None:
+        if self._presenter._busy:
+            self._master_check_timer.start()
+            return
+        if self._presenter.revalidate_master_sheet():
+            path = self._settings.load().get("master_sheet_path", "")
+            self.show_file_name(MASTER_SHEET, path)
 
     def _on_open_master_sheet(self) -> None:
-        path = str(self._settings.load().get("master_sheet_path", "")).strip()
-        if not path or not Path(path).is_file():
-            self.show_file_name(MASTER_SHEET, path)
-            self._dialogs.error("Open Master Sheet", "Select a valid Master Sheet file.")
+        if not self._presenter.revalidate_master_sheet("Open Master Sheet"):
             return
+        path = str(self._settings.load().get("master_sheet_path", "")).strip()
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).resolve()))):
             self._dialogs.error("Open Master Sheet", f"Could not open the Master Sheet:\n{path}")
 
@@ -181,10 +202,14 @@ class HomeWidget(QWidget):
         self._presenter.reload_variants()
 
     def set_webflow_links(self, links: dict[str, str]) -> None:
+        if not self._presenter.revalidate_master_sheet():
+            return
         self._variant_table.set_webflow_links(links)
         self._presenter.set_webflow_links(links)
 
     def set_webflow_numbers(self, numbers: dict[str, dict[str, str]], persisted: bool = True) -> None:
+        if not self._presenter.revalidate_master_sheet():
+            return
         self._variant_table.set_webflow_numbers(numbers)
         self._presenter.set_webflow_numbers(numbers, persisted)
 
@@ -212,6 +237,10 @@ class HomeWidget(QWidget):
     def set_new_variant_state(self, enabled: bool, text: str) -> None:
         self._create_btn.setEnabled(enabled)
         self._create_btn.setText(text)
+
+    def set_workspace_enabled(self, enabled: bool, busy: bool = False) -> None:
+        self._variant_table.setEnabled(enabled)
+        self._browse_btn.setEnabled(not busy)
 
     def set_load_state(self, enabled: bool, text: str) -> None:
         self._load_btn.setEnabled(enabled)
