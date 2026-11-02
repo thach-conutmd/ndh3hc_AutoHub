@@ -8,7 +8,7 @@ from enum import Enum
 from autohub.core.webflow_options import resolve_option_values
 
 from .matching import OPTION_PATHS
-from .xml_parser import ParameterValue
+from .xml_parser import ParameterValue, comparison_parameters
 
 
 class Status(str, Enum):
@@ -64,7 +64,7 @@ def compare_parameters(
     base: Mapping[str, ParameterValue] | None = None,
 ) -> list[ComparisonRow]:
     """Blank/absent target values are never a match, even if the references are also blank."""
-    paths = master.keys()
+    paths = comparison_parameters(master).keys()
     rows = []
     for path in sorted(paths):
         master_value, target_value = master.get(path), target.get(path)
@@ -92,6 +92,7 @@ def compare_xml_parameters(
     base: Mapping[str, ParameterValue], target: Mapping[str, ParameterValue],
 ) -> list[ComparisonRow]:
     """Compare every XML path, using the same value semantics as Master comparison."""
+    base, target = comparison_parameters(base), comparison_parameters(target)
     rows = []
     for path in sorted(base.keys() | target.keys()):
         base_value, target_value = base.get(path), target.get(path)
@@ -112,6 +113,7 @@ def compare_xml_datasets(
     on_target: Callable[[int], None] = lambda _: None,
 ) -> list[ComparisonRow]:
     """Align the union of paths, retaining each target's calculated two-way status."""
+    base = comparison_parameters(base)
     compared = []
     for index, target in enumerate(targets):
         compared.append({row.parameter: row for row in compare_xml_parameters(base, target)})

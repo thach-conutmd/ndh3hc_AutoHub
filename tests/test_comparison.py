@@ -5,12 +5,12 @@ import xml.etree.ElementTree as ET
 import pytest
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
-from autohub.modules.comparison.comparison import Status, compare_parameters, compare_xml_parameters
+from autohub.modules.comparison.comparison import Status, compare_parameters, compare_xml_datasets, compare_xml_parameters
 from autohub.modules.comparison.matching import (
     JOB_PATH, SOFTWARE_PATH, VARIANT_PATH, export_identity, master_parameters,
     match_variant, validate_export_link, validate_link,
 )
-from autohub.modules.comparison.xml_parser import MAX_XML_BYTES, parse_xml
+from autohub.modules.comparison.xml_parser import MAX_XML_BYTES, comparison_parameters, parse_xml
 from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
 
 
@@ -82,6 +82,34 @@ def test_parser_uses_named_nested_rows_without_flattening_to_ambiguous_labels():
     assert parameters["Files/ExternalResult/Items/Row[TP]/Value"] == "3"
     assert parameters["Files/ExternalResult/Items/Row[SW]/Value"] == "0010"
     assert parameters["One/Comment"] != parameters["Two/Comment"]
+
+
+def test_comparison_exclusions_cover_normalized_hierarchies_only():
+    parameters = parse_xml("""<Job><Fields>
+      <Field Name="Attachment" Group=" Files "><Items><Row><Value>ignored</Value></Row></Items></Field>
+      <Field Name="Review" Group=" Notes "><Nested><Text>ignored</Text></Nested></Field>
+      <Field Name="Files" Group="General">retained</Field>
+      <Field Name="Value" Group="FilesExtra">retained</Field>
+    </Fields></Job>""")
+    assert "Files/Attachment/Items/Row/Value" in parameters
+    assert comparison_parameters(parameters) == {
+        "General/Files": "retained", "FilesExtra/Value": "retained",
+    }
+
+
+def test_all_comparison_engines_exclude_files_and_notes_from_scope():
+    base = {"General/Power": "93", "Files/A/Deep/Value": "base", "Notes/BaseOnly": "base"}
+    target = {"General/Power": "93", "Files/A/Deep/Value": "target", "Notes/TargetOnly": "target"}
+    results = (
+        compare_parameters(base, target),
+        compare_parameters(base, target, base),
+        compare_xml_parameters(base, target),
+        compare_xml_datasets(base, [target]),
+        compare_xml_datasets(base, [target, base]),
+    )
+    for rows in results:
+        assert [row.parameter for row in rows] == ["General/Power"]
+        assert not any(row.deviation for row in rows)
 
 
 def test_parser_accepts_namespaces_and_utf16():

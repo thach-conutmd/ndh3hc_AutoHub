@@ -540,8 +540,8 @@ def test_result_table_follows_actions_without_search_and_absorbs_resize(qapp, th
     table_width = page._table.width()
     assert not hasattr(page, "_search")
     assert not hasattr(page, "_matches_global_filters")
-    assert page._layout.itemAt(page._layout.indexOf(page._table) - 1).widget() is page._file_info
-    assert page._file_info.isHidden()
+    actions = page._layout.itemAt(page._layout.indexOf(page._table) - 1).layout()
+    assert actions.indexOf(page._compare_btn) >= 0
     assert page._table.geometry().top() - page._compare_btn.geometry().bottom() - 1 == page._layout.spacing()
     page.resize(1400, 650)
     qapp.processEvents()

@@ -37,6 +37,23 @@ def test_sequential_batch_uses_one_browser_and_exact_job_links():
         ]
 
 
+def test_exports_are_filtered_before_master_matching_and_comparison(monkeypatch):
+    from autohub.modules.comparison import service
+
+    selected = variant()
+    selected["base_webflow_link"] = "https://webflow/app/ShowJob/99"
+    parameters = {**target_parameters(), "Files/Attachment": "ignored", "Notes/Review": "ignored"}
+    session, factory = session_factory([export_xml(parameters), export_xml(parameters, job_id="99")])
+    compare = Mock(wraps=service.compare_parameters)
+    match = Mock(wraps=service.match_variant)
+    monkeypatch.setattr(service, "compare_parameters", compare)
+    monkeypatch.setattr(service, "match_variant", match)
+    result = ComparisonService(factory).run([selected], [selected])[0]
+    assert not result.error and result.rows
+    for values in (*compare.call_args.args, match.call_args.args[1]):
+        assert not any(path.startswith(("Files/", "Notes/")) for path in values)
+
+
 @pytest.mark.parametrize("failure", [
     "export", "timeout", "invalid_xml", "invalid_link", "wrong_variant", "wrong_sw",
     "wrong_job", "master_missing", "missing_sw",
