@@ -9,7 +9,7 @@ from autohub.core.webflow_fields import HARDWARE_FIELDS
 from autohub.core.webflow_options import GENERAL_OPTION_FIELDS, normalize_option_value
 
 #: Sheet columns a request row is read from to build a WebFlow variant.
-WEBFLOW_SOURCE_COLUMNS = tuple(dict.fromkeys(("C", *VARIANT_FIELD_LABELS, "CR")))
+WEBFLOW_SOURCE_COLUMNS = tuple(dict.fromkeys(("C", "O", *VARIANT_FIELD_LABELS, "CR")))
 
 _GENERAL_COLUMNS = {
     "delivery_type": "T", "release_class": "U", "release_scope": "V", "limitations": "W",
@@ -61,6 +61,7 @@ def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
         "project": project,
         "event_name": event_name,
         "created_at": row.get("C"),
+        "comparison_result": _text(row.get("O")),
         "general": general,
         "hardware": {
             key: normalize_option_value(key, row.get(column)) if key in GENERAL_OPTION_FIELDS else _text(row.get(column))
