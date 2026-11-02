@@ -132,9 +132,11 @@ class VariantChecklist(QWidget):
         """Shows a fresh variant list; any previous selection is cleared."""
         self._variants = variants
         self._selected.clear()
-        for variant in variants:
-            if variant.get("webflow_link"):
-                self._links[variant["part_number"]] = variant["webflow_link"]
+        self._links = {
+            variant["part_number"]: variant["webflow_link"]
+            for variant in variants
+            if variant.get("webflow_link")
+        }
 
         events = sorted({v.get("event") or _NO_EVENT for v in variants})
         self._event_filter.blockSignals(True)
@@ -208,6 +210,9 @@ class VariantChecklist(QWidget):
     def set_links(self, links: dict[str, str]) -> None:
         """Shows the WebFlow job link of the variants that just got a job."""
         self._links.update(links)
+        for variant in self._variants:
+            if variant["part_number"] in links:
+                variant["webflow_link"] = links[variant["part_number"]]
         self._apply_filter()
 
     def _on_toggled(self, part_number: str, checked: bool) -> None:
