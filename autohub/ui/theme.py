@@ -79,6 +79,7 @@ QPushButton {{
 }}
 QPushButton:hover {{ background-color: {button_hover}; }}
 QPushButton:pressed {{ background-color: {button_pressed}; }}
+QPushButton:checked {{ background-color: {accent}; color: white; border: 1px solid {accent}; font-weight: 600; }}
 QPushButton:disabled {{ background-color: {disabled_button}; color: {disabled_text}; }}
 QScrollBar:vertical {{ background: transparent; width: 10px; margin: 0; }}
 QScrollBar::handle:vertical {{ background: {scrollbar}; border-radius: 5px; min-height: 20px; }}

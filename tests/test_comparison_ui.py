@@ -96,7 +96,7 @@ def test_automatic_batch_combines_results_and_supports_all_filters(qapp):
     wait_done(page, qapp)
     assert dialogs.errors == []
     assert session.export_job_xml.call_count == 2
-    assert [page._table.horizontalHeaderItem(i).text() for i in range(6)] == list(ui._TARGET_HEADERS)
+    assert [page._table.horizontalHeaderItem(i).text() for i in range(7)] == list(ui._TARGET_HEADERS)
     assert page._table.rowCount() == 6
     assert all(page._variants_table.item(row, 4).text() == "Completed" for row in range(2))
     assert "2 completed; 0 failed" in page._summary.text()
@@ -142,7 +142,7 @@ def test_mixed_base_and_no_base_results_keep_correct_values_and_filters(qapp):
     page._compare_btn.click()
     wait_done(page, qapp)
     assert session.export_job_xml.call_count == 3
-    assert [page._table.horizontalHeaderItem(i).text() for i in range(6)] == list(ui._TARGET_HEADERS)
+    assert [page._table.horizontalHeaderItem(i).text() for i in range(7)] == list(ui._TARGET_HEADERS)
     assert any(row.status == Status.MATCHES_BOTH for _, _, row in page._rows)
     assert any(part == "P2" and row.status == Status.MATCH for part, _, row in page._rows)
     assert len({part for part, _, _ in page._rows}) == 2
@@ -154,7 +154,7 @@ def test_mixed_base_and_no_base_results_keep_correct_values_and_filters(qapp):
     page._status_filter.setCurrentText(Status.MATCHES_BOTH.value)
     assert visible_rows(page) and all(page._table.item(i, 0).text() == "P1" for i in visible_rows(page))
     page._variants_table.item(0, 3).setText("")
-    assert page._rows and page._table.columnCount() == 6
+    assert page._rows and page._table.columnCount() == 7
 
 
 def test_invalid_base_link_only_fails_its_variant(qapp):
@@ -197,7 +197,7 @@ def test_distinct_edited_base_links_are_passed_to_their_own_targets(qapp):
 
 def test_only_checked_variants_are_exported_and_saved_connection_is_used(qapp):
     variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
-    settings = MemorySettings({"webflow_base_url": "https://webflow/app/dashboard"})
+    settings = MemorySettings({"webflow_environment": "Acceptance"})
     page, _, session, factory = build_page(
         variants, [export_xml(target_parameters("P2", "0011"), job_id="13")], settings,
     )
@@ -206,8 +206,10 @@ def test_only_checked_variants_are_exported_and_saved_connection_is_used(qapp):
     page._compare_btn.click()
     wait_done(page, qapp)
     session.export_job_xml.assert_called_once_with(variants[1]["webflow_link"])
-    factory.assert_called_once_with(driver_path="", base_url="https://webflow/app/dashboard")
-    assert page._table.columnCount() == 6
+    factory.assert_called_once_with(
+        driver_path="", base_url="https://rb-pde-int.bosch.com:8881/app/dashboard"
+    )
+    assert page._table.columnCount() == 7
 
 
 def test_base_links_follow_variant_identity_on_reorder_without_mutating_master(qapp):
@@ -991,5 +993,58 @@ def test_update_master_impl_writes_only_completed_target_values_and_keeps_result
         assert len(page._rows) == rows and page._impl_btn.isEnabled()
         page.set_variants([variant()])
         assert not page._rows and not page._impl_btn.isEnabled()
+    finally:
+        page.shutdown(); page.close(); page.deleteLater()
+
+
+def _first_mismatch(page):
+    return 0
+
+
+def test_manual_status_and_comment_are_retained_exported_and_do_not_touch_master(qapp, tmp_path):
+    page, dialogs, session, _ = build_page()
+    try:
+        page._select_all()
+        page._compare()
+        wait_done(page, qapp)
+        page._progress_dialog.close()
+        assert [page._table.horizontalHeaderItem(i).text() for i in range(7)][-2:] == ["Status", "Comment"]
+        index = _first_mismatch(page)
+        calculated = page._rows[index][2].status
+        updates = dict(page._impl_updates)
+        other = Status.VALUE_MISMATCH if calculated != Status.VALUE_MISMATCH else Status.MATCH
+
+        menu = page._result_menu(index, 5)
+        assert [a.text() for a in menu.actions()] == ["Change Status", "Reset Status"]
+        assert not menu.actions()[1].isEnabled()
+        page._set_status(index, other)
+        item = page._table.item(index, 5)
+        assert item.text() == other.value and item.toolTip() == f"Calculated: {calculated.value} | Manually changed"
+        assert page._rows[index][2].status == calculated and page._impl_updates == updates
+        assert page._result_menu(index, 5).actions()[1].isEnabled()
+
+        page._table.item(index, 6).setText("checked with owner")
+        assert page._comment(index) == "checked with owner"
+        assert [a.text() for a in page._result_menu(index, 6).actions()] == ["Edit Comment", "Clear Comment"]
+        assert page._result_menu(index, 2) is None
+
+        page._search.setText("zzz"); page._search.setText("")
+        page._status_filter.setCurrentText(other.value)
+        assert index in visible_rows(page)
+        page._status_filter.setCurrentIndex(0)
+        page._render_results()
+        assert page._table.item(index, 5).text() == other.value and page._table.item(index, 6).text() == "checked with owner"
+
+        dialogs.save_path = str(tmp_path / "r.html")
+        page._export()
+        html = open(dialogs.save_path, encoding="utf-8").read()
+        assert "<th>Comment</th>" in html and "checked with owner" in html
+        assert f"Calculated: {calculated.value} | Manually changed" in html
+
+        page._reset_status(index)
+        page._set_comment(index, "")
+        assert page._table.item(index, 5).text() == calculated.value and not page._reviews
+        calls = session.export_job_xml.call_count
+        assert calls == 1
     finally:
         page.shutdown(); page.close(); page.deleteLater()
