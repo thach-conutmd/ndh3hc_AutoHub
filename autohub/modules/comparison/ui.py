@@ -7,14 +7,16 @@ from threading import Event
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QLineEdit, QPushButton, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
 from autohub.core.webflow_numbers import NUMBER_FIELDS
 from autohub.core.workers import FunctionWorker
+from autohub.modules.home.table_filter import TableFilter
 from autohub.ui.theme import set_muted
+from autohub.ui.webflow_link_delegate import WebFlowLinkDelegate, format_webflow_link_item
 
 from .comparison import ComparisonRow, Status
 from .matching import validate_link
@@ -72,8 +74,9 @@ class ComparisonWidget(QWidget):
         self._variants_table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self._variants_table.verticalHeader().setVisible(False)
         self._variants_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        for column, width in enumerate((55, 130, 240, 240, 125, 180)):
+        for column, width in enumerate((55, 130, 110, 150, 125, 180)):
             self._variants_table.setColumnWidth(column, width)
+        self._link_delegate = WebFlowLinkDelegate(self._variants_table, (2, 3))
         self._variants_table.setMaximumHeight(160)
         self._select_all_btn = QPushButton("Select all")
         self._clear_selection_btn = QPushButton("Clear selection")
@@ -86,7 +89,13 @@ class ComparisonWidget(QWidget):
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search parameters, values, variants or status...")
         self._variant_filter = QComboBox()
+        self._variant_filter.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self._variant_filter.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._variant_filter.setMaximumWidth(420)
+        self._variant_filter.view().setTextElideMode(Qt.ElideNone)
         self._status_filter = QComboBox()
+        self._status_filter.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self._status_filter.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._deviations = QCheckBox("Deviations only")
         self._deviations.setToolTip("Hide target values matching Master, including matches to both Master and Base.")
         filters = QHBoxLayout()
@@ -104,6 +113,10 @@ class ComparisonWidget(QWidget):
         self._table.horizontalHeader().setStretchLastSection(True)
         self._summary = QLabel("Load a Master Sheet on Home and select linked variants.")
         self._summary.setWordWrap(True)
+        self._header_filter = TableFilter(
+            self._table, first_column=0, row_visible=self._matches_global_filters,
+            on_applied=self._update_filter_summary,
+        )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(10)
@@ -147,7 +160,7 @@ class ComparisonWidget(QWidget):
         previous = {
             self._variants_table.item(row, 0).data(Qt.UserRole + 1): (
                 self._variants_table.item(row, 0).checkState(),
-                self._variants_table.item(row, 3).text(),
+                self._variants_table.item(row, 3).data(Qt.UserRole) or "",
             )
             for row in range(self._variants_table.rowCount())
         }
@@ -174,6 +187,8 @@ class ComparisonWidget(QWidget):
                 if column != 3:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 item.setToolTip(str(text))
+                if column in (2, 3):
+                    format_webflow_link_item(item, str(text), editable=column == 3)
                 self._variants_table.setItem(row, column, item)
         self._variants_table.blockSignals(False)
         self._source_changed()
@@ -200,7 +215,8 @@ class ComparisonWidget(QWidget):
     def _selection_changed(self, item: QTableWidgetItem) -> None:
         if item.column() in (0, 3):
             self._variants_table.blockSignals(True)
-            item.setToolTip(item.text())
+            if item.column() == 3:
+                self._link_delegate.format_item(item)
             self._variants_table.blockSignals(False)
             self._source_changed()
 
@@ -208,10 +224,11 @@ class ComparisonWidget(QWidget):
         self._revision += 1
         self._rows = []
         self._table.setRowCount(0)
+        self._header_filter.reset()
         self._summary.setText("Select linked variants, then Compare selected.")
         self._base_variants = {
             tuple(self._variants_table.item(row, 0).data(Qt.UserRole + 1)[:2])
-            for row in self._selected_rows() if self._variants_table.item(row, 3).text().strip()
+            for row in self._selected_rows() if self._variants_table.item(row, 3).data(Qt.UserRole)
         }
         self._base_mode = bool(self._base_variants)
         self._table.setColumnCount(len(_TARGET_HEADERS))
@@ -220,6 +237,7 @@ class ComparisonWidget(QWidget):
         self._variant_filter.clear()
         self._variant_filter.addItem("All variants", None)
         self._variant_filter.blockSignals(False)
+        self._size_variant_filter()
         self._status_filter.blockSignals(True)
         self._status_filter.clear()
         self._status_filter.addItem("All statuses")
@@ -252,7 +270,7 @@ class ComparisonWidget(QWidget):
             self._variants[self._variants_table.item(row, 0).data(Qt.UserRole)] for row in rows
         ])
         for row, variant in zip(rows, selected):
-            variant["base_webflow_link"] = self._variants_table.item(row, 3).text().strip()
+            variant["base_webflow_link"] = self._variants_table.item(row, 3).data(Qt.UserRole) or ""
         masters = deepcopy(self._variants)
         saved = self._settings.load() if self._settings is not None else {}
         connection = {"driver_path": ""}
@@ -334,12 +352,15 @@ class ComparisonWidget(QWidget):
         self._dialogs.error("Comparison", error)
 
     def _render_results(self) -> None:
+        self._table.setRowCount(0)
+        self._header_filter.reset()
         self._variant_filter.blockSignals(True)
         self._variant_filter.clear()
         self._variant_filter.addItem("All variants", None)
         for part in dict.fromkeys(part for part, _, _ in self._rows):
             self._variant_filter.addItem(part, part)
         self._variant_filter.blockSignals(False)
+        self._size_variant_filter()
         self._table.setRowCount(len(self._rows))
         for index, (part, software, row) in enumerate(self._rows):
             values = (
@@ -356,21 +377,29 @@ class ComparisonWidget(QWidget):
             self._table.setColumnWidth(column, min(300, self._table.columnWidth(column)))
         self._apply_filters()
 
+    def _size_variant_filter(self) -> None:
+        width = self._variant_filter.sizeHint().width()
+        self._variant_filter.setMinimumWidth(min(420, max(200, width)))
+        self._variant_filter.view().setMinimumWidth(max(200, width))
+
     def _apply_filters(self, *_args) -> None:
+        self._header_filter.apply()
+
+    def _matches_global_filters(self, index: int) -> bool:
         search = self._search.text().strip().casefold()
         status = self._status_filter.currentText()
         variant = self._variant_filter.currentData()
-        visible = 0
-        for index, (part, software, row) in enumerate(self._rows):
-            text = " ".join(self._table.item(index, column).text() for column in range(self._table.columnCount()))
-            show = (
-                (not search or search in text.casefold())
-                and (variant is None or variant == part)
-                and (status == "All statuses" or status == row.status.value)
-                and (not self._deviations.isChecked() or row.deviation)
-            )
-            self._table.setRowHidden(index, not show)
-            visible += int(show)
+        part, _, row = self._rows[index]
+        text = " ".join(self._table.item(index, column).text() for column in range(self._table.columnCount()))
+        return (
+            (not search or search in text.casefold())
+            and (variant is None or variant == part)
+            and (status == "All statuses" or status == row.status.value)
+            and (not self._deviations.isChecked() or row.deviation)
+        )
+
+    def _update_filter_summary(self) -> None:
+        visible = sum(not self._table.isRowHidden(index) for index in range(self._table.rowCount()))
         self._summary.setText(
             f"{visible} / {len(self._rows)} parameters shown; "
             f"{sum(row.deviation for _, _, row in self._rows)} deviations from Master."

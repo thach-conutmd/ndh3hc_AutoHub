@@ -2,11 +2,14 @@ from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication
 
 from autohub.core.variant_schema import VARIANT_FIELD_ORDER
 from autohub.core.settings_keys import WEBFLOW_GENERAL_OPTIONS_KEY
 from autohub.modules.home import variant_table as table_module
+from autohub.ui import webflow_link_delegate
 from autohub.modules.creation.ui import CreationWidget
 from autohub.modules.home.ui import HomeWidget
 from autohub.ui.main_window import MainWindow
@@ -167,6 +170,45 @@ def test_link_updates_preserve_hidden_column_and_ignore_unknown_parts(qapp):
     assert table.isColumnHidden(table._link_column)
     assert table.item(0, table._link_column).text() == "WF3"
     assert not home._update_btn.isEnabled()
+
+
+@pytest.mark.parametrize("frozen", [False, True])
+def test_home_link_context_menu_copies_full_url_without_changing_row_state(qapp, monkeypatch, frozen):
+    home = HomeWidget(Mock(), MemorySettings({"show_webflow_link": True}))
+    link = "https://webflow/app/ShowJob/16409"
+    home.show_rows([{"J": "P", "_webflow_link": link}])
+    table = home._variant_table
+    table.set_webflow_link_visible(True)
+    table.resize(1000, 400)
+    table.show()
+    qapp.processEvents()
+    view = table._frozen.view if frozen else table
+    if not frozen:
+        table._frozen.view.hide()
+    table.setCurrentCell(0, 1)
+    selected = table.selectedIndexes()
+    revision = table._row_numbers[:]
+    link_column = table._link_column
+    index = table.model().index(0, link_column)
+    rectangle = view.visualRect(index)
+    menu = Mock()
+    menu.exec.return_value = menu.addAction.return_value
+    monkeypatch.setattr(webflow_link_delegate, "QMenu", Mock(return_value=menu))
+    QApplication.clipboard().setText("before")
+    event = QContextMenuEvent(
+        QContextMenuEvent.Mouse, rectangle.center(), view.viewport().mapToGlobal(rectangle.center()),
+    )
+    QApplication.sendEvent(view.viewport(), event)
+    menu.addAction.assert_called_once_with("Copy WebFlow Link")
+    assert QApplication.clipboard().text() == link
+    assert table.selectedIndexes() == selected
+    assert table.currentColumn() == 1
+    item = table.item(0, link_column)
+    assert item.text() == "WF16409"
+    assert item.data(Qt.UserRole) == link
+    assert item.toolTip() == "Right-click to copy full WebFlow link"
+    assert table._row_numbers == revision
+    home.close()
 
 
 def test_general_options_are_cached_and_reach_home(qapp):

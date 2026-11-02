@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
 )
 
 from autohub.core.latest_event import NO_EVENT, latest_event
-from autohub.core.webflow_links import webflow_link_text
 from autohub.core.webflow_numbers import NUMBER_FIELDS
 from autohub.ui.link_label import LinkLabel
 
@@ -189,7 +188,7 @@ class VariantChecklist(QWidget):
                     self._table.setItem(row, column, item)
                 link = self._links.get(part_number, "")
                 if link:
-                    label = LinkLabel(webflow_link_text(link) or link, link)
+                    label = LinkLabel(link, link)
                     label.setAlignment(Qt.AlignCenter)
                     self._table.setCellWidget(row, 5, label)
                 for column, (_name, (_sheet_column, key)) in enumerate(NUMBER_FIELDS.items(), start=6):
