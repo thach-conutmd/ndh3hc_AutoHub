@@ -107,12 +107,13 @@ class HardwareFields:
 
     def _select_plant(self, form, value: str) -> bool:
         control = form.find_element(By.CSS_SELECTOR, "p-dropdown")
+        current = control.find_element(By.CSS_SELECTOR, '[role="combobox"]')
+        if current.get_attribute("aria-label") == value:
+            _logger.info("WebFlow Lead Plant already equals %r; skipping", value)
+            return True
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", control)
         trigger = control.find_element(By.CSS_SELECTOR, ".p-dropdown-trigger")
         WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(EC.element_to_be_clickable(trigger))
-        current = control.find_element(By.CSS_SELECTOR, '[role="combobox"]')
-        if current.get_attribute("aria-label") == value:
-            return True
         trigger.click()
         options = self._loaded_options(value)
         option = options[value]
@@ -173,6 +174,16 @@ class HardwareFields:
             _logger.error("Could not open Classification to import from Race")
             return False
         try:
+            release_state = section.body().find_element(
+                By.XPATH,
+                './/div[contains(@class,"control-label") and normalize-space(.)="Product release state"]'
+                '/..//p-dropdown//*[@role="combobox"]',
+            )
+            value = (release_state.get_attribute("aria-label") or "").strip()
+            if value and value != "---":
+                _logger.info("Product release state already equals %r; skipping Import from Race", value)
+                return True
+
             def available_button(_driver):
                 button = section.body().find_element(
                     By.XPATH, './/button[.//span[normalize-space(.)="Import from Race"]]'
@@ -256,6 +267,19 @@ class HardwareFields:
 
     def _select_multiple(self, form, value: str, key: str = "") -> bool:
         control = form.find_element(By.CSS_SELECTOR, "p-multiselect")
+        labels = control.find_elements(
+            By.CSS_SELECTOR, ".p-multiselect-label .selected-items-container"
+        )
+        if labels:
+            current = {label.text.strip() for label in labels if label.text.strip() not in ("", "---")}
+            try:
+                requested = resolve_option_values(key, value, current)
+            except ValueError:
+                # The full option list is needed when the requested value is not selected.
+                requested = None
+            if requested == current:
+                _logger.info("WebFlow %s already equals %r; skipping", key or "multiselect", value)
+                return True
         if control.get_attribute("ng-reflect-disabled") == "true":
             _logger.error("WebFlow multiselect is disabled; requested %r", value)
             return False

@@ -656,6 +656,8 @@ def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(m
     open_button.click = lambda: None
     body = Element(children={
         './/button[.//span[normalize-space(.)="Pick PST_Lib"]]': open_button,
+        'input[placeholder="Complete identifier of the program in Nestor, SDOM or ClearCase"]': Element(),
+        'input[placeholder="Identifier of PST_Lib Container"]': Element(),
     })
     hardware = HardwareFields(Driver())
     hardware.sections["Ident Numbers"] = type(
@@ -686,6 +688,34 @@ def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(m
     assert matching.clicks == (1 if revision_count == 1 else 0)
     assert other.clicks == 0 and prefix_match.clicks == 0
     assert dialog.clicks == (1 if revision_count == 1 else 0)
+
+
+@pytest.mark.parametrize("pver", ["MG1CS022_62XSC_V020_CS", "MG1CS022_62XSC/V020_CS"])
+@pytest.mark.parametrize("identification,container,skip", [
+    ("MG1CS022_62XSC/V020_CS;0", "MG1CS022_MG1CS022_62XSC_V020_CS_0", True),
+    ("MG1CS022_62XSC/V020_CS;2", "MG1CS022_MG1CS022_62XSC_V020_CS_2", True),
+    ("", "MG1CS022_MG1CS022_62XSC_V020_CS_0", False),
+    ("MG1CS022_62XSC/V020_CS;0", "", False),
+    ("MG1CS022_62XSC/V020_CNT;0", "MG1CS022_MG1CS022_62XSC_V020_CNT_0", False),
+    ("MG1CS022_62XSC/V020_CS;0", "MG1CS022_MG1CS022_62XSC_V020_CS_1", False),
+    ("MG1CS022_62XSC/V020_CS", "MG1CS022_MG1CS022_62XSC_V020_CS_0", False),
+    ("MG1CS022_62XSC/V020_CS;0", "unrelated container", False),
+])
+def test_pst_lib_skips_only_matching_identification_and_container(monkeypatch, pver, identification, container, skip):
+    from unittest.mock import Mock
+
+    section = Mock()
+    body = Element(children={
+        'input[placeholder="Complete identifier of the program in Nestor, SDOM or ClearCase"]':
+            Element({"value": identification}),
+        'input[placeholder="Identifier of PST_Lib Container"]': Element({"value": container}),
+    })
+    section.body.return_value = body
+    waits = Mock(side_effect=RuntimeError("picker needed"))
+    monkeypatch.setattr(picker_module, "WebDriverWait", waits)
+
+    assert picker_module.PstLibPicker(Driver(), section).select(pver) is skip
+    assert waits.call_count == (0 if skip else 1)
 
 
 def test_extra_sheet_fields_without_webflow_controls_are_ignored():
