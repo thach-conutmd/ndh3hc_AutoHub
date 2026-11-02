@@ -29,13 +29,19 @@ td.manual::after{content:" \u270E";font-style:normal}
 tbody tr.deviation{background:#fff5f5}
 tr.deviation td.status{background:#fde2e1;color:#b42318;font-weight:700}
 tr.hidden{display:none}
-.signature{margin-top:12px;break-inside:avoid;page-break-inside:avoid}
-.signature .grid{display:grid;grid-template-columns:140px 1fr;gap:22px 12px;max-width:640px}
+.report-info{break-inside:avoid;page-break-inside:avoid;margin-bottom:20px}
+.report-info .grid{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:10px 16px;max-width:720px;align-items:center}
+.report-info input{box-sizing:border-box;width:100%;font:inherit;color:inherit;padding:5px 8px;border:1px solid #9aa5b1;border-radius:4px;background:#fff}
+.print-value{display:none;white-space:pre-wrap;overflow-wrap:anywhere}
+.signature{margin-top:20px}
+.signature .grid{gap:22px 16px}
 .signature .line{border-bottom:1px solid #1f2933;height:20px}
 @media print{
 @page{margin:15mm}
 body{margin:0;font-size:11pt;background:#fff}
 .controls{display:none!important}
+.report-info input{display:none;border:0;background:transparent}
+.print-value{display:block;min-height:1em}
 tr.hidden{display:table-row!important}
 th{position:static}
 thead{display:table-header-group}
@@ -48,6 +54,11 @@ table{font-size:10pt}
 
 _SCRIPT = """
 (function(){
+var info=Array.prototype.slice.call(document.querySelectorAll(".report-info input"));
+function syncInfo(){info.forEach(function(input){document.getElementById(input.id+"-print").textContent=input.value;});}
+info.forEach(function(input){input.addEventListener("input",syncInfo);input.addEventListener("change",syncInfo);});
+window.addEventListener("beforeprint",syncInfo);
+syncInfo();
 var rows=Array.prototype.slice.call(document.querySelectorAll("#results tbody tr"));
 var search=document.getElementById("search"),variant=document.getElementById("variant"),
 status=document.getElementById("status"),dev=document.getElementById("deviations"),
@@ -69,16 +80,26 @@ apply();
 """.strip()
 
 
-def _signature() -> str:
-    def block(label: str) -> str:
-        return "".join(
-            f'<div>{name}:</div><div class="line"></div>'
-            for name in (f"{label} by", "Signature", "Date")
-        )
-
+def _report_information(exported_at: datetime, reviewer: str) -> str:
+    fields = (
+        ("report-date", "Date", f"{exported_at:%Y-%m-%d}"),
+        ("report-time", "Time", f"{exported_at:%H:%M:%S}"),
+        ("reviewed-by", "Reviewed by", reviewer),
+        ("approved-by", "Approved by", ""),
+    )
+    inputs = "".join(
+        f'<label for="{key}">{label}:</label><div>'
+        f'<input type="text" id="{key}" value="{escape(value)}">'
+        f'<span class="print-value" id="{key}-print">{escape(value)}</span></div>'
+        for key, label, value in fields
+    )
     return (
-        '<section class="signature"><h2>Review &amp; Approval</h2><div class="grid">'
-        + block("Reviewed") + block("Approved") + "</div></section>"
+        '<section class="report-info"><h2>Report Information / Review &amp; Approval</h2>'
+        f'<div class="grid">{inputs}</div>'
+        '<div class="signature"><div class="grid">'
+        '<div>Reviewer Signature:</div><div class="line"></div>'
+        '<div>Approver Signature:</div><div class="line"></div>'
+        '</div></div></section>'
     )
 
 
@@ -111,9 +132,7 @@ def build_report(
         "<title>Comparison Result</title>"
         f"<style>{_STYLE}</style></head><body>"
         "<h1>Comparison Result</h1>"
-        f'<p class="meta"><b>Date:</b>{exported_at:%Y-%m-%d}</p>'
-        f'<p class="meta"><b>Time:</b>{exported_at:%H:%M:%S}</p>'
-        f'<p class="meta"><b>Reviewer:</b>{escape(reviewer)}</p>'
+        f'{_report_information(exported_at, reviewer)}'
         f'<p class="meta"><b>Compared Variants:</b>({len(variants)}) {escape(", ".join(variants))}</p>'
         '<div class="summary">'
         f'<div class="card"><b>{len(rows)}</b>Total</div>'
@@ -121,11 +140,11 @@ def build_report(
         f'<div class="card deviation"><b>{deviation_count}</b>Deviation</div></div>'
         '<div class="controls">'
         '<input type="search" id="search" placeholder="Search all columns...">'
-        '<select id="variant"><option value="">All variants</option></select>'
+        '<select id="variant"><option value="">All part numbers</option></select>'
         '<select id="status"><option value="">All statuses</option></select>'
         '<label><input type="checkbox" id="deviations"> Deviations only</label>'
         '<button type="button" id="clear">Clear Filters</button></div>'
         '<div id="count"></div>'
         f'<table id="results"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
-        f"{_signature()}<script>{_SCRIPT}</script></body></html>\n"
+        f"<script>{_SCRIPT}</script></body></html>\n"
     )

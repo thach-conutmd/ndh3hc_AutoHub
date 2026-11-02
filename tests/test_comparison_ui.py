@@ -3,10 +3,10 @@ from threading import Event
 from unittest.mock import Mock, call
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent, Qt
+from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent, QItemSelectionModel, Qt
 from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QLineEdit, QStyle, QStyleOptionComboBox, QStyleOptionViewItem
+from PySide6.QtWidgets import QApplication, QLineEdit, QStyle, QStyleOptionComboBox, QStyleOptionViewItem, QTableWidgetSelectionRange
 
 from autohub.modules.comparison import ui
 from autohub.modules.comparison.comparison import Status
@@ -500,7 +500,7 @@ def test_variant_only_labels_filters_and_internal_software_matching(qapp):
     page._compare_btn.click()
     wait_done(page, qapp)
     assert [page._variant_filter.itemText(i) for i in range(page._variant_filter.count())] == [
-        "All variants", "P1",
+        "All part numbers", "P1",
     ]
     assert {software for _, software, _ in page._rows} == {"0010", "0011"}
     assert page._progress_dialog._items.horizontalHeaderItem(0).text() == "Variant"
@@ -939,7 +939,7 @@ def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
         assert session.export_job_xml.call_count == calls
         assert dialogs.saved[1].startswith("Comparison_Result_")
         html = open(dialogs.save_path, encoding="utf-8").read()
-        assert "<title>Comparison Result</title>" in html and "Date:" in html and "Reviewer:" in html
+        assert "<title>Comparison Result</title>" in html and "Date:" in html and "Reviewed by:" in html
         assert html.count("<tr class=") == total
         assert "http://" not in html and "https://" not in html
         assert dialogs.saved[1].endswith(".html")
@@ -1074,7 +1074,7 @@ def test_manual_status_and_comment_are_retained_exported_and_do_not_touch_master
         other = Status.VALUE_MISMATCH if calculated != Status.VALUE_MISMATCH else Status.MATCH
 
         menu = page._result_menu(index, 5)
-        assert [a.text() for a in menu.actions()] == ["Change Status", "Reset Status"]
+        assert [a.text() for a in menu.actions()] == ["Change Status", "Reset Status", "", "Copy", "Copy Row"]
         assert not menu.actions()[1].isEnabled()
         page._set_status(index, other)
         item = page._table.item(index, 5)
@@ -1084,8 +1084,10 @@ def test_manual_status_and_comment_are_retained_exported_and_do_not_touch_master
 
         page._table.item(index, 6).setText("checked with owner")
         assert page._comment(index) == "checked with owner"
-        assert [a.text() for a in page._result_menu(index, 6).actions()] == ["Edit Comment", "Clear Comment"]
-        assert page._result_menu(index, 2) is None
+        assert [a.text() for a in page._result_menu(index, 6).actions()] == [
+            "Edit Comment", "Clear Comment", "", "Copy", "Copy Row",
+        ]
+        assert [a.text() for a in page._result_menu(index, 2).actions()] == ["Copy", "Copy Row"]
 
         page._search.setText("zzz"); page._search.setText("")
         page._status_filter.setCurrentText(other.value)
@@ -1121,3 +1123,188 @@ def test_initial_status_comes_from_master_comparison_result(qapp):
     assert [page._variants_table.item(row, 4).text() for row in range(5)] == [
         "Completed", "Completed", "Pending", "Pending", "Pending"]
     assert not page._rows and not page._impl_btn.isEnabled()
+
+
+@pytest.fixture
+def reviewed_page(qapp):
+    page, dialogs, session, _ = build_page()
+    page._select_all()
+    page._compare()
+    wait_done(page, qapp)
+    page._progress_dialog.close()
+    page.show()
+    qapp.processEvents()
+    yield page, dialogs, session
+    page.shutdown()
+    page.close()
+    page.deleteLater()
+
+
+def test_result_copy_cell_rectangle_and_row(reviewed_page):
+    page, _, session = reviewed_page
+    table = page._table
+    table.item(0, 3).setText("(missing)")
+    table.setCurrentCell(0, 3)
+    QTest.keyClick(table, Qt.Key_C, Qt.ControlModifier)
+    assert QApplication.clipboard().text() == "(missing)"
+    table.clearSelection()
+    table.setRangeSelected(QTableWidgetSelectionRange(0, 0, 1, 2), True)
+    QTest.keyClick(table, Qt.Key_C, Qt.ControlModifier)
+    assert QApplication.clipboard().text() == "\n".join(
+        "\t".join(table.item(row, column).text() for column in range(3)) for row in range(2)
+    )
+    menu = page._result_menu(0, 2)
+    next(action for action in menu.actions() if action.text() == "Copy Row").trigger()
+    assert QApplication.clipboard().text() == "\t".join(table.item(0, column).text() for column in range(7))
+    assert session.export_job_xml.call_count == 1
+
+
+def test_result_comment_paste_cut_delete_persist_in_export(reviewed_page, tmp_path):
+    page, dialogs, session = reviewed_page
+    table = page._table
+    original = list(page._rows)
+    updates = dict(page._impl_updates)
+    table.setCurrentCell(0, 6)
+    QApplication.clipboard().setText("review first\nreview second")
+    QTest.keyClick(table, Qt.Key_V, Qt.ControlModifier)
+    assert [page._comment(i) for i in range(2)] == ["review first", "review second"]
+    assert table.item(0, 6).toolTip() == "review first"
+    page._search.setText("review")
+    page._search.clear()
+    page._render_results()
+    assert table.item(1, 6).text() == "review second"
+    dialogs.save_path = str(tmp_path / "edited.html")
+    page._export()
+    assert "review first" in (tmp_path / "edited.html").read_text()
+    table.setCurrentCell(0, 6)
+    QTest.keyClick(table, Qt.Key_X, Qt.ControlModifier)
+    assert QApplication.clipboard().text() == "review first" and page._comment(0) == ""
+    table.setCurrentCell(1, 6)
+    QTest.keyClick(table, Qt.Key_Delete)
+    assert page._comment(1) == ""
+    assert page._rows == original and page._impl_updates == updates
+    assert session.export_job_xml.call_count == 1
+
+
+@pytest.mark.parametrize("column", range(5))
+def test_paste_cut_delete_cannot_modify_readonly_values(reviewed_page, column):
+    page, _, _ = reviewed_page
+    table = page._table
+    original = list(page._rows)
+    value = table.item(0, column).text()
+    table.setCurrentCell(0, column)
+    QApplication.clipboard().setText("do not write")
+    for key in (Qt.Key_V, Qt.Key_X, Qt.Key_Delete):
+        QTest.keyClick(table, key, Qt.ControlModifier if key != Qt.Key_Delete else Qt.NoModifier)
+    assert table.item(0, column).text() == value and page._rows == original
+
+
+def test_paste_status_validates_entire_batch_before_editing(reviewed_page):
+    page, dialogs, _ = reviewed_page
+    table = page._table
+    calculated = page._rows[0][2].status
+    table.setCurrentCell(0, 5)
+    QApplication.clipboard().setText("VALUE_MISMATCH\taccepted")
+    QTest.keyClick(table, Qt.Key_V, Qt.ControlModifier)
+    assert page._effective_status(0) == Status.VALUE_MISMATCH and page._comment(0) == "accepted"
+    assert page._rows[0][2].status == calculated
+    reviews = dict(page._reviews)
+    for text in ("INVALID", "MATCHES_BASE", "MATCH\tchanged\nINVALID\talso changed"):
+        QApplication.clipboard().setText(text)
+        QTest.keyClick(table, Qt.Key_V, Qt.ControlModifier)
+        assert page._reviews == reviews
+    assert len(dialogs.errors) == 3
+
+
+def test_comment_editor_uses_native_shortcuts_commit_and_escape(reviewed_page, qapp):
+    page, _, _ = reviewed_page
+    table = page._table
+    table.setCurrentCell(0, 6)
+    table.editItem(table.item(0, 6))
+    editor = table.findChild(QLineEdit)
+    assert editor is not None
+    QApplication.clipboard().setText("normal editor paste")
+    QTest.keyClick(editor, Qt.Key_V, Qt.ControlModifier)
+    QTest.keyClick(editor, Qt.Key_Return)
+    qapp.processEvents()
+    assert page._comment(0) == "normal editor paste"
+    table.editItem(table.item(0, 6))
+    editor = next(editor for editor in table.findChildren(QLineEdit) if editor.isVisible())
+    editor.setFocus()
+    editor.selectAll()
+    QTest.keyClicks(editor, "save on focus loss")
+    page._search.setFocus()
+    qapp.processEvents()
+    assert page._comment(0) == "save on focus loss"
+    table.editItem(table.item(0, 6))
+    editor = next(editor for editor in table.findChildren(QLineEdit) if editor.isVisible())
+    editor.selectAll()
+    QTest.keyClicks(editor, "cancel this")
+    QTest.keyClick(editor, Qt.Key_Escape)
+    qapp.processEvents()
+    assert page._comment(0) == "save on focus loss"
+
+
+def test_result_comment_width_and_single_line_display(reviewed_page, qapp):
+    page, _, _ = reviewed_page
+    page.resize(1500, 800)
+    qapp.processEvents()
+    table = page._table
+    page._set_comment(0, "Long comment " * 100)
+    assert table.columnWidth(6) >= 260
+    assert table.columnWidth(6) >= table.columnWidth(2)
+    assert not table.wordWrap()
+    assert table.rowHeight(0) < 60
+    assert table.item(0, 6).toolTip() == "Long comment " * 99 + "Long comment"
+    page.resize(1800, 800)
+    qapp.processEvents()
+    assert table.horizontalHeader().length() <= table.viewport().width() + 1
+
+
+def test_paste_skips_filtered_rows_and_stays_in_comment_column(reviewed_page):
+    page, _, _ = reviewed_page
+    table = page._table
+    table.setRowHidden(1, True)
+    table.setCurrentCell(0, 6)
+    QApplication.clipboard().setText("first\nlast")
+    QTest.keyClick(table, Qt.Key_V, Qt.ControlModifier)
+    assert page._comment(0) == "first"
+    assert page._comment(1) == ""
+    assert page._comment(2) == "last"
+
+
+def test_comment_edit_follows_model_index_after_row_sort(reviewed_page):
+    page, _, _ = reviewed_page
+    table = page._table
+    table.sortItems(1, Qt.DescendingOrder)
+    index = page._model_index(0)
+    table.setCurrentCell(0, 6)
+    QApplication.clipboard().setText("sorted review")
+    QTest.keyClick(table, Qt.Key_V, Qt.ControlModifier)
+    assert page._comment(index) == "sorted review"
+    assert table.item(0, 6).text() == "sorted review"
+
+
+def test_part_number_overlay_stays_fixed_and_shares_selection_filters(reviewed_page, qapp):
+    page, _, _ = reviewed_page
+    table = page._table
+    view = table.frozen.view
+    assert page._variants_table.horizontalHeaderItem(1).text() == "Part Number"
+    assert table.horizontalHeaderItem(0).text() == "Part Number"
+    assert view.model() is table.model() and view.selectionModel() is table.selectionModel()
+    table.setColumnWidth(1, 1500)
+    qapp.processEvents()
+    x = view.geometry().x()
+    table.horizontalScrollBar().setValue(table.horizontalScrollBar().maximum())
+    qapp.processEvents()
+    assert view.geometry().x() == x
+    assert view.columnWidth(0) == table.columnWidth(0)
+    view.selectionModel().setCurrentIndex(view.model().index(0, 0), QItemSelectionModel.ClearAndSelect)
+    QTest.keyClick(view, Qt.Key_C, Qt.ControlModifier)
+    assert QApplication.clipboard().text() == table.item(0, 0).text()
+    page._search.setText("not-a-real-parameter")
+    assert all(view.isRowHidden(row) and table.isRowHidden(row) for row in range(table.rowCount()))
+    page._search.clear()
+    assert not view.isRowHidden(0)
+    table.setRowHeight(0, 40)
+    assert view.rowHeight(0) == 40
