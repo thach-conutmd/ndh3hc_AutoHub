@@ -1048,3 +1048,17 @@ def test_manual_status_and_comment_are_retained_exported_and_do_not_touch_master
         assert calls == 1
     finally:
         page.shutdown(); page.close(); page.deleteLater()
+
+
+def test_initial_status_comes_from_master_comparison_result(qapp):
+    variants = [
+        {**variant("P1"), "comparison_result": "OK"},
+        {**variant("P2", "0011", "https://webflow/app/ShowJob/13"), "comparison_result": " ok "},
+        {**variant("P3", "0012", "https://webflow/app/ShowJob/14"), "comparison_result": "NG"},
+        {**variant("P4", "0013", "https://webflow/app/ShowJob/15"), "comparison_result": "other"},
+        variant("P5", "0014", "https://webflow/app/ShowJob/16"),
+    ]
+    page, *_ = build_page(variants)
+    assert [page._variants_table.item(row, 4).text() for row in range(5)] == [
+        "Completed", "Completed", "Pending", "Pending", "Pending"]
+    assert not page._rows and not page._impl_btn.isEnabled()

@@ -15,7 +15,7 @@ class ImplUpdate:
 @dataclass(frozen=True)
 class ImplOutcome:
     written: int = 0
-    skipped: int = 0  # formula cells are never overwritten
+    skipped: int = 0
     error: str = ""
 
 
