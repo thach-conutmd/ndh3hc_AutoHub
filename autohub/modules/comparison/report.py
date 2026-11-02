@@ -7,25 +7,84 @@ from html import escape
 
 _STYLE = """
 body{font-family:Segoe UI,Arial,sans-serif;margin:32px;color:#1f2933;background:#fff}
-h1{margin:0 0 4px;font-size:26px}
-.meta{color:#52606d;margin:2px 0}
+h1{margin:0 0 8px;font-size:26px}
+h2{font-size:18px;margin:28px 0 8px}
+.meta{color:#52606d;margin:2px 0}.meta b{color:#1f2933;display:inline-block;min-width:130px}
 .summary{display:flex;gap:12px;margin:20px 0}
 .card{border:1px solid #cbd2d9;border-radius:6px;padding:10px 18px;min-width:110px}
 .card b{display:block;font-size:22px}
 .card.match b{color:#1b7f3b}.card.deviation b{color:#b42318}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.controls input,.controls select,.controls button{font:inherit;padding:5px 8px;border:1px solid #9aa5b1;border-radius:4px;background:#fff}
+.controls input[type=search]{min-width:260px}
+.controls button{cursor:pointer;background:#f0f4f8}
+#count{color:#52606d;margin:4px 0 8px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th{background:#243b53;color:#fff;text-align:left;padding:8px;position:sticky;top:0}
 td{border-bottom:1px solid #e4e7eb;padding:6px 8px;vertical-align:top;word-break:break-word}
+tbody tr:nth-child(even){background:#f7f9fb}
 tr.match td.status{background:#e3f6e8;color:#1b7f3b;font-weight:600}
 td.manual{font-style:italic;outline:2px dashed #7b61ff;outline-offset:-3px}
-tr.deviation{background:#fff5f5}
+td.manual::after{content:" \u270E";font-style:normal}
+tbody tr.deviation{background:#fff5f5}
 tr.deviation td.status{background:#fde2e1;color:#b42318;font-weight:700}
+tr.hidden{display:none}
+.signature{margin-top:12px;break-inside:avoid;page-break-inside:avoid}
+.signature .grid{display:grid;grid-template-columns:140px 1fr;gap:22px 12px;max-width:640px}
+.signature .line{border-bottom:1px solid #1f2933;height:20px}
+@media print{
+@page{margin:15mm}
+body{margin:0;font-size:11pt;background:#fff}
+.controls{display:none!important}
+tr.hidden{display:table-row!important}
+th{position:static}
+thead{display:table-header-group}
+tr{break-inside:avoid;page-break-inside:avoid}
+table{font-size:10pt}
+.card{box-shadow:none}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-shadow:none!important}
+}
 """.strip()
+
+_SCRIPT = """
+(function(){
+var rows=Array.prototype.slice.call(document.querySelectorAll("#results tbody tr"));
+var search=document.getElementById("search"),variant=document.getElementById("variant"),
+status=document.getElementById("status"),dev=document.getElementById("deviations"),
+count=document.getElementById("count");
+function fill(select,index){var seen={};rows.forEach(function(r){seen[r.cells[index].textContent]=1;});
+Object.keys(seen).sort().forEach(function(v){var o=document.createElement("option");o.value=o.textContent=v;select.appendChild(o);});}
+fill(variant,0);fill(status,5);
+function apply(){var q=search.value.toLowerCase(),shown=0;
+rows.forEach(function(r){var ok=(!variant.value||r.cells[0].textContent===variant.value)
+&&(!status.value||r.cells[5].textContent===status.value)
+&&(!dev.checked||r.classList.contains("deviation"))
+&&(!q||r.textContent.toLowerCase().indexOf(q)>=0);
+r.classList.toggle("hidden",!ok);if(ok)shown++;});
+count.textContent="Showing "+shown+" of "+rows.length+" parameters";}
+[search,variant,status,dev].forEach(function(e){e.addEventListener("input",apply);e.addEventListener("change",apply);});
+document.getElementById("clear").addEventListener("click",function(){search.value="";variant.value="";status.value="";dev.checked=false;apply();});
+apply();
+})();
+""".strip()
+
+
+def _signature() -> str:
+    def block(label: str) -> str:
+        return "".join(
+            f'<div>{name}:</div><div class="line"></div>'
+            for name in (f"{label} by", "Signature", "Date")
+        )
+
+    return (
+        '<section class="signature"><h2>Review &amp; Approval</h2><div class="grid">'
+        + block("Reviewed") + block("Approved") + "</div></section>"
+    )
 
 
 def build_report(
     headers: Sequence[str], rows: Sequence[Sequence[str]], deviations: Sequence[bool], variants: Sequence[str],
-    exported_at: datetime, calculated: Sequence[str] = (),
+    exported_at: datetime, calculated: Sequence[str] = (), reviewer: str = "",
 ) -> str:
     deviation_count = sum(deviations)
     head = "".join(f"<th>{escape(header)}</th>" for header in headers)
@@ -35,7 +94,10 @@ def build_report(
     def cell(column: int, value: str, original: str) -> str:
         if column != status_column:
             return f"<td>{escape(value)}</td>"
-        note = f' title="Calculated: {escape(original)} | Manually changed"' if original else ""
+        note = (
+            f' title="Calculated: {escape(original)} | Manually changed" data-calculated="{escape(original)}"'
+            if original else ""
+        )
         return f'<td class="status{" manual" if original else ""}"{note}>{escape(value)}</td>'
 
     body = "".join(
@@ -49,11 +111,21 @@ def build_report(
         "<title>Comparison Result</title>"
         f"<style>{_STYLE}</style></head><body>"
         "<h1>Comparison Result</h1>"
-        f'<p class="meta">Exported: {exported_at:%Y-%m-%d %H:%M:%S}</p>'
-        f'<p class="meta">Compared variants ({len(variants)}): {escape(", ".join(variants))}</p>'
+        f'<p class="meta"><b>Date:</b>{exported_at:%Y-%m-%d}</p>'
+        f'<p class="meta"><b>Time:</b>{exported_at:%H:%M:%S}</p>'
+        f'<p class="meta"><b>Reviewer:</b>{escape(reviewer)}</p>'
+        f'<p class="meta"><b>Compared Variants:</b>({len(variants)}) {escape(", ".join(variants))}</p>'
         '<div class="summary">'
         f'<div class="card"><b>{len(rows)}</b>Total</div>'
         f'<div class="card match"><b>{len(rows) - deviation_count}</b>Match</div>'
         f'<div class="card deviation"><b>{deviation_count}</b>Deviation</div></div>'
-        f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></body></html>\n"
+        '<div class="controls">'
+        '<input type="search" id="search" placeholder="Search all columns...">'
+        '<select id="variant"><option value="">All variants</option></select>'
+        '<select id="status"><option value="">All statuses</option></select>'
+        '<label><input type="checkbox" id="deviations"> Deviations only</label>'
+        '<button type="button" id="clear">Clear Filters</button></div>'
+        '<div id="count"></div>'
+        f'<table id="results"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
+        f"{_signature()}<script>{_SCRIPT}</script></body></html>\n"
     )

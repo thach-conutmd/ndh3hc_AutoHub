@@ -143,6 +143,49 @@ def test_writer_normalizes_to_master_format_before_writing():
     assert worksheet.cells["X20"].Value == "Yes" and worksheet.cells["AD20"].Value == "IMMO6|active"
 
 
+@pytest.mark.parametrize("failure", ["", "save", "refresh", "close"])
+def test_update_saves_then_refreshes_before_returning_and_propagates_failures(failure):
+    from contextlib import nullcontext
+    from autohub.core.impl_update import ImplOutcome
+    from autohub.modules.comparison.impl_update import MasterImplUpdater
+
+    events = []
+
+    class Master:
+        def open(self):
+            events.append("open")
+
+        def write_impl_values(self, updates, save=True):
+            assert save
+            events.extend(["write", "save"])
+            if failure == "save":
+                raise OSError("save failed")
+            return {"P1": ImplOutcome(1)}
+
+        def load_webflow_variants(self):
+            events.append("refresh")
+            if failure == "refresh":
+                raise OSError("refresh failed")
+            return [{"part_number": "P1", "comparison_result": "OK"}]
+
+        def close(self):
+            events.append("close")
+            if failure == "close":
+                raise OSError("close failed")
+
+    updater = MasterImplUpdater(lambda path: Master(), nullcontext)
+    if failure:
+        with pytest.raises(OSError, match=f"{failure} failed"):
+            updater.update("master.xlsx", {"P1": ImplUpdate("0011", {"W": "new"})})
+    else:
+        result = updater.update("master.xlsx", {"P1": ImplUpdate("0011", {"W": "new"})})
+        assert result.variants[0]["comparison_result"] == "OK"
+        assert events == ["open", "write", "save", "refresh", "close"]
+    assert events[-1] == "close"
+    if failure == "save":
+        assert "refresh" not in events
+
+
 def test_writer_overwrites_populated_and_formula_impl_cells():
     worksheet = Sheet({
         "AX20": Cell("0011"), "#21,4": Cell("IMPL"), "W21": Cell("old"), "X21": Cell("No", formula=True),

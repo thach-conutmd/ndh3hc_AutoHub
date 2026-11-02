@@ -3,10 +3,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
+from typing import Protocol
 from urllib.parse import unquote
 
 from autohub.core.impl_update import ImplOutcome, ImplUpdate, ImplValueWriter
 from autohub.core.impl_values import CHECKBOX, TP_LEVEL, option_kind
+from autohub.core.ports import SheetSession, VariantReader
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 
@@ -73,18 +76,35 @@ def build_impl_update(software: str, rows: Iterable[ComparisonRow]) -> ImplUpdat
     return ImplUpdate(software, values, kinds)
 
 
+class ImplSheet(SheetSession, VariantReader, ImplValueWriter, Protocol):
+    pass
+
+
+@dataclass(frozen=True)
+class ImplRefresh:
+    outcomes: dict[str, ImplOutcome]
+    variants: list[dict]
+
+
 class MasterImplUpdater:
-    def __init__(self, master_sheet_factory: Callable[[str], object], session_factory: Callable[[], AbstractContextManager]):
+    def __init__(self, master_sheet_factory: Callable[[str], ImplSheet], session_factory: Callable[[], AbstractContextManager]):
         self._factory = master_sheet_factory
         self._session = session_factory
 
-    def update(self, path: str, updates: dict[str, ImplUpdate]) -> dict[str, ImplOutcome]:
+    def update(self, path: str, updates: dict[str, ImplUpdate]) -> ImplRefresh:
         with self._session():
             sheet = self._factory(path)
             try:
                 sheet.open()
                 if not isinstance(sheet, ImplValueWriter):
                     raise ValueError("This Master Sheet layout cannot update IMPL rows.")
-                return sheet.write_impl_values(updates)
+                # The sheet writer saves before returning; read formula-backed state only afterwards.
+                outcomes = sheet.write_impl_values(updates)
+                parts = {part for part, outcome in outcomes.items() if outcome.written}
+                variants = [
+                    variant for variant in sheet.load_webflow_variants()
+                    if variant["part_number"] in parts
+                ] if parts else []
+                return ImplRefresh(outcomes, variants)
             finally:
                 sheet.close()

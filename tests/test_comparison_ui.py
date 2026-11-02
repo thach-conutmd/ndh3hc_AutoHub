@@ -939,7 +939,7 @@ def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
         assert session.export_job_xml.call_count == calls
         assert dialogs.saved[1].startswith("Comparison_Result_")
         html = open(dialogs.save_path, encoding="utf-8").read()
-        assert "<title>Comparison Result</title>" in html and "Exported:" in html
+        assert "<title>Comparison Result</title>" in html and "Date:" in html and "Reviewer:" in html
         assert html.count("<tr class=") == total
         assert "http://" not in html and "https://" not in html
         assert dialogs.saved[1].endswith(".html")
@@ -960,8 +960,12 @@ def test_update_master_impl_writes_only_completed_target_values_and_keeps_result
             self.calls = []
 
         def update(self, path, updates):
+            from autohub.modules.comparison.impl_update import ImplRefresh
             self.calls.append((path, updates))
-            return {part: ImplOutcome(len(update.values)) for part, update in updates.items()}
+            refreshed = {**variant(), "comparison_result": "OK", "hardware": {
+                **variant()["hardware"], "power": "95",
+            }}
+            return ImplRefresh({part: ImplOutcome(len(update.values)) for part, update in updates.items()}, [refreshed])
 
     updater = Updater()
     settings = Mock()
@@ -982,14 +986,23 @@ def test_update_master_impl_writes_only_completed_target_values_and_keeps_result
         page._progress_dialog.close()
         assert list(page._impl_updates) == ["P1"] and page._impl_btn.isEnabled()
         rows = len(page._rows)
+        page._search.setText("power")
+        page._set_status(0, Status.VALUE_MISMATCH)
+        page._store_review(0, comment="keep review")
+        reviews = dict(page._reviews)
+        selected = page._selected_rows()
         page._update_impl()
         assert dialogs.confirmed and "P1" in dialogs.confirmed[0][1] and "P2" not in dialogs.confirmed[0][1]
         timer = QElapsedTimer(); timer.start()
         while page._running and timer.elapsed() < 5000:
             qapp.processEvents(); QTest.qWait(5)
         assert updater.calls[0][0] == "master.xlsx" and list(updater.calls[0][1]) == ["P1"]
-        assert reloads == [1] and dialogs.infos
-        page.set_variants([variant(), variant("P2", link="https://webflow/app/ShowJob/2")])
+        assert reloads == [] and dialogs.infos
+        assert dialogs.infos[-1][1] == "Master Sheet updated successfully for 1 of 1 variant(s)."
+        assert page._variants_table.item(0, 4).text() == "Completed"
+        assert page._search.text() == "power" and page._reviews == reviews
+        assert page._selected_rows() == selected
+        assert next(row.master for _, _, row in page._rows if row.parameter == "General/Power") == "95"
         assert len(page._rows) == rows and page._impl_btn.isEnabled()
         page.set_variants([variant()])
         assert not page._rows and not page._impl_btn.isEnabled()
@@ -999,6 +1012,52 @@ def test_update_master_impl_writes_only_completed_target_values_and_keeps_result
 
 def _first_mismatch(page):
     return 0
+
+
+@pytest.mark.parametrize("value, expected", [("OK", "Completed"), ("NG", "Pending"), ("", "Pending"), ("other", "Pending")])
+def test_silent_impl_refresh_preserves_table_state(qapp, value, expected):
+    from autohub.core.impl_update import ImplOutcome
+    from autohub.modules.comparison.impl_update import ImplRefresh
+
+    page, dialogs, session, _ = build_page()
+    page._select_all()
+    page._compare()
+    wait_done(page, qapp)
+    page._progress_dialog.close()
+    page._variants_table.item(0, 3).setText("https://webflow/app/ShowJob/99")
+    page._search.setText("power")
+    page._variant_filter.setCurrentIndex(1)
+    page._set_status(0, Status.VALUE_MISMATCH)
+    page._store_review(0, comment="retained")
+    page._table.selectRow(0)
+    old_items = [page._table.item(0, col) for col in range(7)]
+    reviews = dict(page._reviews)
+    selected = page._selected_rows()
+    page._finish_impl(ImplRefresh({"P1": ImplOutcome(1)}, [{**variant(), "comparison_result": value}]))
+    assert page._variants_table.item(0, 4).text() == expected
+    assert page._variants_table.item(0, 3).data(Qt.UserRole) == "https://webflow/app/ShowJob/99"
+    assert page._selected_rows() == selected and page._reviews == reviews
+    assert page._search.text() == "power" and page._variant_filter.currentIndex() == 1
+    assert [page._table.item(0, col) for col in range(7)] == old_items
+    assert session.export_job_xml.call_count == 1
+    assert len(dialogs.infos) == 1 and not dialogs.errors
+
+
+def test_silent_refresh_failure_shows_only_update_error_and_keeps_results(qapp):
+    from autohub.core.impl_update import ImplOutcome
+    from autohub.modules.comparison.impl_update import ImplRefresh
+
+    page, dialogs, _, _ = build_page()
+    page._select_all()
+    page._compare()
+    wait_done(page, qapp)
+    page._progress_dialog.close()
+    rows = list(page._rows)
+    page._finish_impl(ImplRefresh({"P1": ImplOutcome(1)}, []))
+    assert page._rows == rows
+    assert not dialogs.infos and len(dialogs.errors) == 1
+    assert dialogs.errors[0][0] == "Update Master Sheet"
+    assert "refresh failed" in dialogs.errors[0][1]
 
 
 def test_manual_status_and_comment_are_retained_exported_and_do_not_touch_master(qapp, tmp_path):

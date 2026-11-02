@@ -1,0 +1,50 @@
+import re
+from datetime import datetime
+
+from autohub.modules.comparison.report import build_report
+
+HEADERS = ("Variant", "Parameter", "Master", "Base", "Target", "Status", "Comment")
+ROWS = [
+    ("P1", "General/Power", "93", "", "93", "MATCH", ""),
+    ("P1", "General/Model", "<A>", "", "B", "MATCHES_BASE", "checked & ok"),
+    ("P2", "General/Power", "90", "", "91", "VALUE_MISMATCH", ""),
+]
+
+
+def report(**kwargs):
+    return build_report(HEADERS, ROWS, [False, False, True], ["P1", "P2"], datetime(2026, 11, 2, 9, 30, 5),
+                        ["", "VALUE_MISMATCH", ""], **kwargs)
+
+
+def test_header_summary_and_table_are_present():
+    html = report(reviewer="A. Reviewer")
+    for text in ("Comparison Result", "2026-11-02", "09:30:05", "A. Reviewer", "(2) P1, P2"):
+        assert text in html
+    assert "<b>3</b>Total" in html and "<b>2</b>Match" in html and "<b>1</b>Deviation" in html
+    assert html.count("<tr class=") == 3 and html.count("<th>") == 7
+    assert "&lt;A&gt;" in html and "checked &amp; ok" in html
+
+
+def test_controls_script_and_count_are_embedded_without_external_resources():
+    html = report()
+    for marker in ('id="search"', 'id="variant"', 'id="status"', 'id="deviations"', 'id="clear"',
+                   "Showing ", " parameters", "<script>"):
+        assert marker in html
+    assert not re.search(r"https?://|<link |src=", html)
+
+
+def test_manual_review_is_marked_and_calculated_status_is_kept():
+    html = report()
+    assert html.count('data-calculated="VALUE_MISMATCH"') == 1
+    assert "Calculated: VALUE_MISMATCH | Manually changed" in html
+
+
+def test_signature_section_and_print_rules():
+    html = report()
+    assert "Review &amp; Approval" in html
+    for label in ("Reviewed by:", "Approved by:"):
+        assert label in html
+    assert html.count("Signature:") == 2 and html.count("<div>Date:</div>") == 2
+    for rule in ("@media print", "table-header-group", "break-inside:avoid", "print-color-adjust:exact",
+                 ".controls{display:none!important}"):
+        assert rule in html

@@ -1,6 +1,7 @@
 """Multi-variant comparison workspace; browser work runs off the UI thread."""
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime
@@ -26,8 +27,8 @@ from autohub.ui.hover_cursor import HoverCursor
 from autohub.ui.webflow_link_delegate import WebFlowLinkDelegate, format_webflow_link_item
 
 from .comparison import ComparisonRow, Status
-from .impl_update import MasterImplUpdater, build_impl_update
-from .matching import validate_link
+from .impl_update import ImplRefresh, MasterImplUpdater, build_impl_update
+from .matching import master_parameters, validate_link
 from .report import build_report
 from .review import Review
 from .progress import ComparisonProgressDialog
@@ -328,6 +329,11 @@ class ComparisonWidget(QWidget):
         self._status_filter.addItems([status.value for status in statuses])
         self._status_filter.blockSignals(False)
 
+    def _reviewer(self) -> str:
+        saved = self._settings.load() if self._settings is not None else {}
+        name = str(saved.get("change_engineer", "")).strip()
+        return name or os.environ.get("USERNAME") or os.environ.get("USER") or ""
+
     def _export(self) -> None:
         if self._running or not self._rows:
             return
@@ -352,6 +358,7 @@ class ComparisonWidget(QWidget):
                 row.status.value if self._effective_status(index) != row.status else ""
                 for index, (_, _, row) in enumerate(self._rows)
             ],
+            self._reviewer(),
         )
         try:
             with open(path, "w", encoding="utf-8") as file:
@@ -390,18 +397,64 @@ class ComparisonWidget(QWidget):
             self._worker = None
         self._set_running(False)
 
-    def _finish_impl(self, outcomes: dict) -> None:
+    def _refresh_impl_data(self, variants: list[dict], parts: set[str]) -> None:
+        refreshed = {}
+        for variant in variants:
+            identity = (str(variant["part_number"]), str(variant.get("hardware", {}).get("software_part_number") or ""))
+            if identity in refreshed:
+                raise ValueError(f"Ambiguous refreshed Master Sheet variant: {identity[0]}.")
+            refreshed[identity] = variant
+        replacements = {}
+        for index, variant in enumerate(self._variants):
+            part = str(variant["part_number"])
+            if part not in parts:
+                continue
+            identity = (part, str(variant.get("hardware", {}).get("software_part_number") or ""))
+            if identity not in refreshed:
+                raise ValueError(f"Updated variant not found in refreshed Master Sheet: {part}.")
+            replacements[index] = deepcopy(refreshed[identity])
+        masters = {
+            (str(variant["part_number"]), str(variant.get("hardware", {}).get("software_part_number") or "")):
+            master_parameters(variant)
+            for variant in replacements.values()
+        }
+        for index, variant in replacements.items():
+            self._variants[index] = variant
+        for row in range(self._variants_table.rowCount()):
+            index = self._variants_table.item(row, 0).data(Qt.UserRole)
+            if index in replacements:
+                value = str(replacements[index].get("comparison_result") or "").strip().upper()
+                self._set_variant_status(row, "Completed" if value == "OK" else "Pending", "")
+        self._rows = [
+            (part, software, replace(row, master=masters[(part, software)].get(row.parameter)))
+            if (part, software) in masters else (part, software, row)
+            for part, software, row in self._rows
+        ]
+        self._table.blockSignals(True)
+        try:
+            for visual_row in range(self._table.rowCount()):
+                index = self._table.item(visual_row, 0).data(Qt.UserRole)
+                item = self._table.item(visual_row, 2)
+                value = _display(self._rows[index][2].master)
+                item.setText(value)
+                item.setToolTip(value)
+        finally:
+            self._table.blockSignals(False)
+
+    def _finish_impl(self, result: ImplRefresh) -> None:
+        outcomes = result.outcomes
+        try:
+            self._refresh_impl_data(result.variants, {part for part, outcome in outcomes.items() if outcome.written})
+        except Exception as error:
+            self._fail_impl(f"Master Sheet refresh failed: {error}")
+            return
         self._end_impl_worker()
         written = sum(bool(outcome.written) and not outcome.error for outcome in outcomes.values())
         problems = [f"{variant}: {outcome.error}" for variant, outcome in outcomes.items() if outcome.error]
-        skipped = sum(outcome.skipped for outcome in outcomes.values())
-        text = f"Master Sheet updated for {written} of {len(outcomes)} variant(s)."
-        if skipped:
-            text += f" {skipped} formula cell(s) were left unchanged."
+        text = f"Master Sheet updated successfully for {written} of {len(outcomes)} variant(s)."
+        if problems:
+            text = f"Master Sheet update failed for {len(problems)} of {len(outcomes)} variant(s)."
         self._summary.setText(text)
-        if any(outcome.written for outcome in outcomes.values()):
-            self._keep_results = True
-            self.masterReloadRequested.emit()
         if problems:
             self._dialogs.error("Update Master Sheet", text + "\n\n" + "\n".join(problems))
         else:
