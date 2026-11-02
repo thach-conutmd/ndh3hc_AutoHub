@@ -178,7 +178,7 @@ def test_new_variant_stops_when_a_file_dialog_is_cancelled(tmp_path):
     presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), FakeDialogs(files=["e.xlsx"]))
     presenter.new_variant()
     assert master.compute_args is None
-    assert "new" not in view.states
+    assert view.states["new"] == (True, "New variants")
 
 
 def test_new_variant_reports_the_reader_error(tmp_path):
@@ -682,17 +682,17 @@ def test_load_master_sheet_cancelled_picker_changes_nothing(tmp_path):
     assert view.rows == [{"J": "kept"}] and settings.load()["master_sheet_path"] == before
 
 
-def test_load_master_sheet_rejects_an_invalid_file_and_keeps_the_table(tmp_path):
+def test_load_master_sheet_rejects_an_invalid_file_and_clears_the_workspace(tmp_path):
     dialogs = FakeDialogs(files=[_new_sheet(tmp_path)])
     presenter, view, _, settings = _presenter(tmp_path, _checked_service("Not a Master Sheet."), dialogs)
     view.rows = [{"J": "kept"}]
-    before = settings.load()["master_sheet_path"]
-
     presenter.browse_master_sheet()
 
-    assert view.rows == [{"J": "kept"}] and view.published == []
+    assert view.rows == [] and view.published == [[]]
     assert dialogs.errors == [("Load Master Sheet", "Not a Master Sheet.")]
-    assert settings.load()["master_sheet_path"] == before
+    assert settings.load()["master_sheet_path"] == ""
+    assert not presenter._master_valid
+    assert view.states["new"][0] is False and view.states["load"][0] is False
 
 
 def test_load_master_sheet_asks_before_discarding_unsaved_changes(tmp_path):
@@ -707,3 +707,233 @@ def test_load_master_sheet_asks_before_discarding_unsaved_changes(tmp_path):
 
     assert len(dialogs.confirmed) == 1
     assert view.rows == [{"J": "edited"}] and settings.load()["master_sheet_path"] == before
+
+
+def test_variant_workspace_initial_state_requires_a_validated_master(qapp):
+    dialogs = FakeDialogs()
+    service = build_service()
+    service.load_variants = Mock()
+    service.compute_new_variants = Mock()
+    page = home_ui.HomeWidget(service, MemorySettings(), dialogs)
+    assert page.row_count() == 0
+    for button in (page._load_btn, page._create_btn, page._update_btn, page._clear_btn, page._delete_btn):
+        assert not button.isEnabled()
+    assert not page._variant_table.isEnabled()
+    page._load_btn.click()
+    page._create_btn.click()
+    service.load_variants.assert_not_called()
+    service.compute_new_variants.assert_not_called()
+    assert not dialogs.windows and not dialogs.asked and not dialogs.picked
+
+
+@pytest.mark.parametrize("operation", ["load_variants", "new_variant", "reload_variants", "delete_selected"])
+def test_existing_path_cannot_bypass_failed_validation(tmp_path, operation):
+    service = _checked_service("Missing required Master Sheet columns.")
+    service.load_variants = Mock()
+    service.compute_new_variants = Mock()
+    presenter, view, dialogs, settings = _presenter(tmp_path, service)
+    getattr(presenter, operation)()
+    assert view.rows == []
+    assert not presenter._master_valid and presenter._paths["Master Sheet"] == ""
+    assert settings.load()["master_sheet_path"] == ""
+    assert not view.states["load"][0] and not view.states["new"][0] and not view.states["workspace"]
+    service.load_variants.assert_not_called()
+    service.compute_new_variants.assert_not_called()
+    assert not dialogs.windows
+
+
+def test_validation_precedes_activation_and_variant_loading(tmp_path):
+    path = _new_sheet(tmp_path)
+    service = build_service(master=FakeMasterSheet(rows=[{"J": "P"}]))
+    settings = MemorySettings()
+    view = FakeView()
+    dialogs = FakeDialogs(files=[path])
+    presenter = HomePresenter(view, service, settings, dialogs, run_inline)
+
+    def check(candidate):
+        assert candidate == path
+        if not presenter._master_valid:
+            assert not settings.load().get("master_sheet_path")
+            assert not view.states["load"][0] and not view.states["new"][0]
+            assert not view.rows
+        return ""
+
+    service._master_sheet_checker = Mock(side_effect=check)
+    presenter.browse_master_sheet()
+    assert service._master_sheet_checker.called
+    assert presenter._master_valid and settings.load()["master_sheet_path"] == path
+    assert view.rows == [{"J": "P"}]
+    assert view.states["load"][0] and view.states["new"][0] and view.states["workspace"]
+
+
+@pytest.mark.parametrize("operation", [
+    "load_variants", "new_variant", "update_master_sheet", "delete_selected",
+    "on_table_edited", "reload_variants", "refresh_latest_rows",
+])
+def test_revalidation_failure_clears_all_associated_variant_state(tmp_path, operation):
+    service = _checked_service(master=FakeMasterSheet(
+        rows=[{"_row": 11, "J": "P"}], webflow=[{"part_number": "P"}],
+    ))
+    presenter, view, dialogs, settings = _presenter(tmp_path, service)
+    presenter.load_variants()
+    presenter.on_table_edited()
+    view.selected = [0]
+    presenter._deleted_rows = [14]
+    presenter._deleted_parts = {14: "old"}
+    service._master_sheet_checker = lambda _: "Missing required Master Sheet column J7."
+    service.load_variants = Mock()
+    service.compute_new_variants = Mock()
+    service.save_variants = Mock()
+    getattr(presenter, operation)()
+    assert not view.rows and view.published[-1] == []
+    assert presenter._loaded_rows is None and not presenter._original_rows
+    assert not presenter._deleted_rows and not presenter._deleted_parts and not presenter._edited
+    assert settings.load()["master_sheet_path"] == ""
+    assert view.file_names["Master Sheet"] == ""
+    assert all(not view.states[action][0] for action in ("new", "load", "update"))
+    assert not view.states["delete"] and not view.states["clear"] and not view.states["workspace"]
+    assert dialogs.errors[-1][1] == "Missing required Master Sheet column J7."
+    service.load_variants.assert_not_called()
+    service.compute_new_variants.assert_not_called()
+    service.save_variants.assert_not_called()
+
+
+@pytest.mark.parametrize("change", ["removed", "cleared", "replaced"])
+def test_active_master_unavailability_or_setting_change_invalidates_workspace(tmp_path, change):
+    presenter, view, dialogs, settings = _presenter(
+        tmp_path, _checked_service(master=FakeMasterSheet(rows=[{"J": "P"}])),
+    )
+    presenter.load_variants()
+    path = settings.load()["master_sheet_path"]
+    if change == "removed":
+        from pathlib import Path
+        Path(path).unlink()
+    else:
+        settings.update(master_sheet_path="" if change == "cleared" else _new_sheet(tmp_path))
+    assert presenter.revalidate_master_sheet() is False
+    assert not presenter._master_valid and not view.rows and view.published[-1] == []
+    assert not view.states["load"][0] and not view.states["new"][0]
+    assert settings.load()["master_sheet_path"] == "" and dialogs.errors
+
+
+def test_background_load_does_not_restore_rows_after_validation_fails(tmp_path):
+    presenter, view, dialogs, _ = _presenter(tmp_path, _checked_service())
+    tasks = []
+    presenter._start_task = lambda *args: tasks.append(args)
+    presenter.load_variants()
+    assert presenter._busy and not view.states["load"][0] and not view.states["new"][0]
+    presenter._service._master_sheet_checker = lambda _: "Master Sheet structure was removed."
+    _, on_ok, _ = tasks[0]
+    on_ok(([{"J": "stale"}], [{"part_number": "stale"}]))
+    assert not presenter._master_valid and not view.rows and view.published[-1] == []
+    assert dialogs.errors[-1][1] == "Master Sheet structure was removed."
+    assert not presenter._busy and not view.states["workspace"]
+
+
+def test_invalidated_inflight_result_is_discarded(tmp_path):
+    presenter, view, dialogs, _ = _presenter(tmp_path, _checked_service())
+    tasks = []
+    presenter._start_task = lambda *args: tasks.append(args)
+    presenter.load_variants()
+    presenter._service._master_sheet_checker = lambda _: "Invalid workbook."
+    presenter.revalidate_master_sheet()
+    _, on_ok, _ = tasks[0]
+    on_ok(([{"J": "stale"}], [{"part_number": "stale"}]))
+    assert not view.rows and not view.states["workspace"]
+    assert not presenter._busy
+
+
+@pytest.mark.parametrize("operation", ["load", "new", "save"])
+def test_variant_service_revalidates_before_opening_any_documents(operation):
+    service = _checked_service("Invalid Master Sheet structure.")
+    service._master_sheet_factory = Mock()
+    service._ecu_info_factory = Mock()
+    with pytest.raises(ValueError, match="Invalid Master Sheet structure"):
+        if operation == "load":
+            service.load_variants("invalid.xlsx")
+        elif operation == "new":
+            service.compute_new_variants("invalid.xlsx", "ecu.xlsx", "matrix.xlsx")
+        else:
+            service.save_variants("invalid.xlsx", [{"J": "P"}])
+    service._master_sheet_factory.assert_not_called()
+    service._ecu_info_factory.assert_not_called()
+
+
+@pytest.mark.parametrize("change", ["deleted", "invalid"])
+def test_file_watcher_invalidates_active_master_and_publishes_empty_variants(qapp, tmp_path, change):
+    from PySide6.QtTest import QTest
+
+    path = tmp_path / "master.xlsx"
+    path.write_bytes(b"valid")
+    service = _checked_service(master=FakeMasterSheet(rows=[{"J": "P"}]))
+    service._master_sheet_checker = lambda candidate: "" if path.read_bytes() == b"valid" else "Invalid columns."
+    dialogs = FakeDialogs()
+    page = home_ui.HomeWidget(service, MemorySettings({"master_sheet_path": str(path)}), dialogs)
+    page._presenter._start_task = run_inline
+    page._presenter.load_variants()
+    published = []
+    page.variantsLoaded.connect(published.append)
+    assert page.row_count() == 1
+    if change == "deleted":
+        path.unlink()
+    else:
+        path.write_bytes(b"invalid")
+    for _ in range(20):
+        qapp.processEvents()
+        if not page._presenter._master_valid:
+            break
+        QTest.qWait(50)
+    assert not page._presenter._master_valid
+    assert page.row_count() == 0 and published == [[]]
+    assert not page._load_btn.isEnabled() and not page._create_btn.isEnabled()
+    assert not page._variant_table.isEnabled()
+    assert dialogs.errors
+    page.close()
+    page.deleteLater()
+
+
+def test_validation_exception_is_reported_and_clears_old_state(tmp_path):
+    presenter, view, dialogs, _ = _presenter(tmp_path, _checked_service())
+    view.rows = [{"J": "old"}]
+    presenter._service._master_sheet_checker = Mock(side_effect=OSError("Workbook unavailable"))
+    presenter.load_variants()
+    assert not view.rows and not presenter._master_valid
+    assert dialogs.errors[-1][1] == "Could not validate the Master Sheet: Workbook unavailable"
+
+
+@pytest.mark.parametrize("replacement", ["empty", "valid", "invalid"])
+def test_restoring_a_changed_selection_clears_the_previous_sheet_rows(tmp_path, replacement):
+    service = _checked_service(master=FakeMasterSheet(rows=[{"J": "old"}]))
+    presenter, view, _, settings = _presenter(tmp_path, service)
+    presenter.load_variants()
+    path = "" if replacement == "empty" else _new_sheet(tmp_path)
+    if replacement == "invalid":
+        service._master_sheet_checker = lambda _: "Missing columns."
+    settings.update(master_sheet_path=path)
+    presenter.restore_saved_paths()
+    assert not view.rows and view.published[-1] == []
+    assert presenter._master_valid is (replacement == "valid")
+    assert view.states["load"][0] is (replacement == "valid")
+    assert view.states["new"][0] is (replacement == "valid")
+
+
+def test_replacing_a_valid_master_with_an_invalid_selection_disables_every_action(qapp, tmp_path):
+    path = tmp_path / "master.xlsx"
+    path.touch()
+    invalid = _new_sheet(tmp_path)
+    service = _checked_service(master=FakeMasterSheet(rows=[{"J": "P"}]))
+    service._master_sheet_checker = lambda candidate: "" if candidate == str(path) else "Missing columns."
+    dialogs = FakeDialogs(files=[invalid])
+    page = home_ui.HomeWidget(service, MemorySettings({"master_sheet_path": str(path)}), dialogs)
+    page._presenter._start_task = run_inline
+    page._presenter.load_variants()
+    assert page.row_count() == 1
+    page._browse_btn.click()
+    assert page.row_count() == 0
+    assert not page._presenter._master_valid and not page._variant_table.isEnabled()
+    for button in (page._load_btn, page._create_btn, page._update_btn, page._clear_btn, page._delete_btn):
+        assert not button.isEnabled()
+    assert dialogs.errors == [("Load Master Sheet", "Missing columns.")]
+    assert page._settings.load()["master_sheet_path"] == ""
+    page.close()
+    page.deleteLater()

@@ -1,7 +1,7 @@
 """Parameter-map comparison of Master, target and optional base exports."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from enum import Enum
 
@@ -31,6 +31,8 @@ class ComparisonRow:
     target: ParameterValue
     status: Status
     base: ParameterValue = None
+    targets: tuple[ParameterValue, ...] = ()
+    target_statuses: tuple[Status, ...] = ()
 
     @property
     def deviation(self) -> bool:
@@ -102,4 +104,30 @@ def compare_xml_parameters(
         else:
             status = Status.MATCH if _equal(path, base_value, target_value) else Status.VALUE_MISMATCH
         rows.append(ComparisonRow(path, None, target_value, status, base_value))
+    return rows
+
+
+def compare_xml_datasets(
+    base: Mapping[str, ParameterValue], targets: Iterable[Mapping[str, ParameterValue]],
+    on_target: Callable[[int], None] = lambda _: None,
+) -> list[ComparisonRow]:
+    """Align the union of paths, retaining each target's calculated two-way status."""
+    compared = []
+    for index, target in enumerate(targets):
+        compared.append({row.parameter: row for row in compare_xml_parameters(base, target)})
+        on_target(index)
+    if not compared:
+        raise ValueError("Select at least one Target XML dataset.")
+    paths = base.keys() | {path for result in compared for path in result}
+    rows = []
+    for path in sorted(paths):
+        statuses = tuple(
+            result[path].status if path in result else Status.MISSING_IN_TARGET
+            for result in compared
+        )
+        values = tuple(result[path].target if path in result else None for result in compared)
+        status = statuses[0] if len(set(statuses)) == 1 else Status.VALUE_MISMATCH
+        rows.append(ComparisonRow(
+            path, None, values[0], status, base.get(path), values, statuses,
+        ))
     return rows

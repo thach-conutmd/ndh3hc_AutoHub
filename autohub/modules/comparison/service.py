@@ -2,45 +2,77 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Protocol
 
-from .comparison import ComparisonRow, compare_parameters, compare_xml_parameters
+from .comparison import ComparisonRow, compare_parameters, compare_xml_datasets
 from .matching import (
     master_parameters, match_variant, validate_export_link, validate_link, variant_identity,
 )
-from .xml_parser import MAX_XML_BYTES, parse_xml
+from .xml_parser import MAX_XML_BYTES, ParameterMap, parse_xml
 
 _logger = logging.getLogger(__name__)
 Progress = Callable[[int, str, str], None]
 
 
+class _ComparisonCancelled(Exception):
+    pass
+
+
 def compare_xml_files(
-    base_path: str, target_path: str, progress: Progress = lambda *_: None,
+    base_path: str, target_paths: str | Sequence[str], progress: Progress = lambda *_: None,
     cancelled: Callable[[], bool] = lambda: False,
 ) -> list[ComparisonRow] | None:
     """Read local exports without a browser or Master Sheet; never write either source."""
-    for label, path in (("Base", base_path), ("Target", target_path)):
+    targets = [target_paths] if isinstance(target_paths, str) else list(target_paths)
+    if not targets:
+        raise ValueError("Target XML: select at least one XML file.")
+    sources = [("Base", base_path), *(("Target", path) for path in targets)]
+    for label, path in sources:
         if not path or not Path(path).is_file() or Path(path).suffix.casefold() != ".xml":
-            raise ValueError(f"{label} XML: select an existing XML file.")
-    parameters = []
-    for label, path in (("Base", base_path), ("Target", target_path)):
-        if cancelled():
-            progress(0, "Cancelled", "")
-            return None
-        progress(0, f"Parsing {label} XML", "")
+            raise ValueError(f"{label} XML: select an existing XML file ({Path(path).name}).")
+
+    def read(label: str, path: str) -> ParameterMap:
         try:
             with open(path, "rb") as source:
-                parameters.append(parse_xml(source.read(MAX_XML_BYTES + 1)))
+                return parse_xml(source.read(MAX_XML_BYTES + 1))
         except (OSError, ValueError) as error:
-            raise ValueError(f"{label} XML: {error}") from error
+            raise ValueError(f"{label} XML: {error} ({Path(path).name})") from error
+
+    def cancel() -> None:
+        for index in range(len(targets)):
+            progress(index, "Cancelled", "")
+
     if cancelled():
-        progress(0, "Cancelled", "")
+        cancel()
         return None
-    progress(0, "Comparing", "")
-    rows = compare_xml_parameters(parameters[0], parameters[1])
-    progress(0, "Completed", "")
+    progress(0, "Parsing Base XML", "")
+    base = read("Base", base_path)
+
+    def datasets() -> Iterator[ParameterMap]:
+        for index, path in enumerate(targets):
+            if cancelled():
+                raise _ComparisonCancelled
+            progress(index, "Parsing Target XML", "")
+            target = read("Target", path)
+            progress(index, "Comparing", "")
+            yield target
+
+    if cancelled():
+        cancel()
+        return None
+    try:
+        rows = compare_xml_datasets(
+            base, datasets(), on_target=lambda index: progress(index, "Completed", ""),
+        )
+    except _ComparisonCancelled:
+        cancel()
+        return None
+    if cancelled():
+        cancel()
+        return None
     return rows
 
 
