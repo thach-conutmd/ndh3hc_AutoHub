@@ -29,6 +29,7 @@ class VariantResult:
     software: str
     rows: list[ComparisonRow] = field(default_factory=list)
     error: str = ""
+    cancelled: bool = False
 
 
 class ComparisonService:
@@ -38,6 +39,7 @@ class ComparisonService:
     def run(
         self, selected: list[dict], master_variants: list[dict],
         connection: dict | None = None, progress: Progress = lambda *_: None,
+        cancelled: Callable[[], bool] = lambda: False,
     ) -> list[VariantResult]:
         if not selected:
             return []
@@ -72,14 +74,18 @@ class ComparisonService:
                     str(variant.get("hardware", {}).get("software_part_number") or ""),
                 )
                 results.append(result)
+                if cancelled():
+                    result.cancelled = True
+                    progress(index, "Cancelled", "")
+                    continue
                 try:
-                    progress(index, "Exporting Target", "")
+                    progress(index, "Exporting Target XML", "")
                     target = parse_xml(export(variant.get("webflow_link") or ""))
                     validate_export_link(target, variant.get("webflow_link") or "")
                     base = None
                     base_link = (variant.get("base_webflow_link") or "").strip()
                     if base_link:
-                        progress(index, "Exporting Base", "")
+                        progress(index, "Exporting Base XML", "")
                         try:
                             base = parse_xml(export(base_link))
                             validate_export_link(base, base_link)

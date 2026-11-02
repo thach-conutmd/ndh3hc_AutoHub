@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from threading import Event
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -17,6 +18,7 @@ from autohub.ui.theme import set_muted
 
 from .comparison import ComparisonRow, Status
 from .matching import validate_link
+from .progress import ComparisonProgressDialog
 from .service import ComparisonService, VariantResult
 from .xml_parser import ParameterValue
 
@@ -51,6 +53,8 @@ class ComparisonWidget(QWidget):
         self._run_rows: list[int] = []
         self._base_mode = False
         self._base_variants: set[tuple[str, str]] = set()
+        self._cancel = Event()
+        self._progress_dialog: ComparisonProgressDialog | None = None
 
         title = QLabel("Comparison")
         title.setStyleSheet("font-size: 20px; font-weight: 600;")
@@ -262,8 +266,21 @@ class ComparisonWidget(QWidget):
         for row in rows:
             self._set_variant_status(row, "Pending", "")
         self._summary.setText(f"Comparing {len(rows)} selected variants...")
+        self._cancel = Event()
+        if self._progress_dialog is not None:
+            self._progress_dialog.close()
+            self._progress_dialog.deleteLater()
+        self._progress_dialog = ComparisonProgressDialog([
+            (str(variant["part_number"]), str(variant.get("hardware", {}).get("software_part_number") or ""))
+            for variant in selected
+        ], self)
+        self._progress_dialog.cancel_requested.connect(self._cancel.set)
+        self._progress_dialog.show()
         self._worker = FunctionWorker(
-            lambda: self._service.run(selected, masters, connection=connection, progress=self._progress.emit),
+            lambda: self._service.run(
+                selected, masters, connection=connection, progress=self._progress.emit,
+                cancelled=self._cancel.is_set,
+            ),
             self,
         )
         self._worker.finished_ok.connect(self._finish)
@@ -276,6 +293,8 @@ class ComparisonWidget(QWidget):
         self._variants_table.item(row, 6).setToolTip(error)
 
     def _on_progress(self, index: int, status: str, error: str) -> None:
+        if self._progress_dialog is not None:
+            self._progress_dialog.update_status(index, status, error)
         if self._run_revision != self._revision:
             return
         if 0 <= index < len(self._run_rows):
@@ -287,14 +306,18 @@ class ComparisonWidget(QWidget):
             self._worker.deleteLater()
             self._worker = None
         self._set_running(False)
+        if self._progress_dialog is not None:
+            self._progress_dialog.finish()
         if self._run_revision != self._revision:
             self._summary.setText("Master data changed during comparison. Select variants and compare again.")
             return
         self._rows = [(result.variant, result.software, row) for result in results for row in result.rows]
         self._render_results()
         failed = sum(bool(result.error) for result in results)
+        cancelled = sum(result.cancelled for result in results)
         self._summary.setText(
-            f"{len(results) - failed} completed; {failed} failed. " + self._summary.text()
+            f"{len(results) - failed - cancelled} completed; {failed} failed. "
+            + (f"{cancelled} cancelled. " if cancelled else "") + self._summary.text()
         )
 
     def _fail(self, error: str) -> None:
@@ -303,6 +326,8 @@ class ComparisonWidget(QWidget):
             self._worker.deleteLater()
             self._worker = None
         self._set_running(False)
+        if self._progress_dialog is not None:
+            self._progress_dialog.finish(error)
         if self._run_revision == self._revision:
             for row in self._run_rows:
                 self._set_variant_status(row, "Failed", error)
@@ -361,5 +386,6 @@ class ComparisonWidget(QWidget):
         return True
 
     def shutdown(self) -> None:
+        self._cancel.set()
         if self._worker is not None:
             self._worker.wait()

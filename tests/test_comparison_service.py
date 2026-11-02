@@ -1,5 +1,6 @@
 """Batch comparisons isolate per-job failures and reuse one authenticated export session."""
 from unittest.mock import Mock, call
+from threading import Event
 
 import pytest
 
@@ -32,7 +33,7 @@ def test_sequential_batch_uses_one_browser_and_exact_job_links():
     assert len(results) == 2 and all(result.rows and not result.error for result in results)
     for index in range(2):
         assert [args[1] for args, _ in progress.call_args_list if args[0] == index] == [
-            "Pending", "Exporting Target", "Comparing", "Completed",
+            "Pending", "Exporting Target XML", "Comparing", "Completed",
         ]
 
 
@@ -105,7 +106,7 @@ def test_each_variant_exports_its_own_base_after_its_target(second_base_id):
     assert [row.status for row in power_rows] == [Status.MATCHES_BOTH, Status.MATCHES_MASTER]
     for index in range(2):
         assert [args[1] for args, _ in progress.call_args_list if args[0] == index] == [
-            "Pending", "Exporting Target", "Exporting Base", "Comparing", "Completed",
+            "Pending", "Exporting Target XML", "Exporting Base XML", "Comparing", "Completed",
         ]
 
 
@@ -162,3 +163,33 @@ def test_failed_export_session_is_closed_and_replaced_before_next_variant():
     assert results[1].rows and not results[1].error
     replacement.open_dashboard_page.assert_called_once()
     replacement.quit.assert_called_once()
+
+
+def test_cancel_before_start_skips_all_exports():
+    variants = [variant(), variant("P2")]
+    factory, progress = Mock(), Mock()
+    results = ComparisonService(factory).run(variants, variants, progress=progress, cancelled=lambda: True)
+    factory.assert_not_called()
+    assert all(result.cancelled and not result.rows and not result.error for result in results)
+    assert call(0, "Cancelled", "") in progress.call_args_list
+    assert call(1, "Cancelled", "") in progress.call_args_list
+
+
+def test_cancel_during_target_finishes_its_base_and_keeps_results():
+    variants = [variant(), variant("P2")]
+    variants[0]["base_webflow_link"] = "https://webflow/app/ShowJob/99"
+    cancel = Event()
+    session, factory = session_factory([])
+
+    def export(link):
+        cancel.set()
+        return export_xml(target_parameters(), job_id="99" if link.endswith("/99") else "12")
+
+    session.export_job_xml.side_effect = export
+    results = ComparisonService(factory).run(variants, variants, cancelled=cancel.is_set)
+    assert results[0].rows and not results[0].cancelled
+    assert results[1].cancelled and not results[1].rows
+    assert session.export_job_xml.call_args_list == [
+        call(variants[0]["webflow_link"]), call(variants[0]["base_webflow_link"]),
+    ]
+    session.quit.assert_called_once()
