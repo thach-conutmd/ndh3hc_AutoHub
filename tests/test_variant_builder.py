@@ -83,7 +83,6 @@ def test_saved_new_variant_defaults_override_only_the_configured_fields():
         NEW_VARIANT_DEFAULTS_KEY: {
             "ecu_generation": "MG2",
             "brand": "Acme",
-            "delivery_type": "Trial",
             "safety_monitoring": False,
             "ecu_default_id": "CUSTOM-ID",
             "project_number_first_part": 271,
@@ -94,12 +93,12 @@ def test_saved_new_variant_defaults_override_only_the_configured_fields():
     values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM, variant_defaults=defaults)
     assert values["Q"] == "MG2"
     assert values["R"] == "Acme"
-    assert values["T"] == "Trial" and values["X"] == "No"
+    assert values["X"] == "No"
     assert values["BH"] == "CUSTOM-ID"
     assert values["AL"] == 271
     assert values["AU"] == "CUSTOMER"
     assert values["CN"] == "0123456789AB"
-    assert values["U"] == "Production"
+    assert not set(("T", "U", "V", "W")) & values.keys()
 
 
 def test_invalid_saved_new_variant_defaults_fall_back_to_current_defaults():
@@ -114,7 +113,6 @@ def test_invalid_saved_new_variant_defaults_fall_back_to_current_defaults():
     assert defaults.brand == "Honda"
     assert defaults.safety_monitoring is True
     assert defaults.project_number_first_part == 159
-    assert defaults.release_class == "Pilot"
 
 
 def test_project_purpose_uses_project_event_and_milestone():
@@ -336,4 +334,5 @@ def test_sw_version_is_01_for_mg1cs022_only_and_indi_spec_is_filled():
         assert values["CQ"] == expected
     values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM)
     assert values["BC"] == "Honda_MG1CS022_CS_IndiSpec_01"
+    assert not set(("T", "U", "V", "W")) & values.keys()
     assert webflow_variant_from_row("P", {"BC": "Custom", "BD": "MG1CS022"})["ecu"]["indi_spec"] == "Custom"

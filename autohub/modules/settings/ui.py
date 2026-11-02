@@ -187,7 +187,8 @@ class SettingsWidget(QWidget):
             creation_group: "Configure the WebFlow connection and ECR details. Leave all four ECR "
                             "fields empty to skip ECR import, or complete all four to enable it.",
             new_variants_group: "Set the default values used when New variants builds Master Sheet rows. "
-                                "Values already supplied by source files remain unchanged.",
+                                "Configurator Items are not defaults; required values must be filled in the "
+                                "Master Sheet before creating WebFlow jobs.",
             retry_group: "Recover from browser failures without recreating completed jobs. "
                          "After an app crash, AutoHub asks before resuming saved progress.",
             exclusions_group: "Exclude parameters/rows whose normalized paths start with these prefixes. "

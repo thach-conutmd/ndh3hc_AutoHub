@@ -32,7 +32,7 @@ def test_invalid_checkbox_is_not_silently_replaced():
         webflow_variant_from_row("PN", {"X": "unexpected"})
 
 
-def test_blank_cells_stay_empty_except_checkboxes_default_to_false():
+def test_blank_cells_stay_empty_except_optional_checkboxes():
     variant = webflow_variant_from_row("PN", {})
     assert not variant["ecu_generation"] and not variant["brand"] and not variant["ecu_type"]
     assert all(variant["general"][key] is False for key in (
@@ -57,9 +57,41 @@ def test_required_creation_fields_are_rejected_before_submission(missing):
 
 def test_mixed_creation_values_are_rejected():
     session = Mock()
-    variant = {"part_number": "PN", "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "MG1CS022"}
+    variant = {
+        "part_number": "PN", "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "MG1CS022",
+        "general": {
+            "delivery_type": "Plant Introduction", "release_class": "Production",
+            "release_scope": "Program and Data", "limitations": "NO",
+            "safety_monitoring": True, "safety_calibration": False,
+            "calibration": True, "data_integration": True,
+        },
+    }
     with pytest.raises(ValueError, match="same Master Sheet"):
         WebFlow.create_and_fill_jobs(session, [variant, {**variant, "brand": "Other brand"}], "tool", "routing")
+
+
+@pytest.mark.parametrize(
+    "key,label,column",
+    [
+        ("delivery_type", "Delivery Type", "T"),
+        ("release_class", "Release Class", "U"),
+        ("release_scope", "Release Scope", "V"),
+        ("limitations", "Limitations", "W"),
+    ],
+)
+def test_required_configurator_items_are_rejected_before_submission(key, label, column):
+    session = Mock()
+    row = {
+        "Q": "MG1", "R": "Honda", "S": "MG1CS022",
+        "T": "Plant Introduction", "U": "Production", "V": "Program and Data", "W": "NO",
+        "X": "Yes", "Y": "No", "Z": "Yes", "AA": "Yes",
+    }
+    row[column] = ""
+    variant = webflow_variant_from_row("PN", row)
+
+    with pytest.raises(ValueError, match=f"PN.*{label}"):
+        WebFlow.create_and_fill_jobs(session, [variant], "tool", "routing")
+    session.open_dashboard_page.assert_not_called()
 
 
 def test_brand_and_ecu_type_are_taken_from_sheet_not_method_defaults():
@@ -67,7 +99,11 @@ def test_brand_and_ecu_type_are_taken_from_sheet_not_method_defaults():
     session.body.job_creation.jobs_creation.return_value = True
     session.body.job_creation.get_new_jobs_ids.return_value = ["1"]
     session._fill_job.return_value = []
-    variant = webflow_variant_from_row("PN", {"Q": "MED17", "R": "Sheet brand", "S": "MED17.9"})
+    variant = webflow_variant_from_row("PN", {
+        "Q": "MED17", "R": "Sheet brand", "S": "MED17.9",
+        "T": "Plant Introduction", "U": "Production", "V": "Program and Data", "W": "NO",
+        "X": "Yes", "Y": "No", "Z": "Yes", "AA": "Yes",
+    })
     WebFlow.create_and_fill_jobs(session, [variant], "tool", "routing")
     args = session.body.job_creation.jobs_creation.call_args.kwargs
     assert args["ecu_generation"] == "MED17" and args["ecu_type"] == "MED17.9"
@@ -78,7 +114,11 @@ def test_job_results_retain_each_variants_allocated_number():
     session = Mock()
     session.body.job_creation.get_new_jobs_ids.return_value = ["1", "2"]
     variants = [
-        webflow_variant_from_row(part_number, {"Q": "MG1", "R": "Honda", "S": "MG1CS022"})
+        webflow_variant_from_row(part_number, {
+            "Q": "MG1", "R": "Honda", "S": "MG1CS022",
+            "T": "Plant Introduction", "U": "Production", "V": "Program and Data", "W": "NO",
+            "X": "Yes", "Y": "No", "Z": "Yes", "AA": "Yes",
+        })
         for part_number in ("PN1", "PN2")
     ]
     numbers = {"PN1": "10SW072930", "PN2": "10SW072931"}

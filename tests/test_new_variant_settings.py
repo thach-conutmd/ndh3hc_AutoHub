@@ -19,6 +19,8 @@ def test_new_variant_defaults_are_saved_and_restored(qapp):
     assert saved["brand"] == "Acme"
     assert saved["safety_monitoring"] is False
     assert saved["project_number_first_part"] == 271
+    assert "delivery_type" not in saved
+    assert page._new_variant_defaults._groups.keys() == {"General", "Hardware/Plant", "ECU", "Customer"}
     assert NEW_VARIANT_DEFAULTS_KEY in changed[0]
     restored = SettingsWidget(settings, FakeDialogs())
     assert restored._new_variant_defaults.values() == saved

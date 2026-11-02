@@ -1,4 +1,5 @@
 import zlib
+from datetime import date
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -20,6 +21,9 @@ def variant(index: int, checksum=""):
     return {
         "part_number": f"PART-{index}",
         "webflow_link": f"https://webflow/app/ShowJob/{index}",
+        "project": "62XS",
+        "event_name": "CERT_MP1",
+        "ecu_type": "MG1CS022",
         "form_b": {
             "AP": "MG1CS022",
             "AN": f"0261S10BC{index}",
@@ -65,6 +69,7 @@ def test_form_b_uses_master_checksum_without_opening_webflow(tmp_path):
     webflow = Mock()
     service = FormBService(lambda: webflow)
     output = service.generate([variant(1, "abcd1234")], tmp_path / "form.xlsx")
+    assert output.name.startswith("62XS_MP1_FORMB_MG1CS022_")
     workbook = openpyxl.load_workbook(output, data_only=True)
     try:
         sheet = workbook["FormB"]
@@ -132,6 +137,38 @@ def test_form_b_variants_fill_six_column_blocks_and_keep_template_formatting(
     finally:
         workbook.close()
         template.close()
+
+
+def test_form_b_filename_uses_master_fields_and_generation_date(tmp_path):
+    output = export_form_b(
+        [variant(1)],
+        {"PART-1": "00000001"},
+        tmp_path / "selected-name.xlsx",
+        today=date(2026, 3, 26),
+    )
+    assert output.name == "62XS_MP1_FORMB_MG1CS022_20260326.xlsx"
+
+
+def test_form_b_filename_sanitizes_invalid_path_characters(tmp_path):
+    item = variant(1)
+    item.update(project="62XS:Test", ecu_type="MG1/CS022")
+    output = export_form_b(
+        [item],
+        {"PART-1": "00000001"},
+        tmp_path / "selected-name.xlsx",
+        today=date(2026, 3, 26),
+    )
+    assert output.name == "62XS_Test_MP1_FORMB_MG1_CS022_20260326.xlsx"
+
+
+def test_form_b_rejects_variants_with_different_filename_fields(tmp_path):
+    with pytest.raises(ValueError, match="same Master Sheet Project, Phase and ECU Type"):
+        export_form_b(
+            [variant(1), {**variant(2), "project": "OTHER"}],
+            {"PART-1": "00000001", "PART-2": "00000002"},
+            tmp_path / "selected-name.xlsx",
+            today=date(2026, 3, 26),
+        )
 
 
 class FastWait:
