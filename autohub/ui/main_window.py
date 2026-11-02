@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from autohub.config import APP_NAME, APP_VERSION, LOGO_PATH
 from autohub.core.capabilities import (
-    Closable, LeaveGuard, StartupPreload, StartupTask, VariantSink, VariantSource, WebFlowLinkSink, WebFlowLinkSource,
+    Closable, LeaveGuard, MasterReloadSink, MasterReloadSource, StartupPreload, StartupTask, VariantSink, VariantSource, WebFlowLinkSink, WebFlowLinkSource,
     WebFlowNumberSink, WebFlowNumberSource,
     WebFlowOptionsSink, WebFlowOptionsSource,
     SettingsSink, SettingsSource,
@@ -73,6 +73,9 @@ class MainWindow(QMainWindow):
         for source in (w for w in widgets if isinstance(w, WebFlowOptionsSource)):
             for sink in (w for w in widgets if isinstance(w, WebFlowOptionsSink)):
                 source.webflowOptionsUpdated.connect(sink.set_webflow_options)
+        for source in (w for w in widgets if isinstance(w, MasterReloadSource)):
+            for sink in (w for w in widgets if isinstance(w, MasterReloadSink)):
+                source.masterReloadRequested.connect(sink.reload_master)
         for source in (w for w in widgets if isinstance(w, SettingsSource)):
             for sink in (w for w in widgets if isinstance(w, SettingsSink)):
                 source.settingsChanged.connect(sink.apply_settings)

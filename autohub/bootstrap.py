@@ -5,6 +5,7 @@ from autohub.core.batch_journal import JsonBatchJournal
 from autohub.core.com import com_session
 from autohub.core.module_base import AutoHubModule
 from autohub.core.settings import JsonSettingsStore, SettingsStore
+from autohub.modules.comparison.impl_update import MasterImplUpdater
 from autohub.modules.comparison.module import ComparisonModule
 from autohub.modules.comparison.service import ComparisonService
 from autohub.modules.creation.module import CreationModule
@@ -38,6 +39,8 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
     return [
         HomeModule(build_variant_service, settings),
         CreationModule(lambda: WebFlowJobService(WebFlow, open_master_sheet, com_session, journal=JsonBatchJournal()), settings),
-        ComparisonModule(lambda: ComparisonService(WebFlow), settings),
+        ComparisonModule(
+            lambda: ComparisonService(WebFlow), settings, lambda: MasterImplUpdater(open_master_sheet, com_session)
+        ),
         SettingsModule(settings),
     ]
