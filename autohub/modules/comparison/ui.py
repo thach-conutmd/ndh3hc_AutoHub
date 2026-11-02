@@ -20,8 +20,9 @@ from .matching import validate_link
 from .service import ComparisonService, VariantResult
 from .xml_parser import ParameterValue
 
-_TARGET_HEADERS = ("Variant", "SW Part Number", "Parameter", "Master Value", "Webflow Value", "Status")
+_TARGET_HEADERS = ("Variant", "SW Part Number", "Parameter", "Master", "Target", "Status")
 _BASE_HEADERS = ("Variant", "SW Part Number", "Parameter", "Master", "Base", "Target", "Status")
+_VARIANT_HEADERS = ("Select", "Variant", "SW Part Number", "WebFlow Link", "Base WebFlow Link", "Status", "Error")
 
 
 def _display(value: ParameterValue) -> str:
@@ -49,6 +50,7 @@ class ComparisonWidget(QWidget):
         self._run_revision = 0
         self._run_rows: list[int] = []
         self._base_mode = False
+        self._base_variants: set[tuple[str, str]] = set()
 
         title = QLabel("Comparison")
         title.setStyleSheet("font-size: 20px; font-weight: 600;")
@@ -58,24 +60,25 @@ class ComparisonWidget(QWidget):
         )
         subtitle.setWordWrap(True)
         set_muted(subtitle, True)
-        self._variants_table = QTableWidget(0, 4)
-        self._variants_table.setHorizontalHeaderLabels(("Select", "Variant | SW Part Number", "Status", "Error"))
-        self._variants_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._variants_table = QTableWidget(0, len(_VARIANT_HEADERS))
+        self._variants_table.setHorizontalHeaderLabels(_VARIANT_HEADERS)
+        self._variants_table.setEditTriggers(
+            QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed | QAbstractItemView.SelectedClicked
+        )
+        self._variants_table.setTextElideMode(Qt.ElideRight)
+        self._variants_table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self._variants_table.verticalHeader().setVisible(False)
-        self._variants_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self._variants_table.horizontalHeader().setStretchLastSection(True)
+        self._variants_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        for column, width in enumerate((55, 130, 130, 240, 240, 125, 180)):
+            self._variants_table.setColumnWidth(column, width)
         self._variants_table.setMaximumHeight(160)
         self._select_all_btn = QPushButton("Select all")
         self._clear_selection_btn = QPushButton("Clear selection")
-        self._base_link = QLineEdit()
-        self._base_link.setPlaceholderText("Optional Base WebFlow Link")
-        self._base_status = QLabel()
-        self._base_status.setWordWrap(True)
         self._compare_btn = QPushButton("Compare selected")
         sources = QHBoxLayout()
         sources.addWidget(self._select_all_btn)
         sources.addWidget(self._clear_selection_btn)
-        sources.addWidget(self._base_link, 1)
+        sources.addStretch(1)
         sources.addWidget(self._compare_btn)
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search parameters, values, variants or status...")
@@ -105,14 +108,12 @@ class ComparisonWidget(QWidget):
         layout.addWidget(subtitle)
         layout.addWidget(self._variants_table)
         layout.addLayout(sources)
-        layout.addWidget(self._base_status)
         layout.addLayout(filters)
         layout.addWidget(self._table, 1)
         layout.addWidget(self._summary)
         self._select_all_btn.clicked.connect(self._select_all)
         self._clear_selection_btn.clicked.connect(self._clear_selection)
         self._variants_table.itemChanged.connect(self._selection_changed)
-        self._base_link.textChanged.connect(self._source_changed)
         self._compare_btn.clicked.connect(self._compare)
         self._search.textChanged.connect(self._apply_filters)
         self._variant_filter.currentIndexChanged.connect(self._apply_filters)
@@ -140,6 +141,13 @@ class ComparisonWidget(QWidget):
         self._refresh_variants()
 
     def _refresh_variants(self) -> None:
+        previous = {
+            tuple(self._variants_table.item(row, column).text() for column in (1, 2, 3)): (
+                self._variants_table.item(row, 0).checkState(),
+                self._variants_table.item(row, 4).text(),
+            )
+            for row in range(self._variants_table.rowCount())
+        }
         self._variants_table.blockSignals(True)
         self._variants_table.setRowCount(0)
         for index, variant in enumerate(self._variants):
@@ -151,12 +159,16 @@ class ComparisonWidget(QWidget):
             self._variants_table.insertRow(row)
             checkbox = QTableWidgetItem()
             checkbox.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
-            checkbox.setCheckState(Qt.Unchecked)
+            software = str(variant.get("hardware", {}).get("software_part_number") or "")
+            identity = (str(variant["part_number"]), software, str(variant["webflow_link"]))
+            checked, base_link = previous.get(identity, (Qt.Unchecked, ""))
+            checkbox.setCheckState(checked)
             checkbox.setData(Qt.UserRole, index)
             self._variants_table.setItem(row, 0, checkbox)
-            software = str(variant.get("hardware", {}).get("software_part_number") or "")
-            for column, text in enumerate((f"{variant['part_number']} | {software}", "Pending", ""), 1):
+            for column, text in enumerate((*identity, base_link, "Pending", ""), 1):
                 item = QTableWidgetItem(str(text))
+                if column != 4:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 item.setToolTip(str(text))
                 self._variants_table.setItem(row, column, item)
         self._variants_table.blockSignals(False)
@@ -182,16 +194,22 @@ class ComparisonWidget(QWidget):
         self._source_changed()
 
     def _selection_changed(self, item: QTableWidgetItem) -> None:
-        if item.column() == 0:
+        if item.column() in (0, 4):
+            self._variants_table.blockSignals(True)
+            item.setToolTip(item.text())
+            self._variants_table.blockSignals(False)
             self._source_changed()
 
     def _source_changed(self, *_args) -> None:
         self._revision += 1
         self._rows = []
         self._table.setRowCount(0)
-        self._base_status.clear()
         self._summary.setText("Select linked variants, then Compare selected.")
-        self._base_mode = bool(self._base_link.text().strip())
+        self._base_variants = {
+            (self._variants_table.item(row, 1).text(), self._variants_table.item(row, 2).text())
+            for row in self._selected_rows() if self._variants_table.item(row, 4).text().strip()
+        }
+        self._base_mode = bool(self._base_variants)
         headers = _BASE_HEADERS if self._base_mode else _TARGET_HEADERS
         self._table.setColumnCount(len(headers))
         self._table.setHorizontalHeaderLabels(headers)
@@ -203,7 +221,7 @@ class ComparisonWidget(QWidget):
         self._status_filter.clear()
         self._status_filter.addItem("All statuses")
         statuses = (
-            (Status.MATCHES_MASTER, Status.MATCHES_BASE, Status.MATCHES_BOTH, Status.MATCHES_NEITHER)
+            tuple(Status)
             if self._base_mode else
             (Status.MATCH, Status.VALUE_MISMATCH, Status.MISSING_IN_MASTER, Status.MISSING_IN_WEBFLOW)
         )
@@ -214,7 +232,6 @@ class ComparisonWidget(QWidget):
     def _set_running(self, running: bool) -> None:
         self._running = running
         self._variants_table.setEnabled(not running)
-        self._base_link.setEnabled(not running)
         self._select_all_btn.setEnabled(not running and self._variants_table.rowCount() > 0)
         self._clear_selection_btn.setEnabled(not running and bool(self._selected_rows()))
         self._compare_btn.setEnabled(not running and bool(self._selected_rows()))
@@ -231,8 +248,9 @@ class ComparisonWidget(QWidget):
         selected = deepcopy([
             self._variants[self._variants_table.item(row, 0).data(Qt.UserRole)] for row in rows
         ])
+        for row, variant in zip(rows, selected):
+            variant["base_webflow_link"] = self._variants_table.item(row, 4).text().strip()
         masters = deepcopy(self._variants)
-        base_link = self._base_link.text().strip()
         saved = self._settings.load() if self._settings is not None else {}
         connection = {"driver_path": ""}
         if saved.get("webflow_base_url"):
@@ -245,7 +263,7 @@ class ComparisonWidget(QWidget):
             self._set_variant_status(row, "Pending", "")
         self._summary.setText(f"Comparing {len(rows)} selected variants...")
         self._worker = FunctionWorker(
-            lambda: self._service.run(selected, masters, base_link, connection, self._progress.emit),
+            lambda: self._service.run(selected, masters, connection=connection, progress=self._progress.emit),
             self,
         )
         self._worker.finished_ok.connect(self._finish)
@@ -253,16 +271,14 @@ class ComparisonWidget(QWidget):
         self._worker.start()
 
     def _set_variant_status(self, row: int, status: str, error: str) -> None:
-        self._variants_table.item(row, 2).setText(status)
-        self._variants_table.item(row, 3).setText(error)
-        self._variants_table.item(row, 3).setToolTip(error)
+        self._variants_table.item(row, 5).setText(status)
+        self._variants_table.item(row, 6).setText(error)
+        self._variants_table.item(row, 6).setToolTip(error)
 
     def _on_progress(self, index: int, status: str, error: str) -> None:
         if self._run_revision != self._revision:
             return
-        if index == -1:
-            self._base_status.setText(f"Base: {status}" + (f" - {error}" if error else ""))
-        elif 0 <= index < len(self._run_rows):
+        if 0 <= index < len(self._run_rows):
             self._set_variant_status(self._run_rows[index], status, error)
 
     def _finish(self, results: list[VariantResult]) -> None:
@@ -303,7 +319,8 @@ class ComparisonWidget(QWidget):
         self._table.setRowCount(len(self._rows))
         for index, (part, software, row) in enumerate(self._rows):
             values = (
-                (part, software, row.parameter, _display(row.master), _display(row.base),
+                (part, software, row.parameter, _display(row.master),
+                 _display(row.base) if (part, software) in self._base_variants else "",
                  _display(row.target), row.status.value)
                 if self._base_mode else
                 (part, software, row.parameter, _display(row.master), _display(row.target), row.status.value)

@@ -36,7 +36,7 @@ class ComparisonService:
         self._factory = webflow_factory
 
     def run(
-        self, selected: list[dict], master_variants: list[dict], base_link: str = "",
+        self, selected: list[dict], master_variants: list[dict],
         connection: dict | None = None, progress: Progress = lambda *_: None,
     ) -> list[VariantResult]:
         if not selected:
@@ -66,18 +66,6 @@ class ComparisonService:
         try:
             for index in range(len(selected)):
                 progress(index, "Pending", "")
-            base = None
-            base_error = ""
-            if base_link.strip():
-                progress(-1, "Exporting XML", "")
-                try:
-                    base = parse_xml(export(base_link))
-                    validate_export_link(base, base_link)
-                    progress(-1, "Completed", "")
-                except Exception as error:
-                    _logger.exception("Base WebFlow XML export failed")
-                    base_error = f"Base XML: {error}"
-                    progress(-1, "Failed", base_error)
             for index, variant in enumerate(selected):
                 result = VariantResult(
                     str(variant.get("part_number") or ""),
@@ -85,11 +73,18 @@ class ComparisonService:
                 )
                 results.append(result)
                 try:
-                    if base_error:
-                        raise ValueError(base_error)
-                    progress(index, "Exporting XML", "")
+                    progress(index, "Exporting Target", "")
                     target = parse_xml(export(variant.get("webflow_link") or ""))
                     validate_export_link(target, variant.get("webflow_link") or "")
+                    base = None
+                    base_link = (variant.get("base_webflow_link") or "").strip()
+                    if base_link:
+                        progress(index, "Exporting Base", "")
+                        try:
+                            base = parse_xml(export(base_link))
+                            validate_export_link(base, base_link)
+                        except Exception as error:
+                            raise ValueError(f"Base XML: {error}") from error
                     progress(index, "Comparing", "")
                     matched = match_variant(master_variants, target)
                     if variant_identity(matched) != variant_identity(variant):
