@@ -166,7 +166,7 @@ class ComparisonWidget(QWidget):
                 source_row.addWidget(filename, 1)
             self._xml_buttons[label] = button
             self._xml_labels[label] = filename
-        self._clear_targets_btn = QPushButton("Clear All")
+        self._clear_targets_btn = QPushButton("Clear Data")
         self._clear_targets_btn.clicked.connect(self._clear_targets)
         self._clear_targets_btn.hide()
         source_row.addWidget(self._clear_targets_btn)
@@ -350,13 +350,7 @@ class ComparisonWidget(QWidget):
     def _clear_data(self) -> None:
         if self._running:
             return
-        self._xml_paths["Base"] = ""
-        self._base_chips.set_files([])
-        self._xml_labels["Base"].show()
-        self._target_paths.clear()
-        self._refresh_target_files()
-        self._set_selection(Qt.Unchecked)
-        self._mode_results.clear()
+        self._mode_results.pop(self._manual_mode, None)
         self._revision += 1
         self._rows = []
         self._reviews = {}
@@ -364,8 +358,6 @@ class ComparisonWidget(QWidget):
         self._base_variants = set()
         self._compared_files = None
         self._run_files = ()
-        for row in range(self._variants_table.rowCount()):
-            self._set_variant_status(row, "Pending", "")
         self._render_results()
         self._source_changed()
 

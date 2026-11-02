@@ -63,12 +63,16 @@ def visible_rows(page):
 def test_master_comparison_reads_latest_saved_exclusions(qapp, master_only):
     settings = MemorySettings({"xml_comparison_exclusions_master_only": master_only})
     page, dialogs, _, _ = build_page(
-        exports=[export_xml(target_parameters()), export_xml(target_parameters())], settings=settings,
+        exports=[export_xml(target_parameters()) for _ in range(3)], settings=settings,
     )
     page._select_all_btn.click()
-    for prefixes, power_present in ((["General/Power"], False), ([], True)):
+    for prefixes, disabled, power_present in (
+        (["General/Power"], [], False),
+        (["General/Power"], ["General/Power"], True),
+        ([], [], True),
+    ):
         previous = page._rows
-        settings.update(xml_comparison_exclusions=prefixes)
+        settings.update(xml_comparison_exclusions=prefixes, xml_comparison_disabled_exclusions=disabled)
         assert page._rows is previous
         page._compare()
         wait_done(page, qapp)
@@ -942,7 +946,8 @@ def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
         page.deleteLater()
 
 
-def test_clear_data_resets_sources_and_comparison_results(qapp, tmp_path):
+@pytest.mark.parametrize("manual", [False, True])
+def test_clear_data_preserves_sources_and_variant_table(qapp, tmp_path, manual):
     page, _, _, _ = build_page()
     try:
         page._select_all()
@@ -957,22 +962,40 @@ def test_clear_data_resets_sources_and_comparison_results(qapp, tmp_path):
         page._xml_labels["Base"].hide()
         page._target_paths.append(target_path)
         page._refresh_target_files()
+        page._variants_table.item(0, 3).setText("https://webflow/app/ShowJob/99")
+        page._set_variant_status(0, "Completed", "Retained status details")
+        upper = [
+            (page._variants_table.item(0, column).text(),
+             page._variants_table.item(0, column).data(Qt.UserRole),
+             page._variants_table.item(0, column).checkState())
+            for column in range(page._variants_table.columnCount())
+        ]
+        if manual:
+            page._manual_mode_btn.click()
+            page._rows = list(page._mode_results[False].rows)
+            page._render_results()
+            page._source_changed()
         assert page._compare_btn.isEnabled()
 
         page._clear_data_btn.click()
 
-        assert page._xml_paths["Base"] == "" and page._target_paths == []
-        assert not page._xml_labels["Base"].isHidden()
+        assert page._xml_paths["Base"] == base_path and page._target_paths == [target_path]
+        assert page._base_chips.chips[0].path == base_path
+        assert page._target_chips.chips[0].path == target_path
         assert page._rows == [] and page._table.rowCount() == 0
-        assert page._mode_results == {}
-        assert page._selected_rows() == []
-        assert not page._compare_btn.isEnabled() and not page._export_btn.isEnabled()
-        assert page._variants_table.item(0, 4).text() == "Pending"
-        assert page._variants_table.item(0, 5).text() == ""
-
-        page._manual_mode_btn.click()
-        assert page._table.rowCount() == 0
-        assert not page._compare_btn.isEnabled() and not page._export_btn.isEnabled()
+        assert page._summary.text() == ""
+        assert page._selected_rows() == [0]
+        assert page._compare_btn.isEnabled() and not page._export_btn.isEnabled()
+        assert upper == [
+            (page._variants_table.item(0, column).text(),
+             page._variants_table.item(0, column).data(Qt.UserRole),
+             page._variants_table.item(0, column).checkState())
+            for column in range(page._variants_table.columnCount())
+        ]
+        (page._master_mode_btn if manual else page._manual_mode_btn).click()
+        assert bool(page._rows) is manual
+        (page._manual_mode_btn if manual else page._master_mode_btn).click()
+        assert page._table.rowCount() == 0 and not page._export_btn.isEnabled()
     finally:
         page.shutdown()
         page.close()
