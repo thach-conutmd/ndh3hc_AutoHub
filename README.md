@@ -15,7 +15,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 - Startup dialog: a themed loading card (logo, version, current step, progress bar) appears immediately at launch while AutoHub applies settings and logging, prepares the interface, loads modules and configuration, builds the main window, and loads the remembered Master Sheet's variants. The dialog opens on the monitor under the mouse (otherwise the primary monitor), and the main window opens centered on that same monitor. Each step is logged. If a step fails, the dialog closes and an error message explains why AutoHub could not start.
 - Collapsible sidebar (220px to 56px icon-only) with the logo and Home / Creation / Comparison navigation.
 - The window title shows the active module.
-- Cross-module wiring: variants loaded on Home are passed to Creation automatically.
+- Cross-module wiring: variants loaded on Home are passed to Creation and Comparison automatically.
 - **Calibration upload**: WebFlow creation clicks the Calibration file row's **+** button in Files > Request Files before uploading the variant's CAL HEX from the remembered calibration folder. Selenium supplies the file directly without opening an OS file chooser.
 - Reloading Home or loading another Master Sheet replaces Creation's data and WebFlow links, including cleared links; links from the previous load are not retained. Save Home edits with Update Master Sheet before creating jobs.
 - All external job links open on double-click only, in both Home and Creation. Single-click does not open a browser.
@@ -128,7 +128,13 @@ automation. Each feature is a module plugged into the main window sidebar.
 
 ### Comparison module
 
-- Placeholder page ("Coming soon").
+- Select a Master Sheet variant with a WebFlow link from the **Variant | SW Part Number** list. Home's loaded data and Creation's job links and allocated numbers update this list through the existing module signals; reload Home after editing the workbook externally.
+- Automatic XML export is not currently available. Click **Open target WebFlow**, use WebFlow's **Export XML** action, then **Upload target XML** and **Compare**. Only WebFlow `Job/Fields/Field` exports are accepted. XML identity (`General/CustomerOrderNumber` + `General/SoftwarePartNumber`) must uniquely match the selected Master Sheet variant, and an exported JobId must match its link when present.
+- Results show **Variant | SW Part Number | Parameter | Master | Webflow | Status** with `MATCH`, `VALUE_MISMATCH`, `MISSING_IN_MASTER` and `MISSING_IN_WEBFLOW`. Known Master fields reuse the existing variant payload mappings. Exported fields without a Master mapping remain visible as missing in Master; nonblank unmapped sheet values appear under `Master/<column (label)>` as missing in WebFlow rather than being silently ignored.
+- Optionally enter a **Base WebFlow Link**, open that job and upload its Export XML. Compare then shows **Parameter | Master | Base | Target | Status**: `MATCHES_MASTER`, `MATCHES_BASE`, `MATCHES_BOTH` or `MATCHES_NEITHER`. Base XML need not share the target's variant identity, but its JobId must match the base link when present.
+- Search all displayed columns, filter by status, or select **Deviations only** to hide target values that match Master (including matches to both Master and Base). Matching only Base remains a deviation from Master.
+- XML is parsed into parameter-path maps (`Group/Name`; nested values keep their paths and named row identities). Multi-select order is ignored and supported Master aliases / TP levels use the existing WebFlow semantics; other values compare exactly after trimming. Leading zeros, `0` and `false` are preserved. Blank or absent target values never count as a match, including when both references are blank; two-way comparisons mark them `MISSING_IN_WEBFLOW`.
+- Invalid links, malformed or ambiguous XML, missing identity values, mismatched job IDs and unmatched or duplicate Master identities show explicit errors. Changing the selected variant, sources or Master data clears stale results. Uploads are limited to 10 MiB and reject DTD/entity declarations.
 
 ## Project structure
 
@@ -159,7 +165,7 @@ AutoHub/
 │   │   ├── home/                 # ui (layout), presenter (workflows), service, variant_table
 │   │   │                         #   + table_clipboard / table_search / table_filter (row_filter, filter_dialog) / table_actions / frozen_columns
 │   │   ├── creation/             # service, ui, variant_checklist, config_form
-│   │   └── comparison/           # placeholder
+│   │   └── comparison/           # XML parser | Master mapping/matching | comparison engine | UI
 │   ├── services/                 # I/O adapters (Excel COM, email/xlsx, Selenium)
 │   │   ├── common/               # sheet_grid, header_rules, workbook
 │   │   ├── MasterSheet/          # session | row_reader | row_writer | variant_builder | webflow_variants

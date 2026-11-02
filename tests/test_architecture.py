@@ -51,6 +51,7 @@ def test_core_never_imports_services_or_modules():
         ROOT / "services" / "SystemMatrix" / "parser.py",
         ROOT / "services" / "HWInfo" / "parser.py",
         ROOT / "services" / "KickOff" / "parser.py",
+        ROOT / "modules" / "comparison" / "xml_parser.py",
     ],
 )
 def test_parsers_only_parse(parser):
