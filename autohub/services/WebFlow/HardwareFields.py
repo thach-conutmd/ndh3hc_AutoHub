@@ -10,7 +10,16 @@ from autohub.core.webflow_fields import HARDWARE_FIELDS
 from autohub.core.webflow_options import GENERAL_OPTION_FIELDS, resolve_option_values
 
 from . import Constants
-from .components import Section, button_is_enabled, checkbox_is_disabled, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
+from .components import (
+    Section,
+    button_is_enabled,
+    checkbox_is_disabled,
+    checkbox_value,
+    field_is_disabled,
+    pause,
+    scroll_into_view_if_hidden,
+    wait_until_idle,
+)
 from .number_import import NumberImport
 from .pst_lib_picker import PstLibPicker
 from .save_confirmation import SaveBeforeImportConfirmation
@@ -50,6 +59,7 @@ class HardwareFields:
         self.imported_software_part_number = ""
         self.imported_ecr_number = ""
         self.general_options: dict[str, list[str]] = {}
+        self.skipped_fields: list[str] = []
         self.sections = {
             panel: Section(driver, f'//span[normalize-space(.)="{panel}"]', 'div[style^="display:"]')
             for panel in _PANEL_FIELDS
@@ -74,8 +84,8 @@ class HardwareFields:
                         _logger.error("Classification checkbox %s did not reach X (false)", label)
                         return False
                     if checkbox_is_disabled(form, checkbox):
-                        _logger.error("Classification checkbox %s is disabled", label)
-                        return False
+                        _logger.warning("Classification checkbox %s is disabled; skipping", label)
+                        break
                     self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
                     WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(EC.element_to_be_clickable(checkbox))
                     checkbox.click()
@@ -110,6 +120,11 @@ class HardwareFields:
         current = control.find_element(By.CSS_SELECTOR, '[role="combobox"]')
         if current.get_attribute("aria-label") == value:
             _logger.info("WebFlow Lead Plant already equals %r; skipping", value)
+            return True
+        if field_is_disabled(control):
+            warning = f"Lead Plant: WebFlow disabled the field; the requested value {value!r} was skipped."
+            self.skipped_fields.append(warning)
+            _logger.warning(warning)
             return True
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", control)
         trigger = control.find_element(By.CSS_SELECTOR, ".p-dropdown-trigger")
@@ -238,9 +253,11 @@ class HardwareFields:
                 _logger.info("WebFlow field %s already equals %r; skipping", label, value)
                 return True
             scroll_into_view_if_hidden(self.driver, field)
-            if not field.is_enabled() or field.get_attribute("readonly") is not None:
-                _logger.error("WebFlow field %s is read-only; requested %r", label, value)
-                return False
+            if field_is_disabled(field):
+                warning = f"{label}: WebFlow disabled the field; the requested value {value!r} was skipped."
+                self.skipped_fields.append(warning)
+                _logger.warning(warning)
+                return True
             field.clear()
             field.send_keys(value)
             pause()
@@ -280,9 +297,11 @@ class HardwareFields:
             if requested == current:
                 _logger.info("WebFlow %s already equals %r; skipping", key or "multiselect", value)
                 return True
-        if control.get_attribute("ng-reflect-disabled") == "true":
-            _logger.error("WebFlow multiselect is disabled; requested %r", value)
-            return False
+        if field_is_disabled(control):
+            warning = f"{key or 'Multiselect'}: WebFlow disabled the field; the requested value {value!r} was skipped."
+            self.skipped_fields.append(warning)
+            _logger.warning(warning)
+            return True
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", control)
         control.find_element(By.CSS_SELECTOR, ".p-multiselect").click()
         try:

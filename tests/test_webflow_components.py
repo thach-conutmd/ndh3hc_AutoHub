@@ -88,6 +88,15 @@ def test_dropdown_already_showing_the_value_is_not_clicked(page):
     assert button.clicks == 0
 
 
+def test_gray_dropdown_is_skipped_without_reading_options(page):
+    button = dropdown(page)
+    button.attrs["class"] = "p-dropdown p-disabled"
+    assert select_dropdown(
+        Driver(), "//title", "div.btn", "MG1", lambda: pytest.fail("options read")
+    ) is True
+    assert button.clicks == 0
+
+
 def test_idle_wait_covers_loading_overlay_without_activity_spinner():
     from unittest.mock import Mock
 
@@ -228,6 +237,14 @@ def test_section_fills_an_input(page):
     assert sec.fill_input("input.x", "ABC") is True
     assert field.cleared == 1 and field.typed == ["ABC"]
     assert sec.fill_input("input.missing", "ABC") is False
+
+
+def test_section_skips_a_gray_input(page):
+    _, body = section(page, "display: block;")
+    field = Element({"disabled": "true"})
+    body.children["input.x"] = field
+    assert Section(Driver(), "//section", "div.body").fill_input("input.x", "ABC") is True
+    assert field.cleared == 0 and field.typed == []
 
 
 def test_matching_read_only_input_is_not_edited(page):
