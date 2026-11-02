@@ -9,6 +9,13 @@ from autohub.core.progress import ProgressCallback, no_progress
 
 from .step_log import run_step
 
+_REQUIRED_CONFIGURATOR_ITEMS = (
+    ("delivery_type", "Delivery Type"),
+    ("release_class", "Release Class"),
+    ("release_scope", "Release Scope"),
+    ("limitations", "Limitations"),
+)
+
 
 class JobCreationPage(Protocol):
     def jobs_creation(
@@ -57,7 +64,15 @@ class JobBatch:
             self.logger.info("No variants given, nothing to create")
             return []
         for variant in variants:
-            missing = [key for key in ("ecu_generation", "brand", "ecu_type") if not variant.get(key)]
+            missing = [
+                key for key in ("ecu_generation", "brand", "ecu_type")
+                if not variant.get(key)
+            ]
+            general = variant.get("general") or {}
+            missing.extend(
+                label for key, label in _REQUIRED_CONFIGURATOR_ITEMS
+                if general.get(key) in (None, "")
+            )
             if missing:
                 raise ValueError(f"{variant['part_number']}: Master Sheet is missing required values: {', '.join(missing)}.")
         creation_values = {(v["ecu_generation"], v["brand"], v["ecu_type"]) for v in variants}

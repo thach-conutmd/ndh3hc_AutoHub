@@ -7,7 +7,7 @@ from typing import Mapping
 from autohub.core.settings_keys import NEW_VARIANT_DEFAULTS_KEY
 
 _EDITABLE_DEFAULTS = (
-    "ecu_generation", "brand", "delivery_type", "release_class", "release_scope", "limitations",
+    "ecu_generation", "brand",
     "safety_monitoring", "safety_calibration", "calibration", "data_integration",
     "ecu_default_id", "ecu_rewriting_id", "sw_version", "sw_version_hardware", "no_sw_version",
     "indi_spec_template", "project_number_first_part", "customer_name",
@@ -19,10 +19,6 @@ _EDITABLE_DEFAULTS = (
 class WebFlowDefaults:
     ecu_generation: str = "MG1"
     brand: str = "Honda"
-    delivery_type: str = "Plant Introduction"
-    release_class: str = "Production"
-    release_scope: str = "Program and Data"
-    limitations: str = "NO"
     safety_monitoring: bool = True
     safety_calibration: bool = False
     calibration: bool = True
@@ -42,10 +38,6 @@ class WebFlowDefaults:
 
     def general(self) -> dict:
         return {
-            "delivery_type": self.delivery_type,
-            "release_class": self.release_class,
-            "release_scope": self.release_scope,
-            "limitations": self.limitations,
             "safety_monitoring": self.safety_monitoring,
             "safety_calibration": self.safety_calibration,
             "calibration": self.calibration,

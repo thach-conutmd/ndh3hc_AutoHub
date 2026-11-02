@@ -438,7 +438,7 @@ def filler(results=None):
 VARIANT = {
     "part_number": "37820-ABC",
     "general": {"delivery_type": "Plant", "release_class": "C", "release_scope": "S", "limitations": "NO",
-                "safety_monitoring": True, "safety_calibration": None, "calibration": False, "data_integration": True},
+                "safety_monitoring": True, "safety_calibration": False, "calibration": False, "data_integration": True},
     "hardware": {"program_version": "PV01"},
     "ecu": {"indi_spec": "Spec", "family_name": "", "project_version": "P001", "program_version": None, "tp_level": "3"},
     "customer": {"ecu_default_id": "1", "ecu_program_id": "", "ecu_rewriting_id": "3", "security_coefficient": "",
@@ -522,7 +522,7 @@ def test_job_filler_logs_every_value(caplog):
         job_filler.fill(VARIANT)
     summary = next(r.getMessage() for r in caplog.records if "Values to fill" in r.getMessage())
     assert "[37820-ABC] Values to fill: General[delivery_type=Plant" in summary
-    assert "safety_calibration=(none)" in summary and "family_name=(empty)" in summary
+    assert "safety_calibration=False" in summary and "family_name=(empty)" in summary
     assert "Customer[ecu_default_id=1" in summary and "component_id=C]" in summary
     assert any("Step: [37820-ABC] General: limitations = NO" == r.getMessage() for r in caplog.records)
 

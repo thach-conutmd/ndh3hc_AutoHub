@@ -48,7 +48,16 @@ def batch(created=True, before_submit_runs=True):
         lambda job: f"u/{job}", lambda: calls.append("close"), logging.getLogger(__name__),
     )
     variants = [
-        {"part_number": part, "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "E"} for part in ("P1", "P2")
+        {
+            "part_number": part, "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "E",
+            "general": {
+                "delivery_type": "Plant Introduction", "release_class": "Production",
+                "release_scope": "Program and Data", "limitations": "NO",
+                "safety_monitoring": True, "safety_calibration": False,
+                "calibration": True, "data_integration": True,
+            },
+        }
+        for part in ("P1", "P2")
     ]
     return workflow, variants, calls, fill
 
@@ -359,7 +368,16 @@ def grouped_batch(count):
         max_jobs_per_creation=10,
     )
     variants = [
-        {"part_number": f"P{i}", "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "E"} for i in range(1, count + 1)
+        {
+            "part_number": f"P{i}", "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "E",
+            "general": {
+                "delivery_type": "Plant Introduction", "release_class": "Production",
+                "release_scope": "Program and Data", "limitations": "NO",
+                "safety_monitoring": True, "safety_calibration": False,
+                "calibration": True, "data_integration": True,
+            },
+        }
+        for i in range(1, count + 1)
     ]
     return workflow, variants, calls
 

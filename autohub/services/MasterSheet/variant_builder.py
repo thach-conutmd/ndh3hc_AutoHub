@@ -130,7 +130,6 @@ def build_request_values(
     yes_no_defaults = {
         key: "Yes" if value else "No"
         for key, value in general_defaults.items()
-        if isinstance(value, bool)
     }
 
     request_values = {
@@ -151,10 +150,6 @@ def build_request_values(
         "CY": clean_text(system_variant.get("ECUMARK")),
         "CZ": clean_text(system_variant.get("SSID")),
         "AL": defaults.project_number_first_part,
-        "T": general_defaults["delivery_type"],
-        "U": general_defaults["release_class"],
-        "V": general_defaults["release_scope"],
-        "W": general_defaults["limitations"],
         "X": yes_no_defaults["safety_monitoring"],
         "Y": yes_no_defaults["safety_calibration"],
         "Z": yes_no_defaults["calibration"],

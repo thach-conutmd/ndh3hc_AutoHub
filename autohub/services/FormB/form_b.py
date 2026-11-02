@@ -68,6 +68,34 @@ def _tp_description(value: str) -> str:
     return f"TPROT={match.group(1)}" if match else value
 
 
+def _safe_filename_part(value: str, label: str) -> str:
+    value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value).strip(" .")
+    if not value:
+        raise ValueError(f"Master Sheet {label} is blank or invalid for the Form B filename.")
+    return value
+
+
+def _output_filename(variants: list[dict], generated_on: date) -> str:
+    names = set()
+    for variant in variants:
+        event_name = str(variant.get("event_name") or "").strip()
+        match = re.search(r"(?:_|/)\s*(MP\d+)\s*$", event_name, re.IGNORECASE)
+        if not match:
+            raise ValueError(
+                f"{variant.get('part_number', 'Variant')}: Master Sheet Project Purpose "
+                "does not contain a phase (MP number)."
+            )
+        names.add((
+            _safe_filename_part(str(variant.get("project") or ""), "Project"),
+            _safe_filename_part(match.group(1).upper(), "Phase"),
+            _safe_filename_part(str(variant.get("ecu_type") or ""), "ECU Type"),
+        ))
+    if len(names) != 1:
+        raise ValueError("Selected variants must have the same Master Sheet Project, Phase and ECU Type.")
+    project, phase, ecu_type = names.pop()
+    return f"{project}_{phase}_FORMB_{ecu_type}_{generated_on:%Y%m%d}.xlsx"
+
+
 def _variant_values(variant: dict, checksum: str) -> tuple[str, ...]:
     values = _master_values(variant)
     part_number = str(variant.get("part_number") or "Variant")
@@ -122,7 +150,8 @@ def export_form_b(
     if not variants:
         raise ValueError("Select at least one variant to create Form B.")
     template = Path(template_path)
-    destination = Path(output_path).with_suffix(".xlsx")
+    generated_on = today or date.today()
+    destination = Path(output_path).parent / _output_filename(variants, generated_on)
     if destination.resolve() == template.resolve():
         raise ValueError("Choose a new file name; the Form B template cannot be overwritten.")
 
@@ -138,7 +167,7 @@ def export_form_b(
             raise ValueError("Selected variants must use the same Master Sheet ECU HW Name.")
         if ecu_types:
             sheet["B24"] = next(iter(ecu_types))
-        sheet["C13"] = today or date.today()
+        sheet["C13"] = generated_on
 
         footer_row = FOOTER_ROW
         for start in range(0, len(variants), len(VARIANT_COLUMNS)):

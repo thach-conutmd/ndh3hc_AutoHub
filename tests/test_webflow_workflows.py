@@ -24,7 +24,15 @@ def batch():
         logging.getLogger(__name__),
     )
     variants = [
-        {"part_number": part, "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "MG1CS022"}
+        {
+            "part_number": part, "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "MG1CS022",
+            "general": {
+                "delivery_type": "Plant Introduction", "release_class": "Production",
+                "release_scope": "Program and Data", "limitations": "NO",
+                "safety_monitoring": True, "safety_calibration": False,
+                "calibration": True, "data_integration": True,
+            },
+        }
         for part in ("P1", "P2")
     ]
     return workflow, variants, calls
