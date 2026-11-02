@@ -149,13 +149,10 @@ class VariantRowWriter:
             else:
                 plan.append((part, rows[0], impl_row, update))
         for part, request_row, impl_row, update in plan:
-            written = skipped = 0
+            written = 0
             try:
                 for column, value in update.values.items():
                     cell = worksheet.Range(f"{column}{impl_row}")
-                    if cell.HasFormula:
-                        skipped += 1
-                        continue
                     value = normalize_impl_value(
                         update.kinds.get(column, ""), value, (cell.Value, worksheet.Range(f"{column}{request_row}").Value)
                     )
@@ -164,9 +161,9 @@ class VariantRowWriter:
                     cell.Value = value
                     written += 1
             except Exception as error:
-                outcomes[part] = ImplOutcome(written, skipped, str(error))
+                outcomes[part] = ImplOutcome(written, error=str(error))
             else:
-                outcomes[part] = ImplOutcome(written, skipped)
+                outcomes[part] = ImplOutcome(written)
         return outcomes
 
     def write_values(self, row: int, values: dict) -> None:
