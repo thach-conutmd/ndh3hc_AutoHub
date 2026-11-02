@@ -64,3 +64,24 @@ def test_review_information_uses_initialized_inputs_and_print_values():
     assert 'window.addEventListener("beforeprint",syncInfo)' in html
     assert ".print-value{display:block;min-height:1em}" in html
     assert html.index("</section>") < html.index('<table id="results">')
+
+
+def test_manual_xml_report_reuses_filters_reviews_and_print_layout():
+    html = build_report(
+        ("Parameter", "Base", "Target", "Status", "Comment"),
+        [("General/Power", "93", "94", "MATCH", "approved <value>")],
+        [False], [], datetime(2026, 11, 2, 9, 30, 5), ["VALUE_MISMATCH"], "Reviewer",
+        xml_files=('base "one".xml', "target <two>.xml"),
+    )
+    assert "<title>WebFlow XML Comparison Result</title>" in html
+    assert "<h1>WebFlow XML Comparison Result</h1>" in html
+    assert "Base XML filename:" in html and "Target XML filename:" in html
+    assert 'base &quot;one&quot;.xml' in html and "target &lt;two&gt;.xml" in html
+    assert "Compared Variants:" not in html and 'id="variant"' not in html
+    assert html.count("<th>") == 5 and "<th>Part Number</th>" not in html
+    assert "fill(status,3)" in html and "r.cells[3].textContent" in html
+    assert "__STATUS_COLUMN__" not in html
+    assert 'data-calculated="VALUE_MISMATCH"' in html
+    assert "approved &lt;value&gt;" in html
+    assert "<b>1</b>Total" in html and "<b>1</b>Match" in html and "<b>0</b>Deviation" in html
+    assert "Reviewer Signature:" in html and "@media print" in html

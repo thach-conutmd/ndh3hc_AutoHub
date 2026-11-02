@@ -20,6 +20,8 @@ class Status(str, Enum):
     MATCHES_BASE = "MATCHES_BASE"
     MATCHES_BOTH = "MATCHES_BOTH"
     MATCHES_NEITHER = "MATCHES_NEITHER"
+    MISSING_IN_BASE = "MISSING_IN_BASE"
+    MISSING_IN_TARGET = "MISSING_IN_TARGET"
 
 
 @dataclass(frozen=True)
@@ -81,4 +83,23 @@ def compare_parameters(
         else:
             status = Status.MATCH if master_match else Status.VALUE_MISMATCH
         rows.append(ComparisonRow(path, master_value, target_value, status, base_value))
+    return rows
+
+
+def compare_xml_parameters(
+    base: Mapping[str, ParameterValue], target: Mapping[str, ParameterValue],
+) -> list[ComparisonRow]:
+    """Compare every XML path, using the same value semantics as Master comparison."""
+    rows = []
+    for path in sorted(base.keys() | target.keys()):
+        base_value, target_value = base.get(path), target.get(path)
+        if path not in base:
+            status = Status.MISSING_IN_BASE
+        elif path not in target or not _present(target_value):
+            status = Status.MISSING_IN_TARGET
+        elif not _present(base_value):
+            status = Status.MISSING_IN_BASE
+        else:
+            status = Status.MATCH if _equal(path, base_value, target_value) else Status.VALUE_MISMATCH
+        rows.append(ComparisonRow(path, None, target_value, status, base_value))
     return rows

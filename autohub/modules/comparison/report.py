@@ -65,28 +65,35 @@ status=document.getElementById("status"),dev=document.getElementById("deviations
 count=document.getElementById("count");
 function fill(select,index){var seen={};rows.forEach(function(r){seen[r.cells[index].textContent]=1;});
 Object.keys(seen).sort().forEach(function(v){var o=document.createElement("option");o.value=o.textContent=v;select.appendChild(o);});}
-fill(variant,0);fill(status,5);
+if(variant)fill(variant,0);fill(status,__STATUS_COLUMN__);
 function apply(){var q=search.value.toLowerCase(),shown=0;
-rows.forEach(function(r){var ok=(!variant.value||r.cells[0].textContent===variant.value)
-&&(!status.value||r.cells[5].textContent===status.value)
+rows.forEach(function(r){var ok=(!variant||!variant.value||r.cells[0].textContent===variant.value)
+&&(!status.value||r.cells[__STATUS_COLUMN__].textContent===status.value)
 &&(!dev.checked||r.classList.contains("deviation"))
 &&(!q||r.textContent.toLowerCase().indexOf(q)>=0);
 r.classList.toggle("hidden",!ok);if(ok)shown++;});
 count.textContent="Showing "+shown+" of "+rows.length+" parameters";}
-[search,variant,status,dev].forEach(function(e){e.addEventListener("input",apply);e.addEventListener("change",apply);});
-document.getElementById("clear").addEventListener("click",function(){search.value="";variant.value="";status.value="";dev.checked=false;apply();});
+[search,variant,status,dev].forEach(function(e){if(e){e.addEventListener("input",apply);e.addEventListener("change",apply);}});
+document.getElementById("clear").addEventListener("click",function(){search.value="";if(variant)variant.value="";status.value="";dev.checked=false;apply();});
 apply();
 })();
 """.strip()
 
 
-def _report_information(exported_at: datetime, reviewer: str) -> str:
+def _report_information(
+    exported_at: datetime, reviewer: str, xml_files: tuple[str, str] | None = None,
+) -> str:
     fields = (
         ("report-date", "Date", f"{exported_at:%Y-%m-%d}"),
         ("report-time", "Time", f"{exported_at:%H:%M:%S}"),
         ("reviewed-by", "Reviewed by", reviewer),
         ("approved-by", "Approved by", ""),
     )
+    if xml_files is not None:
+        fields += (
+            ("base-xml", "Base XML filename", xml_files[0]),
+            ("target-xml", "Target XML filename", xml_files[1]),
+        )
     inputs = "".join(
         f'<label for="{key}">{label}:</label><div>'
         f'<input type="text" id="{key}" value="{escape(value)}">'
@@ -106,10 +113,20 @@ def _report_information(exported_at: datetime, reviewer: str) -> str:
 def build_report(
     headers: Sequence[str], rows: Sequence[Sequence[str]], deviations: Sequence[bool], variants: Sequence[str],
     exported_at: datetime, calculated: Sequence[str] = (), reviewer: str = "",
+    *, xml_files: tuple[str, str] | None = None,
 ) -> str:
     deviation_count = sum(deviations)
     head = "".join(f"<th>{escape(header)}</th>" for header in headers)
     status_column = headers.index("Status")
+    title = "WebFlow XML Comparison Result" if xml_files is not None else "Comparison Result"
+    variant_info = (
+        f'<p class="meta"><b>Compared Variants:</b>({len(variants)}) {escape(", ".join(variants))}</p>'
+        if xml_files is None else ""
+    )
+    variant_filter = (
+        '<select id="variant"><option value="">All part numbers</option></select>'
+        if xml_files is None else ""
+    )
     calculated = list(calculated) + [""] * (len(rows) - len(calculated))
 
     def cell(column: int, value: str, original: str) -> str:
@@ -129,22 +146,22 @@ def build_report(
     )
     return (
         '<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8">'
-        "<title>Comparison Result</title>"
+        f"<title>{title}</title>"
         f"<style>{_STYLE}</style></head><body>"
-        "<h1>Comparison Result</h1>"
-        f'{_report_information(exported_at, reviewer)}'
-        f'<p class="meta"><b>Compared Variants:</b>({len(variants)}) {escape(", ".join(variants))}</p>'
+        f"<h1>{title}</h1>"
+        f'{_report_information(exported_at, reviewer, xml_files)}'
+        f'{variant_info}'
         '<div class="summary">'
         f'<div class="card"><b>{len(rows)}</b>Total</div>'
         f'<div class="card match"><b>{len(rows) - deviation_count}</b>Match</div>'
         f'<div class="card deviation"><b>{deviation_count}</b>Deviation</div></div>'
         '<div class="controls">'
         '<input type="search" id="search" placeholder="Search all columns...">'
-        '<select id="variant"><option value="">All part numbers</option></select>'
+        f'{variant_filter}'
         '<select id="status"><option value="">All statuses</option></select>'
         '<label><input type="checkbox" id="deviations"> Deviations only</label>'
         '<button type="button" id="clear">Clear Filters</button></div>'
         '<div id="count"></div>'
         f'<table id="results"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
-        f"<script>{_SCRIPT}</script></body></html>\n"
+        f'<script>{_SCRIPT.replace("__STATUS_COLUMN__", str(status_column))}</script></body></html>\n'
     )
