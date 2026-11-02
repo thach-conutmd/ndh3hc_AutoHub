@@ -11,7 +11,7 @@ from .comparison import ComparisonRow, compare_parameters, compare_xml_datasets
 from .matching import (
     master_parameters, match_variant, validate_export_link, validate_link, variant_identity,
 )
-from .xml_parser import MAX_XML_BYTES, ParameterMap, parse_xml
+from .xml_parser import MAX_XML_BYTES, ParameterMap, comparison_parameters, parse_xml
 
 _logger = logging.getLogger(__name__)
 Progress = Callable[[int, str, str], None]
@@ -37,7 +37,7 @@ def compare_xml_files(
     def read(label: str, path: str) -> ParameterMap:
         try:
             with open(path, "rb") as source:
-                return parse_xml(source.read(MAX_XML_BYTES + 1))
+                return comparison_parameters(parse_xml(source.read(MAX_XML_BYTES + 1)))
         except (OSError, ValueError) as error:
             raise ValueError(f"{label} XML: {error} ({Path(path).name})") from error
 
@@ -141,14 +141,14 @@ class ComparisonService:
                     continue
                 try:
                     progress(index, "Exporting Target XML", "")
-                    target = parse_xml(export(variant.get("webflow_link") or ""))
+                    target = comparison_parameters(parse_xml(export(variant.get("webflow_link") or "")))
                     validate_export_link(target, variant.get("webflow_link") or "")
                     base = None
                     base_link = (variant.get("base_webflow_link") or "").strip()
                     if base_link:
                         progress(index, "Exporting Base XML", "")
                         try:
-                            base = parse_xml(export(base_link))
+                            base = comparison_parameters(parse_xml(export(base_link)))
                             validate_export_link(base, base_link)
                         except Exception as error:
                             raise ValueError(f"Base XML: {error}") from error

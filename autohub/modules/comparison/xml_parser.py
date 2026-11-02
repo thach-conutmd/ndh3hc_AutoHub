@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Mapping
 from urllib.parse import quote
 import xml.etree.ElementTree as ET
 
@@ -9,6 +10,11 @@ ParameterValue = str | tuple[str, ...] | None
 ParameterMap = dict[str, ParameterValue]
 MAX_XML_BYTES = 10 * 1024 * 1024
 _MAX_PARAMETERS = 20000
+
+
+def comparison_parameters(parameters: Mapping[str, ParameterValue]) -> ParameterMap:
+    """Exclude non-comparable hierarchies from normalized parameter maps."""
+    return {path: value for path, value in parameters.items() if not path.startswith(("Files/", "Notes/"))}
 
 
 def _tag(element: ET.Element) -> str:

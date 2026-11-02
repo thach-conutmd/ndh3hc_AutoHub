@@ -168,10 +168,6 @@ class ComparisonWidget(QWidget):
         self._clear_targets_btn.hide()
         manual_layout.addWidget(self._clear_targets_btn, 0, Qt.AlignLeft)
         self._manual_sources.hide()
-        self._file_info = QLabel()
-        self._file_info.setTextFormat(Qt.PlainText)
-        self._file_info.setWordWrap(True)
-        self._file_info.hide()
         self._variants_table = QTableWidget(0, len(_VARIANT_HEADERS))
         self._variants_table.setHorizontalHeaderLabels(_VARIANT_HEADERS)
         self._variants_table.setEditTriggers(
@@ -245,7 +241,6 @@ class ComparisonWidget(QWidget):
         layout.addWidget(self._variants_table)
         layout.addWidget(self._manual_sources)
         layout.addLayout(sources)
-        layout.addWidget(self._file_info)
         layout.addWidget(self._table, 1)
         layout.addWidget(self._summary)
         self._select_all_btn.clicked.connect(self._select_all)
@@ -293,11 +288,7 @@ class ComparisonWidget(QWidget):
                        self._clear_selection_btn, self._impl_btn):
             widget.setVisible(not manual)
         self._manual_sources.setVisible(manual)
-        self._layout.removeWidget(self._summary)
-        if manual:
-            self._layout.insertWidget(self._layout.indexOf(self._table), self._summary)
-        else:
-            self._layout.addWidget(self._summary)
+        self._summary.setVisible(not manual)
         self._compare_btn.setText("Compare" if manual else "Compare selected")
         self._render_results()
         self._set_running(False)
@@ -365,15 +356,6 @@ class ComparisonWidget(QWidget):
         return (part, row.parameter, _display(row.master),
                 _display(row.base) if (part, software) in self._base_variants else "",
                 _display(row.target), self._effective_status(index).value, self._comment(index))
-
-    def _update_file_info(self) -> None:
-        self._file_info.setVisible(self._manual_mode and self._compared_files is not None)
-        if self._compared_files is not None:
-            base, *targets = self._compared_files
-            self._file_info.setText(
-                f"Base: {os.path.basename(base)}\nTarget: " + ", ".join(os.path.basename(path) for path in targets)
-            )
-            self._file_info.setToolTip(f"Base: {base}\nTarget: " + "\n".join(targets))
 
     def set_variants(self, variants: list[dict]) -> None:
         keep, self._keep_results = self._keep_results, False
@@ -830,7 +812,6 @@ class ComparisonWidget(QWidget):
         self._table.blockSignals(False)
         self._table.setSortingEnabled(self._manual_mode)
         self._size_result_columns()
-        self._update_file_info()
         self._apply_filters()
 
     def _size_result_columns(self) -> None:

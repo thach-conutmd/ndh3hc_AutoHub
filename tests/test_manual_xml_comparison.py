@@ -39,6 +39,35 @@ def manual_page(xml_files):
     return page, dialogs, browser, updater
 
 
+@pytest.mark.parametrize("target_count", [1, 2])
+def test_exclusions_precede_manual_comparison_and_never_reach_results_or_export(
+    qapp, tmp_path, monkeypatch, target_count,
+):
+    paths = [tmp_path / f"source{index}.xml" for index in range(target_count + 1)]
+    for index, path in enumerate(paths):
+        path.write_bytes(export_xml({
+            "General/Power": "93", "Files/Attachment": str(index), "Notes/Review": str(index),
+        }, job_id=None))
+    compare = Mock(wraps=service.compare_xml_datasets)
+    monkeypatch.setattr(service, "compare_xml_datasets", compare)
+    page, dialogs, _, _ = manual_page(paths[:2])
+    if target_count > 1:
+        dialogs.files = [[str(paths[2])]]
+        page._xml_buttons["Target"].click()
+    page._compare()
+    wait_done(page, qapp)
+    assert not dialogs.errors
+    assert compare.call_args.args[0] == {"General/Power": "93"}
+    assert page._table.rowCount() == 1
+    assert page._table.item(0, 0).text() == "General/Power"
+    assert all(not row.deviation for _, _, row in page._rows)
+    assert "Total: 1 | Match: 1 | Deviation: 0" in page._summary.text()
+    dialogs.save_path = str(tmp_path / "report.html")
+    page._export()
+    html = (tmp_path / "report.html").read_text()
+    assert "General/Power" in html and "Files/Attachment" not in html and "Notes/Review" not in html
+
+
 def test_manual_mode_needs_no_master_or_browser_and_reuses_result_table(qapp, xml_files):
     page, dialogs, browser, updater = manual_page(xml_files)
     original = [path.read_bytes() for path in xml_files]
@@ -59,11 +88,12 @@ def test_manual_mode_needs_no_master_or_browser_and_reuses_result_table(qapp, xm
     assert page._table.columnCount() == 5
     assert [page._table.horizontalHeaderItem(i).text() for i in range(5)] == list(ui._MANUAL_HEADERS)
     assert page._table.rowCount() == 4 and page._export_btn.isEnabled()
-    assert "Base: base.xml" in page._file_info.text() and "Target: target.XML" in page._file_info.text()
-    assert str(xml_files[0]) in page._file_info.toolTip()
+    assert page._xml_labels["Base"].text() == xml_files[0].name
+    assert page._target_list.count() == 1
     assert "Total: 4 | Match: 1 | Deviation: 3" in page._summary.text()
-    assert page._layout.indexOf(page._file_info) < page._layout.indexOf(page._summary)
-    assert page._layout.indexOf(page._summary) < page._layout.indexOf(page._table)
+    assert page._summary.isHidden()
+    actions = page._layout.itemAt(page._layout.indexOf(page._table) - 1).layout()
+    assert actions.indexOf(page._compare_btn) >= 0
     assert page._progress_dialog._summary.text() == "Completed: 1\nFailed: 0\nTotal: 1"
     for column in range(5):
         assert not page._table.horizontalHeaderItem(column).icon().isNull()
@@ -241,7 +271,9 @@ def test_mode_switch_restores_master_results_reviews_and_update_actions(qapp, xm
     assert page._table.item(0, 0).text() == "P1"
     assert page._compare_btn.text() == "Compare selected"
     assert page._layout.indexOf(page._summary) > page._layout.indexOf(page._table)
+    assert not page._summary.isHidden()
     page._manual_mode_btn.click()
+    assert page._summary.isHidden()
     assert page._rows is manual_rows and page._compared_files == tuple(map(str, xml_files))
     session.export_job_xml.assert_called_once()
 
@@ -337,6 +369,11 @@ def test_multi_target_results_reviews_filters_summary_and_export(qapp, multiple_
     assert "Overall: Total: 5 | Match: 1 | Deviation: 4" in page._summary.text()
     assert f"Target 1 ({first.name}): Match: 1 | Deviation: 4" in page._summary.text()
     assert f"Target 2 ({second.name}): Match: 2 | Deviation: 3" in page._summary.text()
+    assert page._summary.isHidden()
+    assert page._xml_labels["Base"].text() == base.name
+    assert page._target_list.count() == 2
+    actions = page._layout.itemAt(page._layout.indexOf(page._table) - 1).layout()
+    assert actions.indexOf(page._compare_btn) >= 0
     index = next(i for i, (_, _, row) in enumerate(page._rows) if row.parameter == "General/Power")
     assert page._result_item(index, 2).background().color().name() == "#fde2e1"
     assert page._result_item(index, 3).background().style() == Qt.NoBrush
