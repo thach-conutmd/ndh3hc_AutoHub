@@ -1,8 +1,8 @@
 """Modal comparison progress without a nested event loop or browser work."""
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QAbstractItemView, QDialog, QHeaderView, QLabel, QProgressBar, QPushButton,
-    QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QAbstractItemView, QDialog, QHBoxLayout, QHeaderView, QLabel, QProgressBar, QPushButton,
+    QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout,
 )
 
 
@@ -39,13 +39,22 @@ class ComparisonProgressDialog(QDialog):
         self._summary = QLabel()
         self._summary.setWordWrap(True)
         self._button = QPushButton("Cancel")
+        self._button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._button.setAutoDefault(False)
         self._button.clicked.connect(self._clicked)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(10)
         for widget in (
             self._overall, self._bar, self._current, self._operation,
-            self._items, self._summary, self._button,
+            self._items, self._summary,
         ):
             layout.addWidget(widget)
+        footer = QHBoxLayout()
+        footer.setContentsMargins(0, 6, 0, 0)
+        footer.addStretch(1)
+        footer.addWidget(self._button)
+        layout.addLayout(footer)
         self._update_overall()
 
     def _update_overall(self) -> None:

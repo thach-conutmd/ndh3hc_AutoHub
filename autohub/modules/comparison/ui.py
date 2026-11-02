@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime
 from threading import Event
 
 from PySide6.QtCore import Qt, Signal
@@ -22,6 +23,7 @@ from autohub.ui.hover_cursor import HoverCursor
 from autohub.ui.webflow_link_delegate import WebFlowLinkDelegate, format_webflow_link_item
 
 from .comparison import ComparisonRow, Status
+from .export import export_rows
 from .matching import validate_link
 from .progress import ComparisonProgressDialog
 from .service import ComparisonService, VariantResult
@@ -85,8 +87,8 @@ class ComparisonWidget(QWidget):
         self._revision = 0
         self._run_revision = 0
         self._run_rows: list[int] = []
-        self._base_mode = False
         self._base_variants: set[tuple[str, str]] = set()
+        self._run_base: set[tuple[str, str]] = set()
         self._cancel = Event()
         self._progress_dialog: ComparisonProgressDialog | None = None
 
@@ -123,11 +125,14 @@ class ComparisonWidget(QWidget):
         self._variants_table.setMaximumHeight(160)
         self._select_all_btn = QPushButton("Select all")
         self._clear_selection_btn = QPushButton("Clear selection")
+        self._export_btn = QPushButton("Export")
+        self._export_btn.setEnabled(False)
         self._compare_btn = QPushButton("Compare selected")
         sources = QHBoxLayout()
         sources.addWidget(self._select_all_btn)
         sources.addWidget(self._clear_selection_btn)
         sources.addStretch(1)
+        sources.addWidget(self._export_btn)
         sources.addWidget(self._compare_btn)
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search parameters, values, variants or status...")
@@ -174,6 +179,7 @@ class ComparisonWidget(QWidget):
         self._clear_selection_btn.clicked.connect(self._clear_selection)
         self._variants_table.itemChanged.connect(self._selection_changed)
         self._compare_btn.clicked.connect(self._compare)
+        self._export_btn.clicked.connect(self._export)
         self._search.textChanged.connect(self._apply_filters)
         self._variant_filter.currentIndexChanged.connect(self._apply_filters)
         self._status_filter.currentTextChanged.connect(self._apply_filters)
@@ -234,7 +240,7 @@ class ComparisonWidget(QWidget):
                     format_webflow_link_item(item, str(text), editable=column == 3)
                 self._variants_table.setItem(row, column, item)
         self._variants_table.blockSignals(False)
-        self._source_changed()
+        self._clear_results()
 
     def _selected_rows(self) -> list[int]:
         return [
@@ -264,34 +270,54 @@ class ComparisonWidget(QWidget):
             self._source_changed()
 
     def _source_changed(self, *_args) -> None:
+        if not self._rows:
+            self._summary.setText("")
+        self._set_running(self._running)
+
+    def _clear_results(self) -> None:
         self._revision += 1
         self._rows = []
+        self._base_variants = set()
         self._table.setRowCount(0)
         self._header_filter.reset()
-        self._summary.setText("Select linked variants, then Compare selected.")
-        self._base_variants = {
-            tuple(self._variants_table.item(row, 0).data(Qt.UserRole + 1)[:2])
-            for row in self._selected_rows() if self._variants_table.item(row, 3).data(Qt.UserRole)
-        }
-        self._base_mode = bool(self._base_variants)
-        self._table.setColumnCount(len(_TARGET_HEADERS))
-        self._table.setHorizontalHeaderLabels(_TARGET_HEADERS)
         self._variant_filter.blockSignals(True)
         self._variant_filter.clear()
         self._variant_filter.addItem("All variants", None)
         self._variant_filter.blockSignals(False)
         self._size_variant_filter()
+        self._fill_status_filter()
+        self._source_changed()
+
+    def _fill_status_filter(self) -> None:
         self._status_filter.blockSignals(True)
         self._status_filter.clear()
         self._status_filter.addItem("All statuses")
         statuses = (
             tuple(Status)
-            if self._base_mode else
+            if self._base_variants else
             (Status.MATCH, Status.VALUE_MISMATCH, Status.MISSING_IN_MASTER, Status.MISSING_IN_WEBFLOW)
         )
         self._status_filter.addItems([status.value for status in statuses])
         self._status_filter.blockSignals(False)
-        self._set_running(self._running)
+
+    def _export(self) -> None:
+        if self._running or not self._rows:
+            return
+        default = f"Comparison_Result_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
+        path = self._dialogs.save_file("Export comparison result", default, "Excel Files (*.xlsx)")
+        if not path:
+            return
+        try:
+            export_rows(path, _TARGET_HEADERS, [
+                (part, row.parameter, _display(row.master),
+                 _display(row.base) if (part, software) in self._base_variants else "",
+                 _display(row.target), row.status.value)
+                for part, software, row in self._rows
+            ])
+        except OSError as error:
+            self._dialogs.error("Comparison", f"Could not export the comparison result: {error}")
+            return
+        self._dialogs.info("Comparison", f"Comparison result exported to {path}.")
 
     def _set_running(self, running: bool) -> None:
         self._running = running
@@ -299,6 +325,7 @@ class ComparisonWidget(QWidget):
         self._select_all_btn.setEnabled(not running and self._variants_table.rowCount() > 0)
         self._clear_selection_btn.setEnabled(not running and bool(self._selected_rows()))
         self._compare_btn.setEnabled(not running and bool(self._selected_rows()))
+        self._export_btn.setEnabled(not running and bool(self._rows))
 
     def _compare(self) -> None:
         if self._running:
@@ -319,7 +346,10 @@ class ComparisonWidget(QWidget):
         connection = {"driver_path": ""}
         if saved.get("webflow_base_url"):
             connection["base_url"] = str(saved["webflow_base_url"]).strip()
-        self._source_changed()
+        self._run_base = {
+            tuple(self._variants_table.item(row, 0).data(Qt.UserRole + 1)[:2])
+            for row in rows if self._variants_table.item(row, 3).data(Qt.UserRole)
+        }
         self._run_rows = rows
         self._run_revision = self._revision
         self._set_running(True)
@@ -371,8 +401,14 @@ class ComparisonWidget(QWidget):
         if self._run_revision != self._revision:
             self._summary.setText("Master data changed during comparison. Select variants and compare again.")
             return
-        self._rows = [(result.variant, result.software, row) for result in results for row in result.rows]
-        self._render_results()
+        rows = [(result.variant, result.software, row) for result in results for row in result.rows]
+        if rows:
+            self._rows = rows
+            self._base_variants = self._run_base
+            self._fill_status_filter()
+            self._render_results()
+        self._set_running(False)
+        self._summary.setText(self._summary.text() if rows else "No comparison results were produced.")
         failed = sum(bool(result.error) for result in results)
         cancelled = sum(result.cancelled for result in results)
         self._summary.setText(
