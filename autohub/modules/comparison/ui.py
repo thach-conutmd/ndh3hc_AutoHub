@@ -7,15 +7,18 @@ from threading import Event
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QPushButton, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QLineEdit, QPushButton, QSizePolicy, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
+from autohub.core.webflow_links import is_link
 from autohub.core.webflow_numbers import NUMBER_FIELDS
 from autohub.core.workers import FunctionWorker
 from autohub.modules.home.table_filter import TableFilter
 from autohub.ui.theme import set_muted
+from autohub.ui.hover_cursor import HoverCursor
 from autohub.ui.webflow_link_delegate import WebFlowLinkDelegate, format_webflow_link_item
 
 from .comparison import ComparisonRow, Status
@@ -32,6 +35,36 @@ def _display(value: ParameterValue) -> str:
     if value in (None, "", (), "---"):
         return "(missing)"
     return " | ".join(value) if isinstance(value, tuple) else value
+
+
+class _CenteredCheckDelegate(QStyledItemDelegate):
+    def _centered_option(self, option, index):
+        centered = QStyleOptionViewItem(option)
+        self.initStyleOption(centered, index)
+        style = centered.widget.style()
+        indicator = style.subElementRect(QStyle.SE_ItemViewItemCheckIndicator, centered, centered.widget)
+        centered.rect.translate(option.rect.center().x() - indicator.center().x(), 0)
+        return centered
+
+    def paint(self, painter, option, index) -> None:
+        background = QStyleOptionViewItem(option)
+        self.initStyleOption(background, index)
+        background.features &= ~QStyleOptionViewItem.HasCheckIndicator
+        background.widget.style().drawControl(QStyle.CE_ItemViewItem, background, painter, background.widget)
+        centered = self._centered_option(option, index)
+        indicator = QStyleOptionButton()
+        indicator.rect = background.widget.style().subElementRect(
+            QStyle.SE_ItemViewItemCheckIndicator, centered, background.widget,
+        )
+        indicator.state = option.state | (
+            QStyle.State_On if index.data(Qt.CheckStateRole) == Qt.Checked.value else QStyle.State_Off
+        )
+        background.widget.style().drawPrimitive(
+            QStyle.PE_IndicatorItemViewItemCheck, indicator, painter, background.widget,
+        )
+
+    def editorEvent(self, event, model, option, index) -> bool:
+        return super().editorEvent(event, model, self._centered_option(option, index), index)
 
 
 class ComparisonWidget(QWidget):
@@ -73,10 +106,20 @@ class ComparisonWidget(QWidget):
         self._variants_table.setTextElideMode(Qt.ElideRight)
         self._variants_table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self._variants_table.verticalHeader().setVisible(False)
-        self._variants_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        for column, width in enumerate((55, 130, 110, 150, 125, 180)):
-            self._variants_table.setColumnWidth(column, width)
+        header = self._variants_table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignCenter)
+        header.setResizeContentsPrecision(-1)
+        for column in (0, 1, 2, 4):
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        for column in (3, 5):
+            header.setSectionResizeMode(column, QHeaderView.Stretch)
+        self._check_delegate = _CenteredCheckDelegate(self._variants_table)
+        self._variants_table.setItemDelegateForColumn(0, self._check_delegate)
         self._link_delegate = WebFlowLinkDelegate(self._variants_table, (2, 3))
+        self._link_cursor = HoverCursor(
+            (self._variants_table,),
+            lambda index: index.isValid() and index.column() in (2, 3) and is_link(index.data(Qt.UserRole) or ""),
+        )
         self._variants_table.setMaximumHeight(160)
         self._select_all_btn = QPushButton("Select all")
         self._clear_selection_btn = QPushButton("Clear selection")

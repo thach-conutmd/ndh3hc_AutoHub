@@ -6,7 +6,7 @@ import pytest
 from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent, Qt
 from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QLineEdit, QStyle, QStyleOptionComboBox
+from PySide6.QtWidgets import QApplication, QLineEdit, QStyle, QStyleOptionComboBox, QStyleOptionViewItem
 
 from autohub.modules.comparison import ui
 from autohub.modules.comparison.comparison import Status
@@ -816,3 +816,68 @@ def test_empty_base_double_click_still_allows_full_url_input(qapp):
     qapp.processEvents()
     assert item.text() == "WF101"
     assert item.data(Qt.UserRole) == "https://webflow/app/ShowJob/101"
+
+
+def test_selection_table_fills_viewport_and_resizes_content_columns(qapp):
+    page, _, _, _ = build_page([variant("37820-6SA-T310-M6")])
+    page.resize(1100, 650)
+    page.show()
+    qapp.processEvents()
+    table = page._variants_table
+    header = table.horizontalHeader()
+    assert header.defaultAlignment() == Qt.AlignCenter
+    for width in (1100, 1400, 900):
+        page.resize(width, 650)
+        qapp.processEvents()
+        assert header.length() == table.viewport().width()
+
+        assert not table.horizontalScrollBar().isVisible()
+        assert abs(table.columnWidth(3) - table.columnWidth(5)) <= 1
+        for column in (0, 1, 2, 4):
+            assert table.columnWidth(column) >= table.sizeHintForColumn(column)
+    table.item(0, 4).setText("Exporting Target XML")
+    qapp.processEvents()
+    assert table.columnWidth(4) >= table.sizeHintForColumn(4)
+    assert header.length() == table.viewport().width()
+    page.set_variants([variant("Long variant " * 40)])
+    QTest.qWait(20)
+    assert header.length() > table.viewport().width()
+    assert table.horizontalScrollBar().isVisible()
+    page.set_variants([variant()])
+    QTest.qWait(20)
+    assert header.length() == table.viewport().width()
+    assert not table.horizontalScrollBar().isVisible()
+
+
+def test_selection_checkbox_is_centered_and_clickable(qapp):
+    page, _, _, _ = build_page()
+    page.show()
+    qapp.processEvents()
+    table = page._variants_table
+    item = table.item(0, 0)
+    index = table.model().index(0, 0)
+    option = QStyleOptionViewItem()
+    option.widget = table
+    option.rect = table.visualItemRect(item)
+    centered = page._check_delegate._centered_option(option, index)
+    rect = table.style().subElementRect(QStyle.SE_ItemViewItemCheckIndicator, centered, table)
+    assert abs(rect.center().x() - option.rect.center().x()) <= 1
+    QTest.mouseClick(table.viewport(), Qt.LeftButton, pos=rect.center())
+    assert item.checkState() == Qt.Checked
+    QTest.keyClick(table, Qt.Key_Space)
+    assert item.checkState() == Qt.Unchecked
+
+
+@pytest.mark.parametrize("column", [2, 3])
+def test_comparison_links_reuse_home_pointer_cursor(qapp, column):
+    page, _, _, _ = build_page()
+    page._variants_table.item(0, 3).setText("https://webflow/app/ShowJob/99")
+    page.show()
+    qapp.processEvents()
+    table = page._variants_table
+    QTest.mouseMove(table.viewport(), table.visualItemRect(table.item(0, column)).center())
+    qapp.processEvents()
+    assert table.viewport().cursor().shape() == Qt.PointingHandCursor
+    QTest.mouseMove(table.viewport(), table.visualItemRect(table.item(0, 1)).center())
+    qapp.processEvents()
+    assert table.viewport().cursor().shape() == Qt.ArrowCursor
