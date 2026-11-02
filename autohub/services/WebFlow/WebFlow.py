@@ -22,6 +22,7 @@ from .job_batch import JobBatch
 from .SideMenuBar import SideMenuBar
 from .step_log import set_step_observer
 from .step_trace import StepTrace
+from .xml_export import export_xml
 
 _logger = logging.getLogger(__name__)
 
@@ -97,8 +98,8 @@ class WebFlow(webdriver.Edge):
         url = urlsplit(self.base_url)
         return f"{url.scheme}://{url.netloc}/app/ShowJob/{job_id}"
 
-    def open_job(self, job_id: str) -> bool:
-        url = self.job_url(job_id)
+    def open_job(self, job_id: str, url: str | None = None) -> bool:
+        url = url or self.job_url(job_id)
         _logger.info("Opening job %s: %s", job_id, url)
         try:
             self.get(url)
@@ -134,6 +135,13 @@ class WebFlow(webdriver.Edge):
         except Exception:
             _logger.exception("Job %s did not finish loading", job_id)
             return False
+
+    def export_job_xml(self, link: str) -> bytes:
+        """Use the same browser, authentication and page-readiness checks as job creation."""
+        job_id = urlsplit(link).path.rstrip("/").rsplit("/", 1)[-1]
+        if not self.open_job(job_id, url=link):
+            raise RuntimeError(f"Could not open WebFlow job {job_id} for Export XML.")
+        return export_xml(self)
 
     def create_and_fill_jobs(
         self,

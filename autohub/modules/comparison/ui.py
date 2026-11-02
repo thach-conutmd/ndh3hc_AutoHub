@@ -1,28 +1,27 @@
-"""Comparison workspace over the variants published by Home; XML upload is the export fallback."""
+"""Multi-variant comparison workspace; browser work runs off the UI thread."""
 from __future__ import annotations
 
 from copy import deepcopy
-from pathlib import Path
 
-from PySide6.QtCore import QUrl
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QAbstractItemView, QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView, QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
+from autohub.core.settings import SettingsStore
 from autohub.core.webflow_numbers import NUMBER_FIELDS
+from autohub.core.workers import FunctionWorker
 from autohub.ui.theme import set_muted
 
-from .comparison import ComparisonRow, Status, compare_parameters
-from .matching import (
-    master_parameters, match_variant, validate_export_link, validate_link, variant_identity,
-)
-from .xml_parser import MAX_XML_BYTES, ParameterMap, ParameterValue, parse_xml
+from .comparison import ComparisonRow, Status
+from .matching import validate_link
+from .service import ComparisonService, VariantResult
+from .xml_parser import ParameterValue
 
-_TARGET_HEADERS = ("Variant", "SW Part Number", "Parameter", "Master", "Webflow", "Status")
-_BASE_HEADERS = ("Parameter", "Master", "Base", "Target", "Status")
+_TARGET_HEADERS = ("Variant", "SW Part Number", "Parameter", "Master Value", "Webflow Value", "Status")
+_BASE_HEADERS = ("Variant", "SW Part Number", "Parameter", "Master", "Base", "Target", "Status")
 
 
 def _display(value: ParameterValue) -> str:
@@ -32,65 +31,63 @@ def _display(value: ParameterValue) -> str:
 
 
 class ComparisonWidget(QWidget):
-    def __init__(self, dialogs: Dialogs | None = None):
+    _progress = Signal(int, str, str)
+
+    def __init__(
+        self, dialogs: Dialogs | None = None, service: ComparisonService | None = None,
+        settings: SettingsStore | None = None,
+    ):
         super().__init__()
         self._dialogs = dialogs or QtDialogs(self)
+        self._service = service
+        self._settings = settings
         self._variants: list[dict] = []
-        self._target: ParameterMap | None = None
-        self._base: ParameterMap | None = None
-        self._rows: list[ComparisonRow] = []
+        self._rows: list[tuple[str, str, ComparisonRow]] = []
+        self._worker: FunctionWorker | None = None
+        self._running = False
+        self._revision = 0
+        self._run_revision = 0
+        self._run_rows: list[int] = []
         self._base_mode = False
 
         title = QLabel("Comparison")
         title.setStyleSheet("font-size: 20px; font-weight: 600;")
         subtitle = QLabel(
-            "Load a Master Sheet on Home, then select a linked variant. Automatic export is not "
-            "available: open the job, use WebFlow's Export XML action, and upload the exported file."
+            "Select linked variants to export WebFlow XML automatically and compare with Master. "
+            "Jobs are processed sequentially using the existing WebFlow browser and authentication."
         )
         subtitle.setWordWrap(True)
         set_muted(subtitle, True)
-
-        self._variant_selector = QComboBox()
-        self._variant_selector.setMinimumWidth(200)
-        self._variant_selector.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self._variant_selector.setToolTip("Variant | SW Part Number (only variants with a WebFlow link)")
-        self._open_target_btn = QPushButton("Open target WebFlow")
-        self._upload_target_btn = QPushButton("Upload target XML")
-        self._target_file = QLabel("No target XML")
-        self._target_file.setWordWrap(True)
-        target_actions = QHBoxLayout()
-        target_actions.addWidget(self._open_target_btn)
-        target_actions.addWidget(self._upload_target_btn)
-        target_actions.addWidget(self._target_file, 1)
-
+        self._variants_table = QTableWidget(0, 4)
+        self._variants_table.setHorizontalHeaderLabels(("Select", "Variant | SW Part Number", "Status", "Error"))
+        self._variants_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._variants_table.verticalHeader().setVisible(False)
+        self._variants_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self._variants_table.horizontalHeader().setStretchLastSection(True)
+        self._variants_table.setMaximumHeight(160)
+        self._select_all_btn = QPushButton("Select all")
+        self._clear_selection_btn = QPushButton("Clear selection")
         self._base_link = QLineEdit()
-        self._base_link.setPlaceholderText("Optional: https://host/app/ShowJob/123")
-        self._open_base_btn = QPushButton("Open base WebFlow")
-        self._upload_base_btn = QPushButton("Upload base XML")
-        self._base_file = QLabel("No base XML")
-        self._base_file.setWordWrap(True)
-        base_actions = QHBoxLayout()
-        base_actions.addWidget(self._open_base_btn)
-        base_actions.addWidget(self._upload_base_btn)
-        base_actions.addWidget(self._base_file, 1)
-
-        sources = QFormLayout()
-        sources.addRow("Variant | SW Part Number:", self._variant_selector)
-        sources.addRow(target_actions)
-        sources.addRow("Base WebFlow Link:", self._base_link)
-        sources.addRow(base_actions)
-        self._compare_btn = QPushButton("Compare")
-        self._compare_btn.setEnabled(False)
+        self._base_link.setPlaceholderText("Optional Base WebFlow Link")
+        self._base_status = QLabel()
+        self._base_status.setWordWrap(True)
+        self._compare_btn = QPushButton("Compare selected")
+        sources = QHBoxLayout()
+        sources.addWidget(self._select_all_btn)
+        sources.addWidget(self._clear_selection_btn)
+        sources.addWidget(self._base_link, 1)
+        sources.addWidget(self._compare_btn)
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search parameters, values, variants or status...")
+        self._variant_filter = QComboBox()
         self._status_filter = QComboBox()
         self._deviations = QCheckBox("Deviations only")
-        self._deviations.setToolTip("Hide target values that match Master, including matches to both Master and Base.")
+        self._deviations.setToolTip("Hide target values matching Master, including matches to both Master and Base.")
         filters = QHBoxLayout()
         filters.addWidget(self._search, 1)
+        filters.addWidget(self._variant_filter)
         filters.addWidget(self._status_filter)
         filters.addWidget(self._deviations)
-        filters.addWidget(self._compare_btn)
         self._table = QTableWidget(0, len(_TARGET_HEADERS))
         self._table.setHorizontalHeaderLabels(_TARGET_HEADERS)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -99,31 +96,30 @@ class ComparisonWidget(QWidget):
         self._table.verticalHeader().setVisible(False)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._table.horizontalHeader().setStretchLastSection(True)
-        self._summary = QLabel()
+        self._summary = QLabel("Load a Master Sheet on Home and select linked variants.")
         self._summary.setWordWrap(True)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 16, 20, 16)
-        layout.setSpacing(12)
+        layout.setSpacing(10)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        layout.addWidget(self._variants_table)
         layout.addLayout(sources)
+        layout.addWidget(self._base_status)
         layout.addLayout(filters)
         layout.addWidget(self._table, 1)
         layout.addWidget(self._summary)
-
-        self._variant_selector.currentIndexChanged.connect(self._selection_changed)
-        self._open_target_btn.clicked.connect(self._open_target)
-        self._open_base_btn.clicked.connect(self._open_base)
-        self._upload_target_btn.clicked.connect(self._upload_target)
-        self._upload_base_btn.clicked.connect(self._upload_base)
-        self._base_link.textChanged.connect(self._base_changed)
+        self._select_all_btn.clicked.connect(self._select_all)
+        self._clear_selection_btn.clicked.connect(self._clear_selection)
+        self._variants_table.itemChanged.connect(self._selection_changed)
+        self._base_link.textChanged.connect(self._source_changed)
         self._compare_btn.clicked.connect(self._compare)
         self._search.textChanged.connect(self._apply_filters)
+        self._variant_filter.currentIndexChanged.connect(self._apply_filters)
         self._status_filter.currentTextChanged.connect(self._apply_filters)
         self._deviations.toggled.connect(self._apply_filters)
-        self._refresh_status_filter()
+        self._progress.connect(self._on_progress)
         self._refresh_variants()
-        self._base_changed()
 
     def set_variants(self, variants: list[dict]) -> None:
         self._variants = deepcopy(variants)
@@ -143,51 +139,66 @@ class ComparisonWidget(QWidget):
                     variant.setdefault("hardware", {})[key] = values[column]
         self._refresh_variants()
 
-    def _selected(self) -> dict | None:
-        index = self._variant_selector.currentData()
-        return self._variants[index] if index is not None else None
-
     def _refresh_variants(self) -> None:
-        self._variant_selector.blockSignals(True)
-        self._variant_selector.clear()
+        self._variants_table.blockSignals(True)
+        self._variants_table.setRowCount(0)
         for index, variant in enumerate(self._variants):
-            if not str(variant.get("webflow_link") or "").strip():
+            try:
+                validate_link(str(variant.get("webflow_link") or ""))
+            except ValueError:
                 continue
-            software = variant.get("hardware", {}).get("software_part_number") or "(missing SW Part Number)"
-            self._variant_selector.addItem(f"{variant['part_number']} | {software}", index)
-        self._variant_selector.blockSignals(False)
-        self._selection_changed()
+            row = self._variants_table.rowCount()
+            self._variants_table.insertRow(row)
+            checkbox = QTableWidgetItem()
+            checkbox.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
+            checkbox.setCheckState(Qt.Unchecked)
+            checkbox.setData(Qt.UserRole, index)
+            self._variants_table.setItem(row, 0, checkbox)
+            software = str(variant.get("hardware", {}).get("software_part_number") or "")
+            for column, text in enumerate((f"{variant['part_number']} | {software}", "Pending", ""), 1):
+                item = QTableWidgetItem(str(text))
+                item.setToolTip(str(text))
+                self._variants_table.setItem(row, column, item)
+        self._variants_table.blockSignals(False)
+        self._source_changed()
 
-    def _selection_changed(self, *_args) -> None:
-        self._target = None
-        self._target_file.setText("No target XML")
-        self._open_target_btn.setEnabled(self._selected() is not None)
-        self._upload_target_btn.setEnabled(self._selected() is not None)
-        self._clear_results()
+    def _selected_rows(self) -> list[int]:
+        return [
+            row for row in range(self._variants_table.rowCount())
+            if self._variants_table.item(row, 0).checkState() == Qt.Checked
+        ]
 
-    def _base_changed(self, *_args) -> None:
-        self._base = None
-        self._base_file.setText("No base XML")
-        enabled = bool(self._base_link.text().strip())
-        self._open_base_btn.setEnabled(enabled)
-        self._upload_base_btn.setEnabled(enabled)
-        self._clear_results()
+    def _select_all(self) -> None:
+        self._set_selection(Qt.Checked)
 
-    def _clear_results(self) -> None:
+    def _clear_selection(self) -> None:
+        self._set_selection(Qt.Unchecked)
+
+    def _set_selection(self, state: Qt.CheckState) -> None:
+        self._variants_table.blockSignals(True)
+        for row in range(self._variants_table.rowCount()):
+            self._variants_table.item(row, 0).setCheckState(state)
+        self._variants_table.blockSignals(False)
+        self._source_changed()
+
+    def _selection_changed(self, item: QTableWidgetItem) -> None:
+        if item.column() == 0:
+            self._source_changed()
+
+    def _source_changed(self, *_args) -> None:
+        self._revision += 1
         self._rows = []
+        self._table.setRowCount(0)
+        self._base_status.clear()
+        self._summary.setText("Select linked variants, then Compare selected.")
         self._base_mode = bool(self._base_link.text().strip())
         headers = _BASE_HEADERS if self._base_mode else _TARGET_HEADERS
-        self._table.setRowCount(0)
         self._table.setColumnCount(len(headers))
         self._table.setHorizontalHeaderLabels(headers)
-        self._refresh_status_filter()
-        self._compare_btn.setEnabled(self._target is not None and (not self._base_mode or self._base is not None))
-        self._summary.setText(
-            "Upload exported XML to compare against the loaded Master Sheet."
-            if self._selected() is not None else "No linked variants. Load a Master Sheet on Home first."
-        )
-
-    def _refresh_status_filter(self) -> None:
+        self._variant_filter.blockSignals(True)
+        self._variant_filter.clear()
+        self._variant_filter.addItem("All variants", None)
+        self._variant_filter.blockSignals(False)
         self._status_filter.blockSignals(True)
         self._status_filter.clear()
         self._status_filter.addItem("All statuses")
@@ -198,105 +209,108 @@ class ComparisonWidget(QWidget):
         )
         self._status_filter.addItems([status.value for status in statuses])
         self._status_filter.blockSignals(False)
+        self._set_running(self._running)
 
-    def _open_target(self) -> None:
-        selected = self._selected()
-        if selected is not None:
-            self._open_link(selected.get("webflow_link", ""))
-
-    def _open_base(self) -> None:
-        self._open_link(self._base_link.text())
-
-    def _open_link(self, link: str) -> None:
-        try:
-            validated = validate_link(link)
-        except ValueError as error:
-            self._dialogs.error("Open WebFlow", str(error))
-            return
-        if not QDesktopServices.openUrl(QUrl(validated)):
-            self._dialogs.error("Open WebFlow", "Could not open the WebFlow link in the default browser.")
-
-    def _read_xml(self, path: str) -> ParameterMap:
-        with Path(path).open("rb") as source:
-            return parse_xml(source.read(MAX_XML_BYTES + 1))
-
-    def _validate_target(self, target: ParameterMap) -> dict:
-        selected = self._selected()
-        if selected is None:
-            raise ValueError("Select a linked Master Sheet variant first.")
-        matched = match_variant(self._variants, target)
-        if variant_identity(matched) != variant_identity(selected):
-            raise ValueError("The uploaded XML does not match the selected Variant + SW Part Number.")
-        validate_export_link(target, selected.get("webflow_link", ""))
-        return matched
-
-    def _upload_target(self) -> None:
-        path = self._dialogs.pick_file("Upload WebFlow target XML", "WebFlow XML (*.xml)")
-        if not path:
-            return
-        self._target = None
-        self._target_file.setText("No target XML")
-        self._clear_results()
-        try:
-            target = self._read_xml(path)
-            self._validate_target(target)
-        except (OSError, ValueError) as error:
-            self._dialogs.error("Target XML", str(error))
-            return
-        self._target = target
-        self._target_file.setText(Path(path).name)
-        self._clear_results()
-
-    def _upload_base(self) -> None:
-        path = self._dialogs.pick_file("Upload WebFlow base XML", "WebFlow XML (*.xml)")
-        if not path:
-            return
-        self._base = None
-        self._base_file.setText("No base XML")
-        self._clear_results()
-        try:
-            base = self._read_xml(path)
-            validate_export_link(base, self._base_link.text())
-        except (OSError, ValueError) as error:
-            self._dialogs.error("Base XML", str(error))
-            return
-        self._base = base
-        self._base_file.setText(Path(path).name)
-        self._clear_results()
+    def _set_running(self, running: bool) -> None:
+        self._running = running
+        self._variants_table.setEnabled(not running)
+        self._base_link.setEnabled(not running)
+        self._select_all_btn.setEnabled(not running and self._variants_table.rowCount() > 0)
+        self._clear_selection_btn.setEnabled(not running and bool(self._selected_rows()))
+        self._compare_btn.setEnabled(not running and bool(self._selected_rows()))
 
     def _compare(self) -> None:
-        self._clear_results()
-        try:
-            if self._target is None:
-                raise ValueError("Upload the target WebFlow Export XML first.")
-            matched = self._validate_target(self._target)
-            base = None
-            if self._base_mode:
-                if self._base is None:
-                    raise ValueError("Upload Export XML for the Base WebFlow Link first.")
-                validate_export_link(self._base, self._base_link.text())
-                base = self._base
-            self._rows = compare_parameters(master_parameters(matched), self._target, base)
-        except ValueError as error:
-            self._dialogs.error("Comparison", str(error))
+        if self._running:
             return
+        if self._service is None:
+            self._dialogs.error("Comparison", "The WebFlow comparison service is not configured.")
+            return
+        rows = self._selected_rows()
+        if not rows:
+            return
+        selected = deepcopy([
+            self._variants[self._variants_table.item(row, 0).data(Qt.UserRole)] for row in rows
+        ])
+        masters = deepcopy(self._variants)
+        base_link = self._base_link.text().strip()
+        saved = self._settings.load() if self._settings is not None else {}
+        connection = {"driver_path": ""}
+        if saved.get("webflow_base_url"):
+            connection["base_url"] = str(saved["webflow_base_url"]).strip()
+        self._source_changed()
+        self._run_rows = rows
+        self._run_revision = self._revision
+        self._set_running(True)
+        for row in rows:
+            self._set_variant_status(row, "Pending", "")
+        self._summary.setText(f"Comparing {len(rows)} selected variants...")
+        self._worker = FunctionWorker(
+            lambda: self._service.run(selected, masters, base_link, connection, self._progress.emit),
+            self,
+        )
+        self._worker.finished_ok.connect(self._finish)
+        self._worker.finished_error.connect(self._fail)
+        self._worker.start()
+
+    def _set_variant_status(self, row: int, status: str, error: str) -> None:
+        self._variants_table.item(row, 2).setText(status)
+        self._variants_table.item(row, 3).setText(error)
+        self._variants_table.item(row, 3).setToolTip(error)
+
+    def _on_progress(self, index: int, status: str, error: str) -> None:
+        if self._run_revision != self._revision:
+            return
+        if index == -1:
+            self._base_status.setText(f"Base: {status}" + (f" - {error}" if error else ""))
+        elif 0 <= index < len(self._run_rows):
+            self._set_variant_status(self._run_rows[index], status, error)
+
+    def _finish(self, results: list[VariantResult]) -> None:
+        if self._worker is not None:
+            self._worker.wait()
+            self._worker.deleteLater()
+            self._worker = None
+        self._set_running(False)
+        if self._run_revision != self._revision:
+            self._summary.setText("Master data changed during comparison. Select variants and compare again.")
+            return
+        self._rows = [(result.variant, result.software, row) for result in results for row in result.rows]
         self._render_results()
+        failed = sum(bool(result.error) for result in results)
+        self._summary.setText(
+            f"{len(results) - failed} completed; {failed} failed. " + self._summary.text()
+        )
+
+    def _fail(self, error: str) -> None:
+        if self._worker is not None:
+            self._worker.wait()
+            self._worker.deleteLater()
+            self._worker = None
+        self._set_running(False)
+        if self._run_revision == self._revision:
+            for row in self._run_rows:
+                self._set_variant_status(row, "Failed", error)
+        self._summary.setText(f"Comparison failed: {error}")
+        self._dialogs.error("Comparison", error)
 
     def _render_results(self) -> None:
-        selected = self._selected()
-        if selected is None:
-            return
+        self._variant_filter.blockSignals(True)
+        self._variant_filter.clear()
+        self._variant_filter.addItem("All variants", None)
+        for part, software in dict.fromkeys((part, software) for part, software, _ in self._rows):
+            self._variant_filter.addItem(f"{part} | {software}", (part, software))
+        self._variant_filter.blockSignals(False)
         self._table.setRowCount(len(self._rows))
-        for index, row in enumerate(self._rows):
+        for index, (part, software, row) in enumerate(self._rows):
             values = (
-                (row.parameter, _display(row.master), _display(row.base), _display(row.target), row.status.value)
+                (part, software, row.parameter, _display(row.master), _display(row.base),
+                 _display(row.target), row.status.value)
                 if self._base_mode else
-                (selected["part_number"], selected.get("hardware", {}).get("software_part_number", ""),
-                 row.parameter, _display(row.master), _display(row.target), row.status.value)
+                (part, software, row.parameter, _display(row.master), _display(row.target), row.status.value)
             )
             for column, value in enumerate(values):
-                item = QTableWidgetItem(str(value))
-                item.setToolTip(str(value))
+                item = QTableWidgetItem(value)
+                item.setToolTip(value)
                 self._table.setItem(index, column, item)
         self._table.resizeColumnsToContents()
         for column in range(self._table.columnCount()):
@@ -306,18 +320,29 @@ class ComparisonWidget(QWidget):
     def _apply_filters(self, *_args) -> None:
         search = self._search.text().strip().casefold()
         status = self._status_filter.currentText()
+        variant = self._variant_filter.currentData()
         visible = 0
-        for index, row in enumerate(self._rows):
+        for index, (part, software, row) in enumerate(self._rows):
             text = " ".join(self._table.item(index, column).text() for column in range(self._table.columnCount()))
             show = (
                 (not search or search in text.casefold())
+                and (variant is None or variant == (part, software))
                 and (status == "All statuses" or status == row.status.value)
                 and (not self._deviations.isChecked() or row.deviation)
             )
             self._table.setRowHidden(index, not show)
             visible += int(show)
-        if self._rows:
-            deviations = sum(row.deviation for row in self._rows)
-            self._summary.setText(
-                f"{visible} / {len(self._rows)} parameters shown; {deviations} deviations from Master."
-            )
+        self._summary.setText(
+            f"{visible} / {len(self._rows)} parameters shown; "
+            f"{sum(row.deviation for _, _, row in self._rows)} deviations from Master."
+        )
+
+    def confirm_leave(self) -> bool:
+        if self._running:
+            self._dialogs.info("Comparison", "Wait for the current XML exports and comparisons to finish.")
+            return False
+        return True
+
+    def shutdown(self) -> None:
+        if self._worker is not None:
+            self._worker.wait()
