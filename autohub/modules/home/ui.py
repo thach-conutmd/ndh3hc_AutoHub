@@ -68,8 +68,9 @@ class HomeWidget(QWidget):
             "margin-top: 12px; font-weight: 600; }"
             "QGroupBox::title { subcontrol-origin: margin; left: 14px; padding: 0 6px; }"
         )
+        sheet_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         sheet_layout = QVBoxLayout(sheet_group)
-        sheet_layout.setContentsMargins(16, 24, 16, 14)
+        sheet_layout.setContentsMargins(16, 14, 16, 8)
         sheet_layout.addLayout(files_row)
 
         self._row_summary = QLabel("No variants loaded")
