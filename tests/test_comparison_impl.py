@@ -43,7 +43,7 @@ def sheet():
     })
 
 
-def test_writer_updates_only_the_matching_impl_row_and_skips_formulas():
+def test_writer_updates_only_the_matching_impl_row_and_overwrites_existing_values():
     worksheet = sheet()
     outcomes = VariantRowWriter(worksheet, None).write_impl_values(
         {"P1": [20], "P2": [30], "P3": [40], "P4": [20, 50]},
@@ -55,8 +55,8 @@ def test_writer_updates_only_the_matching_impl_row_and_skips_formulas():
             "P5": ImplUpdate("0011", {"W": "bad"}),
         },
     )
-    assert (outcomes["P1"].written, outcomes["P1"].skipped, outcomes["P1"].error) == (1, 1, "")
-    assert worksheet.cells["W21"].Value == "new" and worksheet.cells["X21"].Value is None
+    assert (outcomes["P1"].written, outcomes["P1"].skipped, outcomes["P1"].error) == (2, 0, "")
+    assert worksheet.cells["W21"].Value == "new" and worksheet.cells["X21"].Value is True
     for part in ("P2", "P3", "P4", "P5"):
         assert outcomes[part].error and not outcomes[part].written
     assert "W31" not in worksheet.cells and "W41" not in worksheet.cells
@@ -184,3 +184,14 @@ def test_update_saves_then_refreshes_before_returning_and_propagates_failures(fa
     assert events[-1] == "close"
     if failure == "save":
         assert "refresh" not in events
+
+
+def test_writer_overwrites_populated_and_formula_impl_cells():
+    worksheet = Sheet({
+        "AX20": Cell("0011"), "#21,4": Cell("IMPL"), "W21": Cell("old"), "X21": Cell("No", formula=True),
+    })
+    outcomes = VariantRowWriter(worksheet, None).write_impl_values(
+        {"P1": [20]}, {"P1": ImplUpdate("0011", {"W": "new", "X": "true"}, {"X": "checkbox"})}
+    )
+    assert (outcomes["P1"].written, outcomes["P1"].error) == (2, "")
+    assert worksheet.cells["W21"].Value == "new" and worksheet.cells["X21"].Value == "Yes"

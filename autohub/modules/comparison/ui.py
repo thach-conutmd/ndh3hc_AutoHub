@@ -254,7 +254,8 @@ class ComparisonWidget(QWidget):
             checkbox.setData(Qt.UserRole, index)
             checkbox.setData(Qt.UserRole + 1, identity)
             self._variants_table.setItem(row, 0, checkbox)
-            for column, text in enumerate((identity[0], identity[2], base_link, "Pending", ""), 1):
+            initial = "Completed" if str(variant.get("comparison_result") or "").strip().upper() == "OK" else "Pending"
+            for column, text in enumerate((identity[0], identity[2], base_link, initial, ""), 1):
                 item = QTableWidgetItem(str(text))
                 if column != 3:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
