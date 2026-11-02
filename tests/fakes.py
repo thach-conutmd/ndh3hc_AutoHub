@@ -114,10 +114,14 @@ class FakeProgress:
 
 
 class FakeDialogs:
-    def __init__(self, files=(), hw_answer=False, kick_off_answer=False, table_answer=True, confirm_answer=True):
+    def __init__(
+        self, files=(), hw_answer=False, kick_off_answer=False, table_answer=True, confirm_answer=True,
+        hex_file_answer=False,
+    ):
         self.files = list(files)
         self.hw_answer = hw_answer
         self.kick_off_answer = kick_off_answer
+        self.hex_file_answer = hex_file_answer
         self.table_answer = table_answer  # True clears the table, False keeps it, None cancels
         self.confirm_answer = confirm_answer
         self.confirmed: list = []
@@ -145,7 +149,11 @@ class FakeDialogs:
         """Hands out `files` in field order; optional fields only when their answer flag is set."""
         self.asked_fields = [field.name for field in fields]
         self.initial = dict(initial)
-        wanted = {"HW Info": self.hw_answer, "Kick Off": self.kick_off_answer}
+        wanted = {
+            "HW Info": self.hw_answer,
+            "Kick Off": self.kick_off_answer,
+            "Hex file": self.hex_file_answer,
+        }
         chosen = {}
         for field in fields:
             if not field.required and not wanted.get(field.name):
