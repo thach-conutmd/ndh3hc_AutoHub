@@ -60,16 +60,14 @@ def test_comparison_lists_only_valid_links_and_allows_multiple_selection(qapp):
         variant("no_link", link=""), variant("invalid", link="bad"), variant("wrong_scheme", link="file:///12"),
     ])
     assert page._variants_table.rowCount() == 2
-    assert [page._variants_table.horizontalHeaderItem(i).text() for i in range(7)] == list(ui._VARIANT_HEADERS)
+    assert [page._variants_table.horizontalHeaderItem(i).text() for i in range(6)] == list(ui._VARIANT_HEADERS)
     assert page._variants_table.item(0, 1).text() == "P1"
-    assert page._variants_table.item(0, 2).text() == "0010"
     assert page._variants_table.item(1, 1).text() == "P2"
-    assert page._variants_table.item(1, 2).text() == "0011"
-    assert page._variants_table.item(0, 3).text() == "https://webflow/app/ShowJob/12"
-    for column in range(1, 7):
-        assert bool(page._variants_table.item(0, column).flags() & Qt.ItemIsEditable) == (column == 4)
-    assert page._variants_table.item(0, 3).toolTip() == page._variants_table.item(0, 3).text()
-    assert page._variants_table.columnWidth(5) < 150
+    assert page._variants_table.item(0, 2).text() == "https://webflow/app/ShowJob/12"
+    for column in range(1, 6):
+        assert bool(page._variants_table.item(0, column).flags() & Qt.ItemIsEditable) == (column == 3)
+    assert page._variants_table.item(0, 2).toolTip() == page._variants_table.item(0, 2).text()
+    assert page._variants_table.columnWidth(4) < 150
     assert not page._variants_table.horizontalHeader().stretchLastSection()
     assert not page._compare_btn.isEnabled()
     page._select_all_btn.click()
@@ -93,23 +91,22 @@ def test_automatic_batch_combines_results_and_supports_all_filters(qapp):
     assert dialogs.errors == []
     assert session.export_job_xml.call_count == 2
     assert [page._table.horizontalHeaderItem(i).text() for i in range(6)] == list(ui._TARGET_HEADERS)
-    assert page._table.rowCount() == 9
-    assert all(page._variants_table.item(row, 5).text() == "Completed" for row in range(2))
+    assert page._table.rowCount() == 6
+    assert all(page._variants_table.item(row, 4).text() == "Completed" for row in range(2))
     assert "2 completed; 0 failed" in page._summary.text()
     page._deviations.setChecked(True)
-    assert len(visible_rows(page)) == 4
+    assert len(visible_rows(page)) == 1
     page._search.setText("power")
     assert len(visible_rows(page)) == 1
     index = visible_rows(page)[0]
-    assert page._table.item(index, 3).text() == "93"
+    assert page._table.item(index, 2).text() == "93"
     assert page._table.item(index, 4).text() == "94"
     assert page._table.item(index, 5).text() == Status.VALUE_MISMATCH
     page._search.clear()
-    page._status_filter.setCurrentText(Status.MISSING_IN_MASTER.value)
-    assert len(visible_rows(page)) == 3
-    page._variant_filter.setCurrentIndex(2)
+    page._status_filter.setCurrentText(Status.VALUE_MISMATCH.value)
     assert len(visible_rows(page)) == 1
-    assert page._table.item(visible_rows(page)[0], 0).text() == "P2"
+    page._variant_filter.setCurrentIndex(2)
+    assert len(visible_rows(page)) == 0
 
 
 def test_failed_variant_displays_error_and_does_not_hide_successful_results(qapp):
@@ -120,10 +117,10 @@ def test_failed_variant_displays_error_and_does_not_hide_successful_results(qapp
     page._select_all_btn.click()
     page._compare_btn.click()
     wait_done(page, qapp)
-    assert page._variants_table.item(0, 5).text() == "Failed"
-    assert "Invalid WebFlow XML" in page._variants_table.item(0, 6).text()
-    assert page._variants_table.item(1, 5).text() == "Completed"
-    assert page._table.rowCount() == 4
+    assert page._variants_table.item(0, 4).text() == "Failed"
+    assert "Invalid WebFlow XML" in page._variants_table.item(0, 5).text()
+    assert page._variants_table.item(1, 4).text() == "Completed"
+    assert page._table.rowCount() == 3
     assert "1 completed; 1 failed" in page._summary.text()
     assert not dialogs.errors
 
@@ -134,23 +131,23 @@ def test_mixed_base_and_no_base_results_keep_correct_values_and_filters(qapp):
         export_xml(target_parameters()), export_xml(target_parameters(), job_id="99"),
         export_xml(target_parameters("P2", "0011"), job_id="13"),
     ])
-    page._variants_table.item(0, 4).setText("https://webflow/app/ShowJob/99")
+    page._variants_table.item(0, 3).setText("https://webflow/app/ShowJob/99")
     page._select_all_btn.click()
     page._compare_btn.click()
     wait_done(page, qapp)
     assert session.export_job_xml.call_count == 3
-    assert [page._table.horizontalHeaderItem(i).text() for i in range(7)] == list(ui._BASE_HEADERS)
+    assert [page._table.horizontalHeaderItem(i).text() for i in range(6)] == list(ui._TARGET_HEADERS)
     assert any(row.status == Status.MATCHES_BOTH for _, _, row in page._rows)
     assert any(part == "P2" and row.status == Status.MATCH for part, _, row in page._rows)
     assert len({part for part, _, _ in page._rows}) == 2
     for index, (part, _, _) in enumerate(page._rows):
         if part == "P2":
-            assert page._table.item(index, 4).text() == ""
+            assert page._table.item(index, 3).text() == ""
     page._status_filter.setCurrentText(Status.MATCH.value)
     assert visible_rows(page) and all(page._table.item(i, 0).text() == "P2" for i in visible_rows(page))
     page._status_filter.setCurrentText(Status.MATCHES_BOTH.value)
     assert visible_rows(page) and all(page._table.item(i, 0).text() == "P1" for i in visible_rows(page))
-    page._variants_table.item(0, 4).setText("")
+    page._variants_table.item(0, 3).setText("")
     assert not page._rows and page._table.columnCount() == 6
 
 
@@ -159,15 +156,15 @@ def test_invalid_base_link_only_fails_its_variant(qapp):
     page, _, session, _ = build_page(variants, [
         export_xml(target_parameters()), export_xml(target_parameters("P2", "0011"), job_id="13"),
     ])
-    page._variants_table.item(0, 4).setText("invalid")
+    page._variants_table.item(0, 3).setText("invalid")
     page._select_all_btn.click()
     page._compare_btn.click()
     wait_done(page, qapp)
     assert session.export_job_xml.call_count == 2
-    assert page._variants_table.item(0, 5).text() == "Failed"
-    assert "Base XML:" in page._variants_table.item(0, 6).text()
-    assert page._variants_table.item(1, 5).text() == "Completed"
-    assert page._table.rowCount() == 4
+    assert page._variants_table.item(0, 4).text() == "Failed"
+    assert "Base XML:" in page._variants_table.item(0, 5).text()
+    assert page._variants_table.item(1, 4).text() == "Completed"
+    assert page._table.rowCount() == 3
 
 
 def test_distinct_edited_base_links_are_passed_to_their_own_targets(qapp):
@@ -179,7 +176,7 @@ def test_distinct_edited_base_links_are_passed_to_their_own_targets(qapp):
         export_xml({**target_parameters(), "General/Power": "94"}, job_id="100"),
     ])
     for row, link in enumerate(links):
-        page._variants_table.item(row, 4).setText(link)
+        page._variants_table.item(row, 3).setText(link)
     page._select_all_btn.click()
     page._compare_btn.click()
     wait_done(page, qapp)
@@ -198,7 +195,7 @@ def test_only_checked_variants_are_exported_and_saved_connection_is_used(qapp):
     page, _, session, factory = build_page(
         variants, [export_xml(target_parameters("P2", "0011"), job_id="13")], settings,
     )
-    page._variants_table.item(0, 4).setText("https://webflow/app/ShowJob/99")
+    page._variants_table.item(0, 3).setText("https://webflow/app/ShowJob/99")
     page._variants_table.item(1, 0).setCheckState(Qt.Checked)
     page._compare_btn.click()
     wait_done(page, qapp)
@@ -210,11 +207,11 @@ def test_only_checked_variants_are_exported_and_saved_connection_is_used(qapp):
 def test_base_links_follow_variant_identity_on_reorder_without_mutating_master(qapp):
     variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
     page, _, _, _ = build_page(variants)
-    page._variants_table.item(0, 4).setText("https://webflow/app/ShowJob/99")
+    page._variants_table.item(0, 3).setText("https://webflow/app/ShowJob/99")
     page._variants_table.item(0, 0).setCheckState(Qt.Checked)
     page.set_variants(list(reversed(variants)))
-    assert page._variants_table.item(0, 4).text() == ""
-    assert page._variants_table.item(1, 4).text() == "https://webflow/app/ShowJob/99"
+    assert page._variants_table.item(0, 3).text() == ""
+    assert page._variants_table.item(1, 3).text() == "https://webflow/app/ShowJob/99"
     assert page._selected_rows() == [1]
     assert all("base_webflow_link" not in item for item in variants + page._variants)
 
@@ -233,19 +230,19 @@ def test_exporting_base_progress_is_shown_on_its_variant_row(qapp):
         return export_xml(target_parameters())
 
     session.export_job_xml.side_effect = export
-    page._variants_table.item(0, 4).setText(base_link)
+    page._variants_table.item(0, 3).setText(base_link)
     page._select_all_btn.click()
     page._compare_btn.click()
     try:
         assert started.wait(2)
         qapp.processEvents()
-        assert page._variants_table.item(0, 5).text() == "Exporting Base XML"
+        assert page._variants_table.item(0, 4).text() == "Exporting Base XML"
         assert page._progress_dialog._operation.text() == "Exporting Base XML"
         assert not page._variants_table.isEnabled()
     finally:
         release.set()
         wait_done(page, qapp)
-    assert page._variants_table.item(0, 5).text() == "Completed"
+    assert page._variants_table.item(0, 4).text() == "Completed"
 
 
 def test_busy_run_disables_source_changes_and_leave_until_finished(qapp):
@@ -263,7 +260,7 @@ def test_busy_run_disables_source_changes_and_leave_until_finished(qapp):
     try:
         assert started.wait(2)
         qapp.processEvents()
-        assert page._variants_table.item(0, 5).text() == "Exporting Target XML"
+        assert page._variants_table.item(0, 4).text() == "Exporting Target XML"
         assert not page._compare_btn.isEnabled() and not page._variants_table.isEnabled()
         assert not page.confirm_leave()
         assert dialogs.infos
@@ -307,7 +304,7 @@ def test_existing_home_creation_signals_feed_comparison_without_shared_mutation(
     creation.webflowNumbersUpdated.emit({"P1": {"AX": "0099", "AW": "ECR"}}, True)
     assert page._variants_table.rowCount() == 1
     assert page._variants_table.item(0, 1).text() == "P1"
-    assert page._variants_table.item(0, 2).text() == "0099"
+    assert page._variants[0]["hardware"]["software_part_number"] == "0099"
     assert page._variants[0]["hardware"]["ecr_number"] == "ECR"
     assert source["hardware"]["software_part_number"] == "0010"
     home.variantsLoaded.emit([variant("other", link="")])
@@ -323,7 +320,7 @@ def test_comparison_supports_theme_changes_with_results(qapp):
     wait_done(page, qapp)
     apply_theme(qapp, "light")
     apply_theme(qapp, "dark")
-    assert page._table.rowCount() == 4
+    assert page._table.rowCount() == 3
 
 
 def test_unconfigured_service_reports_error_instead_of_manual_fallback(qapp):
@@ -354,7 +351,7 @@ def test_progress_dialog_is_immediate_modal_responsive_and_cannot_close_during_r
         assert dialog._overall.text() == "Overall: 0 / 1 (0%)"
         assert started.wait(2)
         qapp.processEvents()
-        assert dialog._current.text() == "Current: P1 | 0010"
+        assert dialog._current.text() == "Current: P1"
         assert dialog._operation.text() == "Exporting Target XML"
         dialog.reject()
         dialog.accept()
@@ -397,7 +394,7 @@ def test_progress_failure_counts_towards_overall_and_next_job_continues(qapp):
         assert dialog._overall.text() == "Overall: 1 / 2 (50%)"
         assert dialog._items.item(0, 1).text() == "Failed"
         assert "Invalid WebFlow XML" in dialog._items.item(0, 2).text()
-        assert dialog._current.text() == "Current: P2 | 0011"
+        assert dialog._current.text() == "Current: P2"
     finally:
         release.set()
         wait_done(page, qapp)
@@ -434,8 +431,8 @@ def test_cancel_dialog_finishes_active_variant_skips_remaining_and_keeps_results
     assert dialog._summary.text() == "Completed: 1\nFailed: 0\nTotal: 2\nCancelled: 1"
     assert dialog._items.item(1, 1).text() == "Cancelled"
     assert dialog._overall.text() == "Overall: 1 / 2 (50%)"
-    assert page._variants_table.item(1, 5).text() == "Cancelled"
-    assert page._table.rowCount() == 4
+    assert page._variants_table.item(1, 4).text() == "Cancelled"
+    assert page._table.rowCount() == 3
     assert "1 completed; 0 failed. 1 cancelled." in page._summary.text()
     assert page._compare_btn.isEnabled()
     dialog._button.click()
@@ -482,3 +479,36 @@ def test_unexpected_worker_failure_finishes_dialog_and_releases_controls(qapp):
     assert page._progress_dialog._button.text() == "Close"
     assert page._compare_btn.isEnabled()
     assert dialogs.errors[-1][1] == "worker failed"
+
+
+def test_variant_only_labels_filters_and_internal_software_matching(qapp):
+    variants = [variant(software="0010"), variant(software="0011", link="https://webflow/app/ShowJob/13")]
+    page, _, _, _ = build_page(variants, [
+        export_xml(target_parameters(software="0010")),
+        export_xml(target_parameters(software="0011"), job_id="13"),
+    ])
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    assert [page._variant_filter.itemText(i) for i in range(page._variant_filter.count())] == [
+        "All variants", "P1",
+    ]
+    assert {software for _, software, _ in page._rows} == {"0010", "0011"}
+    assert page._progress_dialog._items.horizontalHeaderItem(0).text() == "Variant"
+    assert all(page._progress_dialog._items.item(row, 0).text() == "P1" for row in range(2))
+    assert all(page._variants_table.item(row, 4).text() == "Completed" for row in range(2))
+    page._variant_filter.setCurrentIndex(1)
+    assert len(visible_rows(page)) == 6
+    assert all(page._table.item(row, 3).text() == "" for row in range(6))
+
+
+def test_software_mismatch_still_fails_without_exposing_identity_in_error(qapp):
+    page, _, _, _ = build_page(exports=[export_xml(target_parameters(software="9999"))])
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    assert page._variants_table.item(0, 4).text() == "Failed"
+    error = page._variants_table.item(0, 5).text()
+    assert "No Master Sheet" in error
+    assert "9999" not in error and "SW Part Number" not in error
+    assert page._table.rowCount() == 0

@@ -80,7 +80,7 @@ def test_wrong_selected_pair_is_rejected_even_if_export_matches_another_master_e
     selected, other = variant(), variant("P2")
     session, factory = session_factory([export_xml(target_parameters("P2"))])
     result = ComparisonService(factory).run([selected], [selected, other])[0]
-    assert "selected Variant + SW Part Number" in result.error
+    assert "selected variant's Master Sheet identity" in result.error
     session.quit.assert_called_once()
 
 

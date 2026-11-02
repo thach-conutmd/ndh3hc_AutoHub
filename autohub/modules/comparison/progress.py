@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 class ComparisonProgressDialog(QDialog):
     cancel_requested = Signal()
 
-    def __init__(self, identities: list[tuple[str, str]], parent=None):
+    def __init__(self, identities: list[str], parent=None):
         super().__init__(parent)
         self.setWindowTitle("Comparison Progress")
         self.setWindowModality(Qt.ApplicationModal)
@@ -24,15 +24,15 @@ class ComparisonProgressDialog(QDialog):
         self._operation = QLabel("Pending")
         self._operation.setWordWrap(True)
         self._items = QTableWidget(len(identities), 3)
-        self._items.setHorizontalHeaderLabels(("Variant | SW Part Number", "Status", "Error"))
+        self._items.setHorizontalHeaderLabels(("Variant", "Status", "Error"))
         self._items.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._items.verticalHeader().hide()
         self._items.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._items.setColumnWidth(0, 270)
         self._items.setColumnWidth(1, 160)
         self._items.horizontalHeader().setStretchLastSection(True)
-        for row, (variant, software) in enumerate(identities):
-            for column, text in enumerate((f"{variant} | {software}", "Pending", "")):
+        for row, variant in enumerate(identities):
+            for column, text in enumerate((variant, "Pending", "")):
                 item = QTableWidgetItem(text)
                 item.setToolTip(text)
                 self._items.setItem(row, column, item)

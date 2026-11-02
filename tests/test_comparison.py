@@ -171,19 +171,22 @@ def test_valid_link_and_export_job_must_correspond():
         validate_export_link({JOB_PATH: "13"}, link)
 
 
-def test_comparison_detects_all_two_way_statuses_over_union_of_parameters():
+def test_comparison_preserves_two_way_statuses_within_master_scope():
     rows = {row.parameter: row for row in compare_parameters(
-        {"match": "1", "mismatch": "1", "master_only": "x", "blank": "", "zero": "0", "false": "false"},
-        {"match": "1", "mismatch": "2", "target_only": "y", "blank": None, "zero": "0", "false": "false"},
+        {"match": "1", "mismatch": "1", "master_only": "x", "blank": "", "zero": "0",
+         "false": "false", "missing_master_value": None},
+        {"match": "1", "mismatch": "2", "target_only": "y", "blank": None, "zero": "0",
+         "false": "false", "missing_master_value": "value"},
     )}
     assert rows["match"].status == Status.MATCH
     assert rows["mismatch"].status == Status.VALUE_MISMATCH
     assert rows["master_only"].status == Status.MISSING_IN_WEBFLOW
-    assert rows["target_only"].status == Status.MISSING_IN_MASTER
+    assert "target_only" not in rows
+    assert rows["missing_master_value"].status == Status.MISSING_IN_MASTER
     assert rows["blank"].status == Status.MISSING_IN_WEBFLOW
     assert rows["zero"].status == rows["false"].status == Status.MATCH
     assert not rows["match"].deviation
-    assert all(rows[name].deviation for name in ("mismatch", "master_only", "target_only", "blank"))
+    assert all(rows[name].deviation for name in ("mismatch", "master_only", "missing_master_value", "blank"))
 
 
 def test_option_aliases_and_tp_level_use_webflow_semantics_without_hiding_other_mismatches():
@@ -206,10 +209,17 @@ def test_three_way_statuses_and_missing_values_are_never_false_matches():
     assert rows["both"].status == Status.MATCHES_BOTH
     assert rows["master"].status == Status.MATCHES_MASTER
     assert rows["base"].status == Status.MATCHES_BASE
-    assert rows["neither"].status == rows["missing"].status == rows["base_only"].status == Status.MATCHES_NEITHER
+    assert rows["neither"].status == rows["missing"].status == Status.MATCHES_NEITHER
+    assert "base_only" not in rows
     assert not rows["both"].deviation and not rows["master"].deviation
     assert rows["base"].deviation
 
 
 def test_empty_base_map_still_enables_three_way_comparison():
     assert compare_parameters({"p": "x"}, {"p": "x"}, {})[0].status == Status.MATCHES_MASTER
+
+
+def test_xml_only_paths_are_ignored_even_with_an_empty_master():
+    assert compare_parameters({}, {"target_only": "x"}, {"base_only": "y"}) == []
+    rows = compare_parameters({"scope": "x"}, {"scope": "x", "extra": "y"}, {"extra": "z"})
+    assert [row.parameter for row in rows] == ["scope"]
