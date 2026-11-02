@@ -1,8 +1,19 @@
 """Per-column filters of the Home variant table."""
 import pytest
+from PySide6.QtCore import QCoreApplication, QEvent
 
 from autohub.modules.home.row_filter import ColumnFilter, RowFilter
 from autohub.modules.home.filter_dialog import ColumnFilterDialog
+
+
+@pytest.fixture(autouse=True)
+def cleanup_filter_widgets(qapp):
+    previous = set(qapp.topLevelWidgets())
+    yield
+    for widget in set(qapp.topLevelWidgets()) - previous:
+        widget.close()
+        widget.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
 
 def test_text_filter_is_case_insensitive_contains():

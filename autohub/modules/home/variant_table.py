@@ -11,11 +11,11 @@ from PySide6.QtWidgets import QAbstractItemView, QApplication, QTableWidget, QTa
 from autohub.core.variant_choices import VARIANT_CHOICES
 from autohub.core.webflow_fields import GENERAL_OPTION_COLUMNS
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS, VARIANT_FIELD_ORDER
-from autohub.core.webflow_links import webflow_link_text
 from autohub.modules.home.choice_delegate import ChoiceDelegate, MultiChoiceDelegate
 from autohub.modules.home.column_limits import ColumnLimits
 from autohub.modules.home.frozen_columns import FrozenColumns
 from autohub.ui.hover_cursor import HoverCursor
+from autohub.ui.webflow_link_delegate import WebFlowLinkContextMenu, format_webflow_link_item
 from autohub.modules.home.table_actions import TableActions
 from autohub.modules.home.table_clipboard import TableClipboard
 from autohub.modules.home.table_filter import TableFilter
@@ -53,6 +53,9 @@ class VariantTable(QTableWidget):
         self._limits = ColumnLimits(self)
         self._frozen = FrozenColumns(self, _FROZEN_COLUMNS, extra=(self._link_column,))
         self._frozen.set_hidden(self._link_column, True)
+        self._link_context_menu = WebFlowLinkContextMenu.for_table(
+            self, (self._link_column,), (self._frozen.view,),
+        )
         self._frozen.view.doubleClicked.connect(
             lambda index: self._open_link(index.row(), index.column())
         )
@@ -132,10 +135,8 @@ class VariantTable(QTableWidget):
 
     def _set_link_item(self, row: int, link: str) -> None:
         """The link column is read-only: it shows "WF<number>" and opens on double-click."""
-        item = QTableWidgetItem(webflow_link_text(link) or link)
-        item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-        item.setData(Qt.UserRole, link)
-        item.setToolTip(f"Double-click to open\n{link}" if link else "")
+        item = QTableWidgetItem()
+        format_webflow_link_item(item, link)
         if link:  # looks like a link
             font = item.font()
             font.setUnderline(True)

@@ -1,6 +1,8 @@
 """Excel-style per-column filter for the variant table: right-click a column header to filter it."""
 from __future__ import annotations
 
+from typing import Callable
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHeaderView, QTableView, QTableWidget
 
@@ -11,11 +13,17 @@ _MARK = " ▼"
 
 
 class TableFilter:
-    def __init__(self, table: QTableWidget, mirrored_views: tuple[QTableView, ...] = (), first_column: int = 1):
+    def __init__(
+        self, table: QTableWidget, mirrored_views: tuple[QTableView, ...] = (), first_column: int = 1,
+        row_visible: Callable[[int], bool] | None = None,
+        on_applied: Callable[[], None] | None = None,
+    ):
         """Rows are hidden in `table` and each of `mirrored_views`; columns before `first_column` can't be filtered."""
         self._table = table
         self._views: tuple[QTableView, ...] = (table, *mirrored_views)
         self._first_column = first_column
+        self._row_visible = row_visible
+        self._on_applied = on_applied
         self._rows = RowFilter()
         for view in self._views:
             header = view.horizontalHeader()
@@ -33,9 +41,13 @@ class TableFilter:
 
     def apply(self) -> None:
         for row in range(self._table.rowCount()):
-            visible = self._rows.matches(self._cells(row))
+            visible = self._rows.matches(self._cells(row)) and (
+                self._row_visible is None or self._row_visible(row)
+            )
             for view in self._views:
                 view.setRowHidden(row, not visible)
+        if self._on_applied is not None:
+            self._on_applied()
 
     def column_values(self, column: int) -> list[str]:
         return sorted({self._text(row, column) for row in range(self._table.rowCount())}, key=str.casefold)

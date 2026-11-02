@@ -4,14 +4,19 @@ from unittest.mock import Mock, call
 
 import pytest
 from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent, Qt
+from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QLineEdit, QStyle, QStyleOptionComboBox
 
 from autohub.modules.comparison import ui
 from autohub.modules.comparison.comparison import Status
 from autohub.modules.comparison.service import ComparisonService
 from autohub.modules.creation.ui import CreationWidget
 from autohub.modules.home.ui import HomeWidget
+from autohub.modules.home.row_filter import ColumnFilter
+from autohub.modules.home import table_filter
 from autohub.ui.main_window import MainWindow
+from autohub.ui import webflow_link_delegate
 from tests.fakes import FakeDialogs, MemorySettings
 from tests.test_comparison import export_xml, target_parameters, variant
 
@@ -63,10 +68,11 @@ def test_comparison_lists_only_valid_links_and_allows_multiple_selection(qapp):
     assert [page._variants_table.horizontalHeaderItem(i).text() for i in range(6)] == list(ui._VARIANT_HEADERS)
     assert page._variants_table.item(0, 1).text() == "P1"
     assert page._variants_table.item(1, 1).text() == "P2"
-    assert page._variants_table.item(0, 2).text() == "https://webflow/app/ShowJob/12"
+    assert page._variants_table.item(0, 2).text() == "WF12"
+    assert page._variants_table.item(0, 2).data(Qt.UserRole) == "https://webflow/app/ShowJob/12"
     for column in range(1, 6):
         assert bool(page._variants_table.item(0, column).flags() & Qt.ItemIsEditable) == (column == 3)
-    assert page._variants_table.item(0, 2).toolTip() == page._variants_table.item(0, 2).text()
+    assert page._variants_table.item(0, 2).toolTip() == "Right-click to copy full WebFlow link"
     assert page._variants_table.columnWidth(4) < 150
     assert not page._variants_table.horizontalHeader().stretchLastSection()
     assert not page._compare_btn.isEnabled()
@@ -211,7 +217,8 @@ def test_base_links_follow_variant_identity_on_reorder_without_mutating_master(q
     page._variants_table.item(0, 0).setCheckState(Qt.Checked)
     page.set_variants(list(reversed(variants)))
     assert page._variants_table.item(0, 3).text() == ""
-    assert page._variants_table.item(1, 3).text() == "https://webflow/app/ShowJob/99"
+    assert page._variants_table.item(1, 3).text() == "WF99"
+    assert page._variants_table.item(1, 3).data(Qt.UserRole) == "https://webflow/app/ShowJob/99"
     assert page._selected_rows() == [1]
     assert all("base_webflow_link" not in item for item in variants + page._variants)
 
@@ -512,3 +519,216 @@ def test_software_mismatch_still_fails_without_exposing_identity_in_error(qapp):
     assert "No Master Sheet" in error
     assert "9999" not in error and "SW Part Number" not in error
     assert page._table.rowCount() == 0
+
+
+def test_filter_width_fits_longest_variant_and_search_absorbs_resize(qapp):
+    part = "37820-6SA-T310-M6"
+    page, _, _, _ = build_page(
+        [variant(part)], [export_xml(target_parameters(part))],
+    )
+    page.resize(1100, 650)
+    page.show()
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    page._progress_dialog._button.click()
+    page._variant_filter.setCurrentIndex(1)
+    qapp.processEvents()
+    combo = page._variant_filter
+    option = QStyleOptionComboBox()
+    combo.initStyleOption(option)
+    text_rect = combo.style().subControlRect(QStyle.CC_ComboBox, option, QStyle.SC_ComboBoxEditField, combo)
+    assert combo.currentText() == part
+    assert text_rect.width() >= combo.fontMetrics().horizontalAdvance(part)
+    assert 200 <= combo.width() <= 420
+    assert combo.view().textElideMode() == Qt.ElideNone
+    assert combo.view().minimumWidth() >= combo.fontMetrics().horizontalAdvance(part)
+    variant_width, status_width = combo.width(), page._status_filter.width()
+    search_width = page._search.width()
+    assert status_width < 200
+    page.resize(1400, 650)
+    qapp.processEvents()
+    assert combo.width() == variant_width
+    assert page._status_filter.width() == status_width
+    assert page._search.width() > search_width
+    assert page._search.geometry().center().y() == page._deviations.geometry().center().y()
+    page.resize(900, 650)
+    qapp.processEvents()
+    assert combo.width() == variant_width
+    assert page._search.width() < search_width
+    assert combo.currentText() == part
+
+
+def test_variant_filter_sizes_from_longest_item_and_keeps_popup_uncapped(qapp):
+    page, _, _, _ = build_page()
+    combo = page._variant_filter
+    combo.addItems(["Short", "37820-6SA-T310-M6-extended-configuration"])
+    page._size_variant_filter()
+    assert combo.minimumWidth() >= combo.fontMetrics().horizontalAdvance(combo.itemText(2))
+    combo.addItem("Very long variant " * 20)
+    page._size_variant_filter()
+    assert combo.minimumWidth() == combo.maximumWidth() == 420
+    assert combo.view().minimumWidth() > 420
+    combo.clear()
+    combo.addItem("All variants")
+    page._size_variant_filter()
+    assert combo.minimumWidth() == 200
+
+
+@pytest.mark.parametrize("column", range(6))
+def test_result_headers_use_home_filter_dialog_with_current_values(qapp, monkeypatch, column):
+    page, _, _, _ = build_page()
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    page._progress_dialog._button.click()
+    expected = sorted({
+        page._table.item(row, column).text() for row in range(page._table.rowCount())
+    }, key=str.casefold)
+    selected = expected[0]
+    dialog = Mock()
+    dialog.exec.return_value = True
+    dialog.result_filter.return_value = ColumnFilter(allowed=frozenset({selected}))
+    constructor = Mock(return_value=dialog)
+    monkeypatch.setattr(table_filter, "ColumnFilterDialog", constructor)
+    header = page._table.horizontalHeader()
+    assert header.contextMenuPolicy() == Qt.CustomContextMenu
+    position = header.rect().topLeft()
+    position.setX(header.sectionViewportPosition(column) + 2)
+    header.customContextMenuRequested.emit(position)
+    assert constructor.call_args.args[:3] == (
+        ui._TARGET_HEADERS[column], expected, ColumnFilter(),
+    )
+    assert page._table.horizontalHeaderItem(column).text().endswith(" ▼")
+    assert visible_rows(page) == [
+        row for row in range(page._table.rowCount()) if page._table.item(row, column).text() == selected
+    ]
+
+
+def test_header_filters_combine_with_each_other_and_all_global_controls(qapp):
+    variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
+    page, _, _, _ = build_page(variants, [
+        export_xml({**target_parameters(), "General/Power": "94", "General/XMLOnly": "ignored"}),
+        export_xml(target_parameters("P2", "0011"), job_id="13"),
+    ])
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    filters = page._header_filter
+    assert "General/XMLOnly" not in filters.column_values(1)
+    filters.set_column_filter(1, ColumnFilter(text="power"))
+    assert len(visible_rows(page)) == 2
+    filters.set_column_filter(4, ColumnFilter(allowed=frozenset({"94"})))
+    assert len(visible_rows(page)) == 1
+    page._search.setText("not present")
+    assert not visible_rows(page)
+    page._search.clear()
+    page._variant_filter.setCurrentIndex(2)
+    assert not visible_rows(page)
+    page._variant_filter.setCurrentIndex(1)
+    page._status_filter.setCurrentText(Status.MATCH.value)
+    assert not visible_rows(page)
+    page._status_filter.setCurrentText(Status.VALUE_MISMATCH.value)
+    page._deviations.setChecked(True)
+    assert len(visible_rows(page)) == 1
+    assert "1 / 6 parameters shown" in page._summary.text()
+    filters.set_column_filter(4, ColumnFilter(allowed=frozenset()))
+    assert not visible_rows(page)
+    filters.set_column_filter(4, ColumnFilter())
+    assert len(visible_rows(page)) == 1
+    page._status_filter.setCurrentText("All statuses")
+    page._variant_filter.setCurrentIndex(0)
+    page._deviations.setChecked(False)
+    filters.reset()
+    assert len(visible_rows(page)) == 6
+    assert all(not page._table.horizontalHeaderItem(i).text().endswith(" ▼") for i in range(6))
+
+
+def test_header_filters_reset_and_values_refresh_on_new_comparison(qapp):
+    page, _, session, _ = build_page(exports=[
+        export_xml({**target_parameters(), "General/Power": "94"}),
+    ])
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    page._progress_dialog._button.click()
+    page._header_filter.set_column_filter(4, ColumnFilter(allowed=frozenset({"94"})))
+    assert len(visible_rows(page)) == 1
+    session.export_job_xml.side_effect = [export_xml(target_parameters())]
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    assert not page._header_filter.is_active()
+    assert len(visible_rows(page)) == 3
+    assert "94" not in page._header_filter.column_values(4)
+    assert "93" in page._header_filter.column_values(4)
+    assert all(not page._table.horizontalHeaderItem(i).text().endswith(" ▼") for i in range(6))
+
+
+@pytest.mark.parametrize("column", [2, 3])
+def test_link_context_menu_copies_full_url_without_changing_selection(qapp, monkeypatch, column):
+    page, _, _, _ = build_page()
+    link = "https://webflow/app/ShowJob/123456"
+    if column == 2:
+        page.set_variants([variant(link=link)])
+    else:
+        page._variants_table.item(0, 3).setText(link)
+    page.show()
+    qapp.processEvents()
+    table = page._variants_table
+    table.setCurrentCell(0, 1)
+    table.item(0, 0).setCheckState(Qt.Checked)
+    selection = table.selectedIndexes()
+    revision = page._revision
+    rectangle = table.visualItemRect(table.item(0, column))
+    menu = Mock()
+    action = menu.addAction.return_value
+    menu.exec.return_value = action
+    monkeypatch.setattr(webflow_link_delegate, "QMenu", Mock(return_value=menu))
+    QApplication.clipboard().setText("before")
+    QTest.mouseClick(table.viewport(), Qt.RightButton, pos=rectangle.center())
+    event = QContextMenuEvent(
+        QContextMenuEvent.Mouse, rectangle.center(), table.viewport().mapToGlobal(rectangle.center()),
+    )
+    QApplication.sendEvent(table.viewport(), event)
+    menu.addAction.assert_called_once_with("Copy WebFlow Link")
+    assert QApplication.clipboard().text() == link
+    assert table.selectedIndexes() == selection
+    assert table.currentColumn() == 1
+    assert page._selected_rows() == [0]
+    assert page._revision == revision
+    assert table.item(0, column).text() == "WF123456"
+    assert table.item(0, column).toolTip() == "Right-click to copy full WebFlow link"
+
+
+def test_base_editor_uses_full_url_then_formats_and_exports_original_url(qapp):
+    page, _, session, _ = build_page(exports=[
+        export_xml(target_parameters()), export_xml(target_parameters(), job_id="99"),
+    ])
+    item = page._variants_table.item(0, 3)
+    link = "https://webflow/app/ShowJob/99"
+    item.setText(link)
+    assert item.text() == "WF99"
+    editor = QLineEdit()
+    index = page._variants_table.model().index(0, 3)
+    page._link_delegate.setEditorData(editor, index)
+    assert editor.text() == link
+    page._link_delegate.setModelData(editor, page._variants_table.model(), index)
+    assert item.text() == "WF99" and item.data(Qt.UserRole) == link
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    assert session.export_job_xml.call_args_list == [
+        call("https://webflow/app/ShowJob/12"), call(link),
+    ]
+    assert page._variants[0]["webflow_link"] == "https://webflow/app/ShowJob/12"
+
+
+def test_invalid_base_remains_editable_and_clear_removes_internal_url(qapp):
+    page, _, _, _ = build_page()
+    item = page._variants_table.item(0, 3)
+    item.setText("invalid")
+    assert item.text() == item.data(Qt.UserRole) == "invalid"
+    item.setText("https://webflow/app/ShowJob/99")
+    assert item.text() == "WF99"
+    item.setText("")
+    assert item.data(Qt.UserRole) == "" and item.toolTip() == ""
