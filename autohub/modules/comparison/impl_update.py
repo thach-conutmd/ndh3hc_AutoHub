@@ -6,11 +6,12 @@ from contextlib import AbstractContextManager
 from urllib.parse import unquote
 
 from autohub.core.impl_update import ImplOutcome, ImplUpdate, ImplValueWriter
+from autohub.core.impl_values import CHECKBOX, TP_LEVEL, option_kind
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 
 from .comparison import ComparisonRow
-from .matching import _HARDWARE_NAMES
+from .matching import _HARDWARE_NAMES, OPTION_PATHS
 
 _COLUMNS = {
     "Job Information/ECUGeneration": "Q", "Job Information/Brand": "R", "Job Information/ECUType": "S",
@@ -38,29 +39,38 @@ def impl_column(parameter: str) -> str | None:
     return None
 
 
-def _value(target: object, column: str) -> str | bool | None:
+def impl_kind(parameter: str, column: str) -> str:
+    """How a Target value must be converted to the Master Sheet's own representation (explicit, per parameter)."""
+    if column in _CHECKBOX_COLUMNS:
+        return CHECKBOX
+    if parameter == "ECU/TP_Level":
+        return TP_LEVEL
+    if parameter in OPTION_PATHS:
+        return option_kind(OPTION_PATHS[parameter])
+    return ""
+
+
+def _value(target: object) -> str | None:
     if isinstance(target, tuple):
         text = "|".join(str(item) for item in target)
     elif isinstance(target, str):
         text = target.strip()
     else:
         return None
-    if not text or text == "---":
-        return None
-    if column in _CHECKBOX_COLUMNS and text.casefold() in ("true", "false"):
-        return text.casefold() == "true"
-    return text
+    return None if not text or text == "---" else text
 
 
 def build_impl_update(software: str, rows: Iterable[ComparisonRow]) -> ImplUpdate:
-    """Target values for Master parameters only; a missing Target value is never invented."""
-    values: dict[str, str | bool] = {}
+    """Raw Target values for Master parameters only; a missing Target value is never invented."""
+    values: dict[str, str] = {}
+    kinds: dict[str, str] = {}
     for row in rows:
         column = impl_column(row.parameter)
-        value = _value(row.target, column) if column else None
+        value = _value(row.target) if column else None
         if value is not None:
             values[column] = value
-    return ImplUpdate(software, values)
+            kinds[column] = impl_kind(row.parameter, column)
+    return ImplUpdate(software, values, kinds)
 
 
 class MasterImplUpdater:

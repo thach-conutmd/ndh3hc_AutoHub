@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from autohub.core.impl_values import normalize_impl_value
 from autohub.core.impl_update import ImplOutcome, ImplUpdate
 from autohub.core.webflow_links import webflow_link_text
 from autohub.core.normalizers import clean_text, needs_text_format, normalize_part_number
@@ -146,8 +147,8 @@ class VariantRowWriter:
             elif software != normalize_part_number(update.software).upper():
                 outcomes[part] = ImplOutcome(error="The Master Sheet SW Part Number no longer matches the comparison.")
             else:
-                plan.append((part, impl_row, update))
-        for part, impl_row, update in plan:
+                plan.append((part, rows[0], impl_row, update))
+        for part, request_row, impl_row, update in plan:
             written = skipped = 0
             try:
                 for column, value in update.values.items():
@@ -155,6 +156,9 @@ class VariantRowWriter:
                     if cell.HasFormula:
                         skipped += 1
                         continue
+                    value = normalize_impl_value(
+                        update.kinds.get(column, ""), value, (cell.Value, worksheet.Range(f"{column}{request_row}").Value)
+                    )
                     if isinstance(value, str) and needs_text_format(value):
                         cell.NumberFormat = "@"
                     cell.Value = value
