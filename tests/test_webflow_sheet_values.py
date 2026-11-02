@@ -96,10 +96,12 @@ def test_job_results_retain_each_variants_allocated_number():
     assert [item["ECRNumber"] for item in results] == ["ECR-PN1", "ECR-PN2"]
 
 
-def test_ecr_settings_are_loaded_and_editable(qapp):
+def test_ecr_settings_are_loaded_and_editable(qapp, monkeypatch):
     from autohub.modules.settings.creation_form import load_config, CreationSettingsForm as WebFlowSettingsDialog
     from tests.fakes import MemorySettings
 
+    monkeypatch.delenv("USERNAME", raising=False)
+    monkeypatch.delenv("USERDNSDOMAIN", raising=False)
     values = {
         "change_engineer": "Configured engineer",
         "cost_allocation": "Configured allocation",
