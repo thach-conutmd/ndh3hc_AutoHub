@@ -3,7 +3,7 @@ from datetime import datetime
 
 from autohub.modules.comparison.report import build_report
 
-HEADERS = ("Variant", "Parameter", "Master", "Base", "Target", "Status", "Comment")
+HEADERS = ("Part Number", "Parameter", "Master", "Base", "Target", "Status", "Comment")
 ROWS = [
     ("P1", "General/Power", "93", "", "93", "MATCH", ""),
     ("P1", "General/Model", "<A>", "", "B", "MATCHES_BASE", "checked & ok"),
@@ -44,7 +44,23 @@ def test_signature_section_and_print_rules():
     assert "Review &amp; Approval" in html
     for label in ("Reviewed by:", "Approved by:"):
         assert label in html
-    assert html.count("Signature:") == 2 and html.count("<div>Date:</div>") == 2
+    assert html.count("Signature:") == 2
+    assert html.count("Review &amp; Approval") == 1
+    assert html.index("Review &amp; Approval") < html.index("Compared Variants:") < html.index('<div class="summary">')
     for rule in ("@media print", "table-header-group", "break-inside:avoid", "print-color-adjust:exact",
                  ".controls{display:none!important}"):
         assert rule in html
+
+
+def test_review_information_uses_initialized_inputs_and_print_values():
+    html = report(reviewer='A. "Reviewer" <User>')
+    for key, value in (
+        ("report-date", "2026-11-02"), ("report-time", "09:30:05"),
+        ("reviewed-by", 'A. &quot;Reviewer&quot; &lt;User&gt;'), ("approved-by", ""),
+    ):
+        assert f'<input type="text" id="{key}" value="{value}">' in html
+        assert f'id="{key}-print">{value}</span>' in html
+    assert "contenteditable" not in html
+    assert 'window.addEventListener("beforeprint",syncInfo)' in html
+    assert ".print-value{display:block;min-height:1em}" in html
+    assert html.index("</section>") < html.index('<table id="results">')

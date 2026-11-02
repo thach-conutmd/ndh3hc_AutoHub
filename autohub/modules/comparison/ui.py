@@ -7,9 +7,10 @@ from dataclasses import replace
 from datetime import datetime
 from threading import Event
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
-    QAbstractItemView, QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel,
+    QAbstractItemView, QApplication, QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QMenu, QPushButton, QSizePolicy, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
@@ -22,6 +23,7 @@ from autohub.core.webflow_links import is_link
 from autohub.core.webflow_numbers import NUMBER_FIELDS
 from autohub.core.workers import FunctionWorker
 from autohub.modules.home.table_filter import TableFilter
+from autohub.modules.home.table_clipboard import TableClipboard
 from autohub.ui.theme import set_muted
 from autohub.ui.hover_cursor import HoverCursor
 from autohub.ui.webflow_link_delegate import WebFlowLinkDelegate, format_webflow_link_item
@@ -31,14 +33,15 @@ from .impl_update import ImplRefresh, MasterImplUpdater, build_impl_update
 from .matching import master_parameters, validate_link
 from .report import build_report
 from .review import Review
+from .result_table import ResultTable
 from .progress import ComparisonProgressDialog
 from .service import ComparisonService, VariantResult
 from .xml_parser import ParameterValue
 
 _COMMENT_COLUMN = 6
 _STATUS_COLUMN = 5
-_TARGET_HEADERS = ("Variant", "Parameter", "Master", "Base", "Target", "Status", "Comment")
-_VARIANT_HEADERS = ("Select", "Variant", "WebFlow", "Base WebFlow Link", "Status", "Error")
+_TARGET_HEADERS = ("Part Number", "Parameter", "Master", "Base", "Target", "Status", "Comment")
+_VARIANT_HEADERS = ("Select", "Part Number", "WebFlow", "Base WebFlow Link", "Status", "Error")
 
 
 def _display(value: ParameterValue) -> str:
@@ -155,6 +158,8 @@ class ComparisonWidget(QWidget):
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search parameters, values, variants or status...")
         self._variant_filter = QComboBox()
+        self._variant_filter.setAccessibleName("Part Number filter")
+        self._variant_filter.setToolTip("Filter by Part Number")
         self._variant_filter.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self._variant_filter.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._variant_filter.setMaximumWidth(420)
@@ -169,19 +174,29 @@ class ComparisonWidget(QWidget):
         filters.addWidget(self._variant_filter)
         filters.addWidget(self._status_filter)
         filters.addWidget(self._deviations)
-        self._table = QTableWidget(0, len(_TARGET_HEADERS))
+        self._table = ResultTable(0, len(_TARGET_HEADERS))
         self._table.setHorizontalHeaderLabels(_TARGET_HEADERS)
         self._table.setEditTriggers(QAbstractItemView.DoubleClicked)
         self._table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self._table.setSelectionBehavior(QAbstractItemView.SelectItems)
+        self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self._table.setWordWrap(False)
+        self._table.setTextElideMode(Qt.ElideRight)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._table.horizontalHeader().setStretchLastSection(True)
+        self._result_clipboard = TableClipboard(self._table)
+        self._table.installEventFilter(self)
+        self._table.viewport().installEventFilter(self)
+        self._table.frozen.view.installEventFilter(self)
+        self._table.frozen.view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self._table.frozen.view.customContextMenuRequested.connect(self._open_frozen_result_menu)
+        self._table.frozen.view.clicked.connect(lambda _: self._table.setFocus())
         self._summary = QLabel("Load a Master Sheet on Home and select linked variants.")
         self._summary.setWordWrap(True)
         self._header_filter = TableFilter(
-            self._table, first_column=0, row_visible=self._matches_global_filters,
+            self._table, (self._table.frozen.view,), first_column=0, row_visible=self._matches_global_filters,
             on_applied=self._update_filter_summary,
         )
         layout = QVBoxLayout(self)
@@ -311,7 +326,7 @@ class ComparisonWidget(QWidget):
         self._header_filter.reset()
         self._variant_filter.blockSignals(True)
         self._variant_filter.clear()
-        self._variant_filter.addItem("All variants", None)
+        self._variant_filter.addItem("All part numbers", None)
         self._variant_filter.blockSignals(False)
         self._size_variant_filter()
         self._fill_status_filter()
@@ -586,7 +601,7 @@ class ComparisonWidget(QWidget):
         self._header_filter.reset()
         self._variant_filter.blockSignals(True)
         self._variant_filter.clear()
-        self._variant_filter.addItem("All variants", None)
+        self._variant_filter.addItem("All part numbers", None)
         for part in dict.fromkeys(part for part, _, _ in self._rows):
             self._variant_filter.addItem(part, part)
         self._variant_filter.blockSignals(False)
@@ -608,10 +623,96 @@ class ComparisonWidget(QWidget):
             self._table.item(index, 0).setData(Qt.UserRole, index)
             self._refresh_status_item(index)
         self._table.blockSignals(False)
-        self._table.resizeColumnsToContents()
-        for column in range(self._table.columnCount()):
-            self._table.setColumnWidth(column, min(300, self._table.columnWidth(column)))
+        self._size_result_columns()
         self._apply_filters()
+
+    def _size_result_columns(self) -> None:
+        widths = {
+            0: max(100, self._table.sizeHintForColumn(0)),
+            _STATUS_COLUMN: max(90, self._table.sizeHintForColumn(_STATUS_COLUMN)),
+            1: 160, 2: 110, 3: 110, 4: 110,
+        }
+        for column, width in widths.items():
+            self._table.setColumnWidth(column, width)
+        self._table.setColumnWidth(
+            _COMMENT_COLUMN, max(260, self._table.viewport().width() - sum(widths.values()))
+        )
+
+    def eventFilter(self, watched, event) -> bool:
+        if watched is self._table.viewport() and event.type() == QEvent.Resize:
+            self._size_result_columns()
+        if watched in (self._table, self._table.frozen.view) and event.type() == QEvent.KeyPress:
+            if event.matches(QKeySequence.Copy):
+                self._copy_result()
+                return True
+            if event.matches(QKeySequence.Paste):
+                self._paste_result()
+                return True
+            if event.matches(QKeySequence.Cut):
+                self._clear_result_comments(cut=True)
+                return True
+            if event.key() == Qt.Key_Delete:
+                self._clear_result_comments()
+                return True
+        return super().eventFilter(watched, event)
+
+    def _copy_result(self) -> None:
+        cells = self._result_clipboard.selected_cells()
+        if len(cells) == 1:
+            QApplication.clipboard().setText(self._table.item(*cells[0]).text())
+        else:
+            self._result_clipboard.copy_selection()
+
+    def _copy_result_row(self, row: int) -> None:
+        QApplication.clipboard().setText("\t".join(
+            self._table.item(row, column).text().replace("\t", " ").replace("\r", " ").replace("\n", " ")
+            for column in range(self._table.columnCount())
+        ))
+
+    def _clear_result_comments(self, cut: bool = False) -> None:
+        if self._running:
+            return
+        cells = [
+            (row, column) for row, column in self._result_clipboard.selected_cells()
+            if column == _COMMENT_COLUMN and not self._table.isRowHidden(row)
+        ]
+        if cut and cells:
+            QApplication.clipboard().setText("\n".join(self._table.item(*cell).text() for cell in cells))
+        indices = [self._model_index(row) for row, _ in cells]
+        for index in indices:
+            self._set_comment(index, "")
+
+    def _paste_result(self) -> None:
+        if self._running:
+            return
+        current = self._table.currentItem()
+        if current is None or current.column() not in (_COMMENT_COLUMN, _STATUS_COLUMN):
+            return
+        text = QApplication.clipboard().text()
+        if not text:
+            return
+        grid = [line.split("\t") for line in text.splitlines()]
+        cells = self._result_clipboard.selected_cells()
+        edits = []
+        if len(grid) == 1 and len(grid[0]) == 1:
+            edits = [(self._model_index(row), column, text) for row, column in cells
+                     if column in (_COMMENT_COLUMN, _STATUS_COLUMN) and not self._table.isRowHidden(row)]
+        else:
+            visible = [row for row in range(current.row(), self._table.rowCount()) if not self._table.isRowHidden(row)]
+            for row, values in zip(visible, grid):
+                for offset, value in enumerate(values):
+                    column = current.column() + offset
+                    if column in (_COMMENT_COLUMN, _STATUS_COLUMN):
+                        edits.append((self._model_index(row), column, value))
+        for index, column, value in edits:
+            if column == _STATUS_COLUMN and value not in {status.value for status in self._allowed_statuses(index)}:
+                self._dialogs.error("Paste", f"Unsupported comparison status: {value}")
+                return
+        for index, column, value in edits:
+            if column == _COMMENT_COLUMN:
+                self._set_comment(index, value)
+            else:
+                self._set_status(index, Status(value))
 
     def _review(self, index: int) -> Review | None:
         part, _, row = self._rows[index]
@@ -641,7 +742,7 @@ class ComparisonWidget(QWidget):
             self._reviews[(part, row.parameter)] = updated
 
     def _refresh_status_item(self, index: int) -> None:
-        item = self._table.item(index, _STATUS_COLUMN)
+        item = self._result_item(index, _STATUS_COLUMN)
         calculated = self._rows[index][2].status
         effective = self._effective_status(index)
         font = item.font()
@@ -665,7 +766,7 @@ class ComparisonWidget(QWidget):
     def _set_comment(self, index: int, comment: str) -> None:
         self._store_review(index, comment=comment.strip())
         self._table.blockSignals(True)
-        item = self._table.item(index, _COMMENT_COLUMN)
+        item = self._result_item(index, _COMMENT_COLUMN)
         item.setText(self._comment(index))
         item.setToolTip(self._comment(index))
         self._table.blockSignals(False)
@@ -678,6 +779,12 @@ class ComparisonWidget(QWidget):
     def _model_index(self, table_row: int) -> int:
         return int(self._table.item(table_row, 0).data(Qt.UserRole))
 
+    def _result_item(self, index: int, column: int) -> QTableWidgetItem:
+        for row in range(self._table.rowCount()):
+            if self._model_index(row) == index:
+                return self._table.item(row, column)
+        raise ValueError(f"Comparison row is not displayed: {index}")
+
     def _allowed_statuses(self, index: int) -> tuple[Status, ...]:
         part, software, _ = self._rows[index]
         if (part, software) in self._base_variants:
@@ -685,7 +792,7 @@ class ComparisonWidget(QWidget):
         return (Status.MATCH, Status.VALUE_MISMATCH, Status.MISSING_IN_MASTER, Status.MISSING_IN_WEBFLOW)
 
     def _result_menu(self, table_row: int, column: int) -> QMenu | None:
-        if self._running or table_row < 0 or column not in (_STATUS_COLUMN, _COMMENT_COLUMN):
+        if self._running or table_row < 0:
             return None
         index = self._model_index(table_row)
         menu = QMenu(self._table)
@@ -699,19 +806,37 @@ class ComparisonWidget(QWidget):
             reset = menu.addAction("Reset Status")
             reset.setEnabled(self._effective_status(index) != self._rows[index][2].status)
             reset.triggered.connect(lambda: self._reset_status(index))
-        else:
+        elif column == _COMMENT_COLUMN:
             edit = menu.addAction("Edit Comment")
             edit.triggered.connect(lambda: self._table.editItem(self._table.item(table_row, column)))
             clear = menu.addAction("Clear Comment")
             clear.setEnabled(bool(self._comment(index)))
             clear.triggered.connect(lambda: self._set_comment(index, ""))
+        if menu.actions():
+            menu.addSeparator()
+        menu.addAction("Copy", self._copy_result)
+        menu.addAction("Copy Row", lambda: self._copy_result_row(table_row))
         return menu
 
     def _open_result_menu(self, pos) -> None:
         item = self._table.itemAt(pos)
+        if item is not None and not item.isSelected():
+            self._table.setCurrentItem(item)
         menu = self._result_menu(item.row(), item.column()) if item is not None else None
         if menu is not None:
             menu.exec(self._table.viewport().mapToGlobal(pos))
+
+    def _open_frozen_result_menu(self, pos) -> None:
+        view = self._table.frozen.view
+        index = view.indexAt(pos)
+        if not index.isValid():
+            return
+        item = self._table.item(index.row(), index.column())
+        if not item.isSelected():
+            self._table.setCurrentItem(item)
+        menu = self._result_menu(index.row(), index.column())
+        if menu is not None:
+            menu.exec(view.viewport().mapToGlobal(pos))
 
     def _size_variant_filter(self) -> None:
         width = self._variant_filter.sizeHint().width()
