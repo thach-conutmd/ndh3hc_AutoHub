@@ -239,7 +239,8 @@ def test_exporting_base_progress_is_shown_on_its_variant_row(qapp):
     try:
         assert started.wait(2)
         qapp.processEvents()
-        assert page._variants_table.item(0, 5).text() == "Exporting Base"
+        assert page._variants_table.item(0, 5).text() == "Exporting Base XML"
+        assert page._progress_dialog._operation.text() == "Exporting Base XML"
         assert not page._variants_table.isEnabled()
     finally:
         release.set()
@@ -262,7 +263,7 @@ def test_busy_run_disables_source_changes_and_leave_until_finished(qapp):
     try:
         assert started.wait(2)
         qapp.processEvents()
-        assert page._variants_table.item(0, 5).text() == "Exporting Target"
+        assert page._variants_table.item(0, 5).text() == "Exporting Target XML"
         assert not page._compare_btn.isEnabled() and not page._variants_table.isEnabled()
         assert not page.confirm_leave()
         assert dialogs.infos
@@ -332,3 +333,152 @@ def test_unconfigured_service_reports_error_instead_of_manual_fallback(qapp):
     page._select_all_btn.click()
     page._compare_btn.click()
     assert "not configured" in dialogs.errors[-1][1]
+
+
+def test_progress_dialog_is_immediate_modal_responsive_and_cannot_close_during_run(qapp):
+    started, release = Event(), Event()
+    page, _, session, _ = build_page()
+
+    def export(_link):
+        started.set()
+        if not release.wait(5):
+            raise RuntimeError("test release timed out")
+        return export_xml(target_parameters())
+
+    session.export_job_xml.side_effect = export
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    dialog = page._progress_dialog
+    try:
+        assert dialog.isVisible() and dialog.isModal()
+        assert dialog._overall.text() == "Overall: 0 / 1 (0%)"
+        assert started.wait(2)
+        qapp.processEvents()
+        assert dialog._current.text() == "Current: P1 | 0010"
+        assert dialog._operation.text() == "Exporting Target XML"
+        dialog.reject()
+        dialog.accept()
+        dialog.done(0)
+        dialog.close()
+        QTest.keyClick(dialog, Qt.Key_Escape)
+        assert dialog.isVisible()
+        assert page._running
+    finally:
+        release.set()
+        wait_done(page, qapp)
+    assert dialog._bar.value() == 1
+    assert dialog._overall.text() == "Overall: 1 / 1 (100%)"
+    assert dialog._summary.text() == "Completed: 1\nFailed: 0\nTotal: 1"
+    assert dialog._button.text() == "Close"
+    dialog._button.click()
+    assert not dialog.isVisible()
+
+
+def test_progress_failure_counts_towards_overall_and_next_job_continues(qapp):
+    started, release = Event(), Event()
+    variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
+    page, _, session, _ = build_page(variants)
+
+    def export(link):
+        if link.endswith("/12"):
+            return b"<broken"
+        started.set()
+        if not release.wait(5):
+            raise RuntimeError("test release timed out")
+        return export_xml(target_parameters("P2", "0011"), job_id="13")
+
+    session.export_job_xml.side_effect = export
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    dialog = page._progress_dialog
+    try:
+        assert started.wait(2)
+        qapp.processEvents()
+        assert dialog._overall.text() == "Overall: 1 / 2 (50%)"
+        assert dialog._items.item(0, 1).text() == "Failed"
+        assert "Invalid WebFlow XML" in dialog._items.item(0, 2).text()
+        assert dialog._current.text() == "Current: P2 | 0011"
+    finally:
+        release.set()
+        wait_done(page, qapp)
+    assert dialog._overall.text() == "Overall: 2 / 2 (100%)"
+    assert dialog._summary.text() == "Completed: 1\nFailed: 1\nTotal: 2"
+
+
+def test_cancel_dialog_finishes_active_variant_skips_remaining_and_keeps_results(qapp):
+    started, release = Event(), Event()
+    variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
+    page, _, session, _ = build_page(variants)
+
+    def export(_link):
+        started.set()
+        if not release.wait(5):
+            raise RuntimeError("test release timed out")
+        return export_xml(target_parameters())
+
+    session.export_job_xml.side_effect = export
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    dialog = page._progress_dialog
+    try:
+        assert started.wait(2)
+        qapp.processEvents()
+        dialog._button.click()
+        assert page._cancel.is_set()
+        assert dialog.isVisible() and not dialog._button.isEnabled()
+        assert page._running
+    finally:
+        release.set()
+        wait_done(page, qapp)
+    session.export_job_xml.assert_called_once_with(variants[0]["webflow_link"])
+    assert dialog._summary.text() == "Completed: 1\nFailed: 0\nTotal: 2\nCancelled: 1"
+    assert dialog._items.item(1, 1).text() == "Cancelled"
+    assert dialog._overall.text() == "Overall: 1 / 2 (50%)"
+    assert page._variants_table.item(1, 5).text() == "Cancelled"
+    assert page._table.rowCount() == 4
+    assert "1 completed; 0 failed. 1 cancelled." in page._summary.text()
+    assert page._compare_btn.isEnabled()
+    dialog._button.click()
+    session.export_job_xml.side_effect = [
+        export_xml(target_parameters()), export_xml(target_parameters("P2", "0011"), job_id="13"),
+    ]
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    assert not page._cancel.is_set()
+    assert page._progress_dialog._summary.text() == "Completed: 2\nFailed: 0\nTotal: 2"
+
+
+def test_progress_dialog_finishes_even_when_master_reload_discards_results(qapp):
+    started, release = Event(), Event()
+    page, _, session, _ = build_page()
+
+    def export(_link):
+        started.set()
+        release.wait(5)
+        return export_xml(target_parameters())
+
+    session.export_job_xml.side_effect = export
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    try:
+        assert started.wait(2)
+        page.set_variants([])
+    finally:
+        release.set()
+        wait_done(page, qapp)
+    assert page._progress_dialog._summary.text() == "Completed: 1\nFailed: 0\nTotal: 1"
+    assert page._progress_dialog._button.text() == "Close"
+    assert not page._rows
+
+
+def test_unexpected_worker_failure_finishes_dialog_and_releases_controls(qapp):
+    page, dialogs, _, _ = build_page()
+    page._service.run = Mock(side_effect=RuntimeError("worker failed"))
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    assert page._progress_dialog._summary.text() == "Completed: 0\nFailed: 1\nTotal: 1"
+    assert page._progress_dialog._items.item(0, 2).text() == "worker failed"
+    assert page._progress_dialog._button.text() == "Close"
+    assert page._compare_btn.isEnabled()
+    assert dialogs.errors[-1][1] == "worker failed"
