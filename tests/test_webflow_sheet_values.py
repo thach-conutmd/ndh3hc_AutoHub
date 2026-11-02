@@ -290,6 +290,7 @@ def _hardware(monkeypatch):
         section.body.return_value = fields.sections["General info"].body.return_value
     fields.sections["General info"].body.return_value.find_element.return_value.get_attribute.return_value = None
     form = fields.sections["General info"].body.return_value.find_element.return_value.find_element.return_value
+    form.find_element.return_value.find_elements.return_value = []
     monkeypatch.setattr(hardware_module, "pause", lambda: None)
     monkeypatch.setattr(hardware_module, "wait_until_idle", lambda driver, timeout=None: True)
     return fields, form
@@ -372,11 +373,36 @@ def test_race_import_clicks_classification_button_once_and_waits(monkeypatch):
 
     assert fields.import_from_race()
     section.expand.assert_called_once()
-    section.body.return_value.find_element.assert_called_once_with(
+    section.body.return_value.find_element.assert_any_call(
         hardware_module.By.XPATH, './/button[.//span[normalize-space(.)="Import from Race"]]'
     )
     button.click.assert_called_once()
     idle.assert_called_once_with(fields.driver, hardware_module.Constants.WEBFLOW_TIMEOUT)
+
+
+@pytest.mark.parametrize("value", ["40: Series", " 20: Development ", "", "   ", "---", None])
+def test_race_import_skips_only_populated_product_release_state(monkeypatch, value, caplog):
+    fields, _ = _hardware(monkeypatch)
+    body = fields.sections["Classification"].body.return_value
+    state = Mock()
+    state.get_attribute.return_value = value
+    button = Mock()
+    button.get_attribute.return_value = None
+    body.find_element.side_effect = lambda _by, locator: (
+        state if "Product release state" in locator else button
+    )
+    idle = Mock(return_value=True)
+    monkeypatch.setattr(hardware_module, "wait_until_idle", idle)
+
+    assert fields.import_from_race()
+
+    if value and value.strip() not in ("", "---"):
+        button.click.assert_not_called()
+        idle.assert_not_called()
+        assert body.find_element.call_count == 1
+    else:
+        button.click.assert_called_once()
+        idle.assert_called_once()
 
 
 def test_race_import_confirms_save_warning_before_waiting_for_completion(monkeypatch):
@@ -503,6 +529,55 @@ def test_hardware_multiselect_missing_option_fails(monkeypatch):
     panel.find_elements.return_value = []
     fields.driver.find_elements.return_value = [panel]
     assert fields._select_multiple(form, "Brazil") is False
+
+
+@pytest.mark.parametrize("disabled", [False, True])
+@pytest.mark.parametrize("key,value,selected", [
+    ("market", "Brazil|Japan", ["Japan", "Brazil"]),
+    ("market", "UK", ["GB"]),
+    ("model_year", "MY27/MY28", ["2028", "2027"]),
+    ("transmission", "manual", ["MT"]),
+    ("emission_norm", "PROCONVE-L8", ["PROCONVE L8"]),
+    ("immobilizer", "Active|IMMO 6", ["IMMO6", "active"]),
+    ("change_reason", "Customer requirement", ["Customer requirement"]),
+    ("market", "", ["---"]),
+])
+def test_matching_multiselect_skips_without_opening(monkeypatch, disabled, key, value, selected):
+    fields, form = _hardware(monkeypatch)
+    control = form.find_element.return_value
+    control.get_attribute.return_value = "true" if disabled else "false"
+    control.find_elements.return_value = [Mock(text=label) for label in selected]
+
+    assert fields._select_multiple(form, value, key)
+
+    control.find_element.assert_not_called()
+    fields.driver.execute_script.assert_not_called()
+    fields.driver.find_elements.assert_not_called()
+
+
+@pytest.mark.parametrize("selected", [["Brazil", "Japan"], ["Japan"], ["---"]])
+def test_different_disabled_multiselect_does_not_report_success(monkeypatch, selected):
+    fields, form = _hardware(monkeypatch)
+    control = form.find_element.return_value
+    control.get_attribute.return_value = "true"
+    control.find_elements.return_value = [Mock(text=label) for label in selected]
+
+    assert not fields._select_multiple(form, "Brazil", "market")
+    control.find_element.assert_not_called()
+
+
+def test_matching_plant_skips_before_clickability_wait(monkeypatch):
+    fields, form = _hardware(monkeypatch)
+    control = form.find_element.return_value
+    control.find_element.return_value.get_attribute.return_value = "SaW"
+    monkeypatch.setattr(
+        hardware_module.EC, "element_to_be_clickable",
+        lambda _element: pytest.fail("matching plant must not wait for an enabled trigger"),
+    )
+
+    assert fields._select_plant(form, "SaW")
+    control.find_element.return_value.click.assert_not_called()
+    fields.driver.execute_script.assert_not_called()
 
 
 @pytest.mark.parametrize("key,value,names,expected", [

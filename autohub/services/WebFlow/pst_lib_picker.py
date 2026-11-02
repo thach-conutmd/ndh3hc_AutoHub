@@ -30,6 +30,30 @@ class PstLibPicker:
         if not self.section.expand():
             return False
         try:
+            identification = (
+                self.section.body().find_element(
+                    By.CSS_SELECTOR,
+                    'input[placeholder="Complete identifier of the program in Nestor, SDOM or ClearCase"]',
+                ).get_attribute("value") or ""
+            ).strip()
+            container = (
+                self.section.body().find_element(
+                    By.CSS_SELECTOR, 'input[placeholder="Identifier of PST_Lib Container"]',
+                ).get_attribute("value") or ""
+            ).strip()
+            program, separator, revision = identification.partition(";")
+            normalized_program = program.replace("/", "_")
+            expected_container = f"{program.split('_', 1)[0]}_{normalized_program}_{revision}"
+            if (
+                normalized_program.casefold() == expected
+                and separator and revision
+                and container.casefold() == expected_container.casefold()
+            ):
+                _logger.info(
+                    "PST_Lib identification %r and container %r already match PVER %s; skipping Pick PST_Lib",
+                    identification, container, pver,
+                )
+                return True
             button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
                 lambda _driver: self.section.body().find_element(
                     By.XPATH, './/button[.//span[normalize-space(.)="Pick PST_Lib"]]'
