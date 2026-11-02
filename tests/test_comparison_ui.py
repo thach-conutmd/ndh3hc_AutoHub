@@ -154,7 +154,7 @@ def test_mixed_base_and_no_base_results_keep_correct_values_and_filters(qapp):
     page._status_filter.setCurrentText(Status.MATCHES_BOTH.value)
     assert visible_rows(page) and all(page._table.item(i, 0).text() == "P1" for i in visible_rows(page))
     page._variants_table.item(0, 3).setText("")
-    assert not page._rows and page._table.columnCount() == 6
+    assert page._rows and page._table.columnCount() == 6
 
 
 def test_invalid_base_link_only_fails_its_variant(qapp):
@@ -881,3 +881,70 @@ def test_comparison_links_reuse_home_pointer_cursor(qapp, column):
     QTest.mouseMove(table.viewport(), table.visualItemRect(table.item(0, 1)).center())
     qapp.processEvents()
     assert table.viewport().cursor().shape() == Qt.ArrowCursor
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_progress_footer_buttons_stay_compact_and_bottom_right(qapp, theme):
+    from autohub.modules.comparison.progress import ComparisonProgressDialog
+    from autohub.ui.theme import apply_theme
+
+    apply_theme(qapp, theme)
+    dialog = ComparisonProgressDialog(["P1"])
+    dialog.show()
+    try:
+        for finished in (False, True):
+            if finished:
+                dialog.update_status(0, "Completed", "")
+                dialog.finish()
+            for width in (640, 900):
+                dialog.resize(width, 450)
+                qapp.processEvents()
+                button = dialog._button
+                assert button.text() == ("Close" if finished else "Cancel")
+                assert button.width() == button.sizeHint().width()
+                assert button.width() < dialog.width() // 3
+                assert dialog.width() - button.geometry().right() - 1 == 20
+                assert dialog.height() - button.geometry().bottom() - 1 == 16
+                assert dialog._summary.geometry().bottom() < button.geometry().top()
+                assert not button.autoDefault()
+                assert button.styleSheet() == ""
+    finally:
+        dialog.finish()
+        dialog.close()
+        dialog.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+
+
+def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
+    from openpyxl import load_workbook
+
+    page, dialogs, session, _ = build_page()
+    try:
+        assert not page._export_btn.isEnabled()
+        page._select_all()
+        page._compare()
+        wait_done(page, qapp)
+        page._progress_dialog.close()
+        total = page._table.rowCount()
+        assert total and page._export_btn.isEnabled()
+
+        page._select_all(); page._clear_selection(); page._select_all()
+        page._search.setText("no-such-text")
+        assert page._table.rowCount() == total and not visible_rows(page)
+        assert page._export_btn.isEnabled()
+
+        calls = session.export_job_xml.call_count
+        dialogs.save_path = str(tmp_path / "out.xlsx")
+        page._export()
+        assert session.export_job_xml.call_count == calls
+        assert dialogs.saved[1].startswith("Comparison_Result_")
+        sheet = load_workbook(dialogs.save_path).active
+        assert [cell.value for cell in sheet[1]] == ["Variant", "Parameter", "Master", "Base", "Target", "Status"]
+        assert sheet.max_row == total + 1
+
+        page.set_variants([])
+        assert not page._export_btn.isEnabled()
+    finally:
+        page.shutdown()
+        page.close()
+        page.deleteLater()

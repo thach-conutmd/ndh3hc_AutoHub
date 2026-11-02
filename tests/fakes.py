@@ -129,11 +129,16 @@ class FakeDialogs:
         self.infos: list = []
         self.errors: list = []
         self.picked: list = []
+        self.save_path = ""
         self.windows: list = []
 
     def pick_file(self, title, file_filter):
         self.picked.append(title)
         return self.files.pop(0) if self.files else ""
+
+    def save_file(self, title, default_name, file_filter):
+        self.saved = (title, default_name, file_filter)
+        return self.save_path
 
     def confirm(self, title, text):
         self.confirmed.append((title, text))
