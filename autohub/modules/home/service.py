@@ -2,14 +2,28 @@
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Callable, Sequence
 
+from autohub.core.a2l_hex import component_id_matches, load_calibration_folder
 from autohub.core.progress import ProgressCallback, no_progress
-from autohub.core.ports import EcuInfoDocument, HWInfoDocument, KickOffDocument, PartNumberDeleter, SystemMatrixDocument, VariantSheet
+from autohub.core.ports import (
+    EcuInfoDocument,
+    HWInfoDocument,
+    KickOffDocument,
+    PartNumberDeleter,
+    SystemMatrixDocument,
+    VariantSheet,
+)
 
 #: Opens whatever per-thread resource the documents need (COM) around one operation.
 SessionFactory = Callable[[], AbstractContextManager]
+
+
+@dataclass(frozen=True)
+class NewVariantResult:
+    variants: list[dict]
+    warnings: list[str]
 
 
 class VariantService:
@@ -50,8 +64,9 @@ class VariantService:
         hw_info_path: str = "",
         kick_off_path: str = "",
         progress: ProgressCallback = no_progress,
-        hex_file_path: str = "",
-    ) -> list[dict]:
+        hex_folder_path: str = "",
+        a2l_symbol_name: str = "I14229_numCompID_CA",
+    ) -> NewVariantResult:
         with self._session():
             progress("Opening the source files...")
             system_matrix = self._system_matrix_factory(system_matrix_path)
@@ -85,11 +100,33 @@ class VariantService:
                 variants = master_sheet.compute_new_variants(
                     system_matrix.system_info, ecu_info_sheet.ecu_info, hw_info, kick_off
                 )
-                if hex_file_path:
-                    data_version = Path(hex_file_path).name
+                warnings = []
+                if hex_folder_path:
+                    calibrations = load_calibration_folder(hex_folder_path, a2l_symbol_name)
                     for variant in variants:
-                        variant["AZ"] = data_version
-                return variants
+                        expected = str(variant.get("J") or "").strip()
+                        if not expected:
+                            warnings.append("A new variant has no DWG number to compare with the calibration ID.")
+                            continue
+                        matching_calibration = next(
+                            (
+                                item
+                                for item in calibrations
+                                if component_id_matches(item.component_id, expected)
+                            ),
+                            None,
+                        )
+                        if matching_calibration is None:
+                            available = ", ".join(
+                                f"{item.hex_filename}: {item.component_id}" for item in calibrations
+                            )
+                            warnings.append(
+                                f"{expected}: no calibration HEX file matches the DWG number "
+                                f"(found {available})."
+                            )
+                        else:
+                            variant["AZ"] = matching_calibration.hex_filename
+                return NewVariantResult(variants, warnings)
             finally:
                 master_sheet.close()
                 ecu_info_sheet.close()

@@ -4,7 +4,8 @@ from __future__ import annotations
 from PySide6.QtCore import QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton,
+    QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+    QPushButton,
     QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
 )
 
@@ -12,11 +13,19 @@ from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.logger import (
     LOG_FILE_PATH, LOGGING_ENABLED_KEY, clear_log_file, logging_enabled, set_logging_enabled,
 )
+from autohub.core.a2l_hex import DEFAULT_COMP_ID_SYMBOL
 from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import (
-    DEFAULT_WEBFLOW_MAX_ATTEMPTS, RECORD_PAGES_KEY, WEBFLOW_ATTEMPTS_LIMIT, WEBFLOW_MAX_ATTEMPTS_KEY,
+    A2L_COMP_ID_SYMBOL_KEY,
+    DEFAULT_WEBFLOW_MAX_ATTEMPTS,
+    LATEST_COUNT_CHOICES,
+    LATEST_COUNT_KEY,
+    RECORD_PAGES_KEY,
+    SHOW_WEBFLOW_LINK_KEY,
+    WEBFLOW_ATTEMPTS_LIMIT,
+    WEBFLOW_MAX_ATTEMPTS_KEY,
     WEBFLOW_RETRY_ENABLED_KEY,
-    LATEST_COUNT_CHOICES, LATEST_COUNT_KEY, SHOW_WEBFLOW_LINK_KEY, normalize_latest_count,
+    normalize_latest_count,
 )
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode, set_muted
 from autohub.modules.settings.creation_form import CreationSettingsForm, load_config
@@ -73,10 +82,17 @@ class SettingsWidget(QWidget):
         self._latest.setToolTip("How many of the latest variants Load variants shows.")
         self._show_link = QCheckBox("Show the WebFlow link column")
         self._show_link.setChecked(bool(settings.load().get(SHOW_WEBFLOW_LINK_KEY, False)))
+        self._a2l_comp_id_symbol = QLineEdit(
+            str(settings.load().get(A2L_COMP_ID_SYMBOL_KEY, DEFAULT_COMP_ID_SYMBOL))
+        )
+        self._a2l_comp_id_symbol.setToolTip(
+            "A2L CHARACTERISTIC or MEASUREMENT name used to read the component ID from the HEX file."
+        )
         home_group = QGroupBox("Home")
         home_form = QFormLayout(home_group)
         home_form.addRow("Latest variants:", self._latest)
         home_form.addRow(self._show_link)
+        home_form.addRow("A2L component ID symbol:", self._a2l_comp_id_symbol)
 
         theme_group = QGroupBox("Theme")
         QFormLayout(theme_group).addRow("Mode:", self._theme)
@@ -120,7 +136,7 @@ class SettingsWidget(QWidget):
             logging_group: "Write application activity to logs/autohub.log and the console.",
             analysis_group: "Save HTML, screenshots and element details in logs/webflow_trace. "
                             "Detailed recording uses additional disk space.",
-            home_group: "Control how loaded variants and job links appear on Home.",
+            home_group: "Control Home's variant list and configure the A2L component-ID symbol.",
             creation_group: "Configure the WebFlow connection and ECR details. Leave all four ECR "
                             "fields empty to skip ECR import, or complete all four to enable it.",
             retry_group: "Recover from browser failures without recreating completed jobs. "
@@ -175,6 +191,7 @@ class SettingsWidget(QWidget):
         self._retry.toggled.connect(self._refresh_apply)
         self._latest.currentIndexChanged.connect(self._refresh_apply)
         self._show_link.toggled.connect(self._refresh_apply)
+        self._a2l_comp_id_symbol.textChanged.connect(self._refresh_apply)
         for field in (
             self._creation._base_url, self._creation._tool_version, self._creation._routing,
             self._creation._change_engineer, self._creation._cost_allocation,
@@ -209,7 +226,7 @@ class SettingsWidget(QWidget):
             self._theme.currentData(), self._logging.isChecked(), self._record.isChecked(),
             self._attempts.value(), self._retry.isChecked(),
             self._latest.currentData(), self._show_link.isChecked(),
-            *self._creation.values().values(),
+            *self._creation.values().values(), self._a2l_comp_id_symbol.text().strip(),
         )
 
     def _refresh_apply(self, *_args) -> None:
@@ -237,7 +254,8 @@ class SettingsWidget(QWidget):
             self._retry.setChecked(self._applied[4])
             self._latest.setCurrentIndex(self._latest.findData(self._applied[5]))
             self._show_link.setChecked(self._applied[6])
-            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:])))
+            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:-1])))
+            self._a2l_comp_id_symbol.setText(self._applied[-1])
         return True
 
     def _on_apply(self) -> None:
@@ -248,6 +266,7 @@ class SettingsWidget(QWidget):
             WEBFLOW_RETRY_ENABLED_KEY: retry,
             LATEST_COUNT_KEY: latest, SHOW_WEBFLOW_LINK_KEY: show_link,
             **self._creation.values(),
+            A2L_COMP_ID_SYMBOL_KEY: self._a2l_comp_id_symbol.text().strip(),
         }
         changes = {
             key: values[key] for key, previous in zip(values, self._applied)

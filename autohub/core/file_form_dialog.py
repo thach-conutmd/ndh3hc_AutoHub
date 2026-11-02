@@ -1,4 +1,4 @@
-"""Qt dialog with one file row per `FileField` (path box + Browse); OK needs every required file to exist."""
+"""Qt dialog with one file or folder row per `FileField`; OK needs every required path to exist."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -63,7 +63,12 @@ class FileFormDialog(QDialog):
 
     def _browse(self, field: FileField) -> None:
         edit = self._edits[field.name]
-        path, _ = QFileDialog.getOpenFileName(self, f"Select {field.name}", edit.text().strip(), field.file_filter)
+        if field.directory:
+            path = QFileDialog.getExistingDirectory(self, f"Select {field.name}", edit.text().strip())
+        else:
+            path, _ = QFileDialog.getOpenFileName(
+                self, f"Select {field.name}", edit.text().strip(), field.file_filter
+            )
         if path:
             edit.setText(path)
 
@@ -71,9 +76,9 @@ class FileFormDialog(QDialog):
         for field in self._fields:
             path = self.values()[field.name]
             if not path and field.required:
-                return f"Select the {field.name} file."
-            if path and not Path(path).is_file():
-                return f"{field.name}: file not found."
+                return f"Select the {field.name} {'folder' if field.directory else 'file'}."
+            if path and not (Path(path).is_dir() if field.directory else Path(path).is_file()):
+                return f"{field.name}: {'folder' if field.directory else 'file'} not found."
         return ""
 
     def _refresh(self) -> None:
