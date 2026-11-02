@@ -8,7 +8,8 @@ from typing import Protocol, runtime_checkable
 @dataclass(frozen=True)
 class ImplUpdate:
     software: str  # SW Part Number the sheet row must still carry, so the right variant is written
-    values: dict[str, str | bool] = field(default_factory=dict)  # sheet column letter -> value
+    values: dict[str, str] = field(default_factory=dict)  # sheet column letter -> raw WebFlow Target value
+    kinds: dict[str, str] = field(default_factory=dict)  # sheet column letter -> normalization kind (core.impl_values)
 
 
 @dataclass(frozen=True)
