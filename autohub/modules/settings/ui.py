@@ -1,14 +1,17 @@
 """Settings page for theme, logging, WebFlow tracing and retry attempts."""
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
-from autohub.core.logger import LOGGING_ENABLED_KEY, logging_enabled, set_logging_enabled
+from autohub.core.logger import (
+    LOG_FILE_PATH, LOGGING_ENABLED_KEY, clear_log_file, logging_enabled, set_logging_enabled,
+)
 from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import (
     DEFAULT_WEBFLOW_MAX_ATTEMPTS, RECORD_PAGES_KEY, WEBFLOW_ATTEMPTS_LIMIT, WEBFLOW_MAX_ATTEMPTS_KEY,
@@ -79,7 +82,17 @@ class SettingsWidget(QWidget):
         QFormLayout(theme_group).addRow("Mode:", self._theme)
 
         logging_group = QGroupBox("Logging")
-        QVBoxLayout(logging_group).addWidget(self._logging)
+        logging_layout = QVBoxLayout(logging_group)
+        logging_layout.addWidget(self._logging)
+        self._open_log = QPushButton("Open log file")
+        self._open_log.clicked.connect(self._on_open_log)
+        self._clear_log = QPushButton("Clear log content")
+        self._clear_log.clicked.connect(self._on_clear_log)
+        log_actions = QHBoxLayout()
+        log_actions.addWidget(self._open_log)
+        log_actions.addWidget(self._clear_log)
+        log_actions.addStretch(1)
+        logging_layout.addLayout(log_actions)
 
         analysis_group = QGroupBox("Analysis")
         QVBoxLayout(analysis_group).addWidget(self._record)
@@ -174,6 +187,22 @@ class SettingsWidget(QWidget):
         footer.addStretch(1)
         footer.addWidget(self._apply)
         layout.addLayout(footer)
+
+    def _on_open_log(self) -> None:
+        if not LOG_FILE_PATH.is_file():
+            self._dialogs.error("Open log file", f"Log file does not exist:\n{LOG_FILE_PATH}")
+        elif not QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE_PATH.resolve()))):
+            self._dialogs.error("Open log file", f"Could not open the log file:\n{LOG_FILE_PATH}")
+
+    def _on_clear_log(self) -> None:
+        if not self._dialogs.confirm("Clear log content", "Permanently clear all application log content?"):
+            return
+        try:
+            clear_log_file()
+        except OSError as error:
+            self._dialogs.error("Clear log content", f"Could not clear the log file:\n{error}")
+            return
+        self._dialogs.info("Clear log content", "Application log content cleared.")
 
     def _current(self) -> tuple:
         return (
