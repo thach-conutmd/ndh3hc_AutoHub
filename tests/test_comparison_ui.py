@@ -72,7 +72,7 @@ def test_comparison_lists_only_valid_links_and_allows_multiple_selection(qapp):
     assert page._variants_table.item(0, 2).data(Qt.UserRole) == "https://webflow/app/ShowJob/12"
     for column in range(1, 6):
         assert bool(page._variants_table.item(0, column).flags() & Qt.ItemIsEditable) == (column == 3)
-    assert page._variants_table.item(0, 2).toolTip() == "Right-click to copy full WebFlow link"
+    assert page._variants_table.item(0, 2).toolTip() == "Double-click to open. Right-click for options"
     assert page._variants_table.columnWidth(4) < 150
     assert not page._variants_table.horizontalHeader().stretchLastSection()
     assert not page._compare_btn.isEnabled()
@@ -690,14 +690,17 @@ def test_link_context_menu_copies_full_url_without_changing_selection(qapp, monk
         QContextMenuEvent.Mouse, rectangle.center(), table.viewport().mapToGlobal(rectangle.center()),
     )
     QApplication.sendEvent(table.viewport(), event)
-    menu.addAction.assert_called_once_with("Copy WebFlow Link")
+    assert [entry.args[0] for entry in menu.addAction.call_args_list] == (
+        ["Copy WebFlow Link"] if column == 2 else
+        ["Copy WebFlow Link", "Edit WebFlow Link", "Clear WebFlow Link"]
+    )
     assert QApplication.clipboard().text() == link
     assert table.selectedIndexes() == selection
     assert table.currentColumn() == 1
     assert page._selected_rows() == [0]
     assert page._revision == revision
     assert table.item(0, column).text() == "WF123456"
-    assert table.item(0, column).toolTip() == "Right-click to copy full WebFlow link"
+    assert table.item(0, column).toolTip() == "Double-click to open. Right-click for options"
 
 
 def test_base_editor_uses_full_url_then_formats_and_exports_original_url(qapp):
@@ -732,3 +735,84 @@ def test_invalid_base_remains_editable_and_clear_removes_internal_url(qapp):
     assert item.text() == "WF99"
     item.setText("")
     assert item.data(Qt.UserRole) == "" and item.toolTip() == ""
+
+
+@pytest.mark.parametrize("initial", ["", "https://webflow/app/ShowJob/99", "invalid"])
+@pytest.mark.parametrize("action_name", ["Edit WebFlow Link", "Clear WebFlow Link"])
+def test_base_menu_edit_and_clear_depend_on_editable_source(qapp, monkeypatch, initial, action_name):
+    page, _, _, _ = build_page()
+    table = page._variants_table
+    item = table.item(0, 3)
+    item.setText(initial)
+    page.show()
+    qapp.processEvents()
+    actions = {}
+    menu = Mock()
+
+    def add_action(name):
+        actions[name] = Mock()
+        return actions[name]
+
+    menu.addAction.side_effect = add_action
+    menu.exec.side_effect = lambda _: actions[action_name]
+    monkeypatch.setattr(webflow_link_delegate, "QMenu", Mock(return_value=menu))
+    rectangle = table.visualItemRect(item)
+    event = QContextMenuEvent(
+        QContextMenuEvent.Mouse, rectangle.center(), table.viewport().mapToGlobal(rectangle.center()),
+    )
+    QApplication.sendEvent(table.viewport(), event)
+    assert list(actions) == ["Copy WebFlow Link", "Edit WebFlow Link", "Clear WebFlow Link"]
+    actions["Copy WebFlow Link"].setEnabled.assert_called_once_with(initial.startswith("https://"))
+    assert page._variants[0]["webflow_link"] == "https://webflow/app/ShowJob/12"
+    if action_name == "Clear WebFlow Link":
+        assert item.text() == "" and item.data(Qt.UserRole) == ""
+    else:
+        editor = table.findChild(QLineEdit)
+        assert editor is not None and editor.text() == initial
+        editor.setText("https://webflow/app/ShowJob/100")
+        QTest.keyClick(editor, Qt.Key_Return)
+        qapp.processEvents()
+        assert item.text() == "WF100"
+        assert item.data(Qt.UserRole) == "https://webflow/app/ShowJob/100"
+
+
+@pytest.mark.parametrize("column", [2, 3])
+def test_link_single_click_selects_and_double_click_opens_without_editing(qapp, monkeypatch, column):
+    page, _, _, _ = build_page()
+    table = page._variants_table
+    if column == 3:
+        table.item(0, 3).setText("https://webflow/app/ShowJob/99")
+    page.show()
+    qapp.processEvents()
+    item = table.item(0, column)
+    link = item.data(Qt.UserRole)
+    opened = Mock()
+    monkeypatch.setattr(webflow_link_delegate.QDesktopServices, "openUrl", opened)
+    position = table.visualItemRect(item).center()
+    QTest.mouseClick(table.viewport(), Qt.LeftButton, pos=position)
+    opened.assert_not_called()
+    assert table.currentColumn() == column
+    QTest.mouseDClick(table.viewport(), Qt.LeftButton, pos=position)
+    opened.assert_called_once()
+    assert opened.call_args.args[0].toString() == link
+    assert table.findChild(QLineEdit) is None
+    assert item.data(Qt.UserRole) == link
+    assert item.foreground().color() == QApplication.palette().link().color()
+
+
+def test_empty_base_double_click_still_allows_full_url_input(qapp):
+    page, _, _, _ = build_page()
+    table = page._variants_table
+    page.show()
+    qapp.processEvents()
+    item = table.item(0, 3)
+    position = table.visualItemRect(item).center()
+    QTest.mouseClick(table.viewport(), Qt.LeftButton, pos=position)
+    QTest.mouseDClick(table.viewport(), Qt.LeftButton, pos=position)
+    editor = table.findChild(QLineEdit)
+    assert editor is not None
+    editor.setText("https://webflow/app/ShowJob/101")
+    QTest.keyClick(editor, Qt.Key_Return)
+    qapp.processEvents()
+    assert item.text() == "WF101"
+    assert item.data(Qt.UserRole) == "https://webflow/app/ShowJob/101"

@@ -19,7 +19,7 @@ def test_creation_link_requires_left_double_click(qapp, monkeypatch):
     qapp.processEvents()
     label = row.findChild(link_label.LinkLabel)
     opened = Mock()
-    monkeypatch.setattr(link_label.QDesktopServices, "openUrl", opened)
+    monkeypatch.setattr(webflow_link_delegate.QDesktopServices, "openUrl", opened)
 
     assert label.text() == "WF16409"
     assert not label.openExternalLinks()
@@ -37,7 +37,7 @@ def test_creation_link_context_menu_copies_full_url_without_breaking_open(qapp, 
     row.set_variants([{"part_number": "P", "ecu_type": "MG1", "webflow_link": url}])
     label = row._table.cellWidget(0, 5)
     opened = Mock()
-    monkeypatch.setattr(link_label.QDesktopServices, "openUrl", opened)
+    monkeypatch.setattr(webflow_link_delegate.QDesktopServices, "openUrl", opened)
     menu = Mock()
     menu.exec.return_value = menu.addAction.return_value
     monkeypatch.setattr(webflow_link_delegate, "QMenu", Mock(return_value=menu))
@@ -47,7 +47,7 @@ def test_creation_link_context_menu_copies_full_url_without_breaking_open(qapp, 
     assert menu.addAction.call_args.args == ("Copy WebFlow Link",)
     assert QApplication.clipboard().text() == url
     assert label.text() == "WF16409"
-    assert label.toolTip() == "Right-click to copy full WebFlow link"
+    assert label.toolTip() == "Double-click to open. Right-click for options"
     QTest.mouseDClick(label, Qt.LeftButton)
     opened.assert_called_once()
     assert opened.call_args.args[0].toString() == url
@@ -59,7 +59,7 @@ def test_other_double_clicks_do_not_open_links(qapp, monkeypatch, button):
     label = link_label.LinkLabel("Job", "https://webflow/app/ShowJob/1")
     label.show()
     opened = Mock()
-    monkeypatch.setattr(link_label.QDesktopServices, "openUrl", opened)
+    monkeypatch.setattr(webflow_link_delegate.QDesktopServices, "openUrl", opened)
     QTest.mouseDClick(label, button)
     opened.assert_not_called()
     label.close()

@@ -206,7 +206,7 @@ def test_home_link_context_menu_copies_full_url_without_changing_row_state(qapp,
     item = table.item(0, link_column)
     assert item.text() == "WF16409"
     assert item.data(Qt.UserRole) == link
-    assert item.toolTip() == "Right-click to copy full WebFlow link"
+    assert item.toolTip() == "Double-click to open. Right-click for options"
     assert table._row_numbers == revision
     home.close()
 
@@ -261,7 +261,7 @@ def test_job_link_opens_only_on_double_click(qapp, monkeypatch, frozen):
     if not frozen:
         table._frozen.view.hide()
     opened = Mock()
-    monkeypatch.setattr(table_module.QDesktopServices, "openUrl", opened)
+    monkeypatch.setattr(webflow_link_delegate.QDesktopServices, "openUrl", opened)
     index = table.model().index(0, table._link_column)
     position = view.visualRect(index).center()
 
