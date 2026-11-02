@@ -100,7 +100,9 @@ def _change_engineer_from_environment(fallback: str) -> str:
         _logger.warning("Active Directory did not return a full name for USERNAME=%s.", username)
         return fallback
     full_name, department = profile
-    return f"{full_name} ({department})" if department else full_name
+    if not department or full_name.casefold().endswith(f"({department})".casefold()):
+        return full_name
+    return f"{full_name} ({department})"
 
 
 def load_config(settings: SettingsStore) -> WebFlowConfig:
