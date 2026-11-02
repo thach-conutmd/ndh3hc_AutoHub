@@ -2,19 +2,21 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime
 from threading import Event
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QPushButton, QSizePolicy, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
+    QLineEdit, QMenu, QPushButton, QSizePolicy, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from autohub.core.impl_update import ImplUpdate
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
+from autohub.core.webflow_environment import webflow_base_url
 from autohub.core.webflow_links import is_link
 from autohub.core.webflow_numbers import NUMBER_FIELDS
 from autohub.core.workers import FunctionWorker
@@ -27,11 +29,14 @@ from .comparison import ComparisonRow, Status
 from .impl_update import MasterImplUpdater, build_impl_update
 from .matching import validate_link
 from .report import build_report
+from .review import Review
 from .progress import ComparisonProgressDialog
 from .service import ComparisonService, VariantResult
 from .xml_parser import ParameterValue
 
-_TARGET_HEADERS = ("Variant", "Parameter", "Master", "Base", "Target", "Status")
+_COMMENT_COLUMN = 6
+_STATUS_COLUMN = 5
+_TARGET_HEADERS = ("Variant", "Parameter", "Master", "Base", "Target", "Status", "Comment")
 _VARIANT_HEADERS = ("Select", "Variant", "WebFlow", "Base WebFlow Link", "Status", "Error")
 
 
@@ -89,6 +94,7 @@ class ComparisonWidget(QWidget):
         self._keep_results = False
         self._variants: list[dict] = []
         self._rows: list[tuple[str, str, ComparisonRow]] = []
+        self._reviews: dict[tuple[str, str], Review] = {}
         self._worker: FunctionWorker | None = None
         self._running = False
         self._revision = 0
@@ -134,7 +140,8 @@ class ComparisonWidget(QWidget):
         self._clear_selection_btn = QPushButton("Clear selection")
         self._export_btn = QPushButton("Export Comparison")
         self._export_btn.setEnabled(False)
-        self._impl_btn = QPushButton("Update Master IMPL")
+        self._impl_btn = QPushButton("Update Master Sheet")
+        self._impl_btn.setToolTip("Write the exported Target values of successfully compared variants into the Master Sheet.")
         self._impl_btn.setEnabled(False)
         self._compare_btn = QPushButton("Compare selected")
         sources = QHBoxLayout()
@@ -163,7 +170,8 @@ class ComparisonWidget(QWidget):
         filters.addWidget(self._deviations)
         self._table = QTableWidget(0, len(_TARGET_HEADERS))
         self._table.setHorizontalHeaderLabels(_TARGET_HEADERS)
-        self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._table.setEditTriggers(QAbstractItemView.DoubleClicked)
+        self._table.setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
@@ -188,6 +196,8 @@ class ComparisonWidget(QWidget):
         self._select_all_btn.clicked.connect(self._select_all)
         self._clear_selection_btn.clicked.connect(self._clear_selection)
         self._variants_table.itemChanged.connect(self._selection_changed)
+        self._table.itemChanged.connect(self._comment_edited)
+        self._table.customContextMenuRequested.connect(self._open_result_menu)
         self._compare_btn.clicked.connect(self._compare)
         self._export_btn.clicked.connect(self._export)
         self._impl_btn.clicked.connect(self._update_impl)
@@ -292,6 +302,7 @@ class ComparisonWidget(QWidget):
     def _clear_results(self) -> None:
         self._revision += 1
         self._rows = []
+        self._reviews = {}
         self._impl_updates = {}
         self._base_variants = set()
         self._table.setRowCount(0)
@@ -330,12 +341,16 @@ class ComparisonWidget(QWidget):
             [
                 (part, row.parameter, _display(row.master),
                  _display(row.base) if (part, software) in self._base_variants else "",
-                 _display(row.target), row.status.value)
-                for part, software, row in self._rows
+                 _display(row.target), self._effective_status(index).value, self._comment(index))
+                for index, (part, software, row) in enumerate(self._rows)
             ],
-            [row.deviation for _, _, row in self._rows],
+            [self._is_deviation(index) for index in range(len(self._rows))],
             list(dict.fromkeys(part for part, _, _ in self._rows)),
             now,
+            [
+                row.status.value if self._effective_status(index) != row.status else ""
+                for index, (_, _, row) in enumerate(self._rows)
+            ],
         )
         try:
             with open(path, "w", encoding="utf-8") as file:
@@ -350,18 +365,18 @@ class ComparisonWidget(QWidget):
             return
         path = str(self._settings.load().get("master_sheet_path", "")).strip() if self._settings is not None else ""
         if not path:
-            self._dialogs.error("Update Master IMPL", "Load a Master Sheet on Home first.")
+            self._dialogs.error("Update Master Sheet", "Load a Master Sheet on Home first.")
             return
         updates = dict(self._impl_updates)
         listing = "\n".join(f"  {variant} ({len(update.values)} values)" for variant, update in updates.items())
         if not self._dialogs.confirm(
-            "Update Master IMPL",
+            "Update Master Sheet",
             f"Write the exported Target values into the IMPL rows of {len(updates)} compared "
             f"variant(s) in the Master Sheet?\n\n{listing}\n\nBase values are not written.",
         ):
             return
         self._set_running(True)
-        self._summary.setText("Updating Master IMPL values...")
+        self._summary.setText("Updating Master Sheet values...")
         self._worker = FunctionWorker(lambda: self._impl_updater.update(path, updates), self)
         self._worker.finished_ok.connect(self._finish_impl)
         self._worker.finished_error.connect(self._fail_impl)
@@ -379,7 +394,7 @@ class ComparisonWidget(QWidget):
         written = sum(bool(outcome.written) and not outcome.error for outcome in outcomes.values())
         problems = [f"{variant}: {outcome.error}" for variant, outcome in outcomes.items() if outcome.error]
         skipped = sum(outcome.skipped for outcome in outcomes.values())
-        text = f"Master IMPL updated for {written} of {len(outcomes)} variant(s)."
+        text = f"Master Sheet updated for {written} of {len(outcomes)} variant(s)."
         if skipped:
             text += f" {skipped} formula cell(s) were left unchanged."
         self._summary.setText(text)
@@ -387,14 +402,14 @@ class ComparisonWidget(QWidget):
             self._keep_results = True
             self.masterReloadRequested.emit()
         if problems:
-            self._dialogs.error("Update Master IMPL", text + "\n\n" + "\n".join(problems))
+            self._dialogs.error("Update Master Sheet", text + "\n\n" + "\n".join(problems))
         else:
-            self._dialogs.info("Update Master IMPL", text)
+            self._dialogs.info("Update Master Sheet", text)
 
     def _fail_impl(self, error: str) -> None:
         self._end_impl_worker()
-        self._summary.setText(f"Master IMPL update failed: {error}")
-        self._dialogs.error("Update Master IMPL", error)
+        self._summary.setText(f"Master Sheet update failed: {error}")
+        self._dialogs.error("Update Master Sheet", error)
 
     def _set_running(self, running: bool) -> None:
         self._running = running
@@ -422,8 +437,7 @@ class ComparisonWidget(QWidget):
         masters = deepcopy(self._variants)
         saved = self._settings.load() if self._settings is not None else {}
         connection = {"driver_path": ""}
-        if saved.get("webflow_base_url"):
-            connection["base_url"] = str(saved["webflow_base_url"]).strip()
+        connection["base_url"] = webflow_base_url(saved)
         self._run_base = {
             tuple(self._variants_table.item(row, 0).data(Qt.UserRole + 1)[:2])
             for row in rows if self._variants_table.item(row, 3).data(Qt.UserRole)
@@ -482,6 +496,7 @@ class ComparisonWidget(QWidget):
         rows = [(result.variant, result.software, row) for result in results for row in result.rows]
         if rows:
             self._rows = rows
+            self._reviews = {}
             self._base_variants = self._run_base
             self._impl_updates = {
                 result.variant: build_impl_update(result.software, result.rows)
@@ -522,21 +537,127 @@ class ComparisonWidget(QWidget):
             self._variant_filter.addItem(part, part)
         self._variant_filter.blockSignals(False)
         self._size_variant_filter()
+        self._table.blockSignals(True)
         self._table.setRowCount(len(self._rows))
         for index, (part, software, row) in enumerate(self._rows):
             values = (
                 (part, row.parameter, _display(row.master),
                  _display(row.base) if (part, software) in self._base_variants else "",
-                 _display(row.target), row.status.value)
+                 _display(row.target), self._effective_status(index).value, self._comment(index))
             )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 item.setToolTip(value)
+                if column != _COMMENT_COLUMN:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 self._table.setItem(index, column, item)
+            self._table.item(index, 0).setData(Qt.UserRole, index)
+            self._refresh_status_item(index)
+        self._table.blockSignals(False)
         self._table.resizeColumnsToContents()
         for column in range(self._table.columnCount()):
             self._table.setColumnWidth(column, min(300, self._table.columnWidth(column)))
         self._apply_filters()
+
+    def _review(self, index: int) -> Review | None:
+        part, _, row = self._rows[index]
+        return self._reviews.get((part, row.parameter))
+
+    def _effective_status(self, index: int) -> Status:
+        review = self._review(index)
+        return review.status if review and review.status else self._rows[index][2].status
+
+    def _comment(self, index: int) -> str:
+        review = self._review(index)
+        return review.comment if review else ""
+
+    def _is_deviation(self, index: int) -> bool:
+        return replace(self._rows[index][2], status=self._effective_status(index)).deviation
+
+    def _store_review(self, index: int, status: Status | None = None, comment: str | None = None) -> None:
+        part, _, row = self._rows[index]
+        current = self._reviews.get((part, row.parameter), Review())
+        updated = Review(
+            current.status if status is None else (None if status == row.status else status),
+            current.comment if comment is None else comment,
+        )
+        if updated.status is None and not updated.comment:
+            self._reviews.pop((part, row.parameter), None)
+        else:
+            self._reviews[(part, row.parameter)] = updated
+
+    def _refresh_status_item(self, index: int) -> None:
+        item = self._table.item(index, _STATUS_COLUMN)
+        calculated = self._rows[index][2].status
+        effective = self._effective_status(index)
+        font = item.font()
+        font.setItalic(effective != calculated)
+        item.setFont(font)
+        item.setText(effective.value)
+        item.setToolTip(
+            f"Calculated: {calculated.value} | Manually changed" if effective != calculated else effective.value
+        )
+
+    def _set_status(self, index: int, status: Status) -> None:
+        self._store_review(index, status=status)
+        self._table.blockSignals(True)
+        self._refresh_status_item(index)
+        self._table.blockSignals(False)
+        self._apply_filters()
+
+    def _reset_status(self, index: int) -> None:
+        self._set_status(index, self._rows[index][2].status)
+
+    def _set_comment(self, index: int, comment: str) -> None:
+        self._store_review(index, comment=comment.strip())
+        self._table.blockSignals(True)
+        item = self._table.item(index, _COMMENT_COLUMN)
+        item.setText(self._comment(index))
+        item.setToolTip(self._comment(index))
+        self._table.blockSignals(False)
+        self._apply_filters()
+
+    def _comment_edited(self, item: QTableWidgetItem) -> None:
+        if item.column() == _COMMENT_COLUMN and not self._running:
+            self._set_comment(self._model_index(item.row()), item.text())
+
+    def _model_index(self, table_row: int) -> int:
+        return int(self._table.item(table_row, 0).data(Qt.UserRole))
+
+    def _allowed_statuses(self, index: int) -> tuple[Status, ...]:
+        part, software, _ = self._rows[index]
+        if (part, software) in self._base_variants:
+            return tuple(Status)
+        return (Status.MATCH, Status.VALUE_MISMATCH, Status.MISSING_IN_MASTER, Status.MISSING_IN_WEBFLOW)
+
+    def _result_menu(self, table_row: int, column: int) -> QMenu | None:
+        if self._running or table_row < 0 or column not in (_STATUS_COLUMN, _COMMENT_COLUMN):
+            return None
+        index = self._model_index(table_row)
+        menu = QMenu(self._table)
+        if column == _STATUS_COLUMN:
+            change = menu.addMenu("Change Status")
+            for status in self._allowed_statuses(index):
+                action = change.addAction(status.value)
+                action.setCheckable(True)
+                action.setChecked(status == self._effective_status(index))
+                action.triggered.connect(lambda _=False, value=status: self._set_status(index, value))
+            reset = menu.addAction("Reset Status")
+            reset.setEnabled(self._effective_status(index) != self._rows[index][2].status)
+            reset.triggered.connect(lambda: self._reset_status(index))
+        else:
+            edit = menu.addAction("Edit Comment")
+            edit.triggered.connect(lambda: self._table.editItem(self._table.item(table_row, column)))
+            clear = menu.addAction("Clear Comment")
+            clear.setEnabled(bool(self._comment(index)))
+            clear.triggered.connect(lambda: self._set_comment(index, ""))
+        return menu
+
+    def _open_result_menu(self, pos) -> None:
+        item = self._table.itemAt(pos)
+        menu = self._result_menu(item.row(), item.column()) if item is not None else None
+        if menu is not None:
+            menu.exec(self._table.viewport().mapToGlobal(pos))
 
     def _size_variant_filter(self) -> None:
         width = self._variant_filter.sizeHint().width()
@@ -555,15 +676,15 @@ class ComparisonWidget(QWidget):
         return (
             (not search or search in text.casefold())
             and (variant is None or variant == part)
-            and (status == "All statuses" or status == row.status.value)
-            and (not self._deviations.isChecked() or row.deviation)
+            and (status == "All statuses" or status == self._effective_status(index).value)
+            and (not self._deviations.isChecked() or self._is_deviation(index))
         )
 
     def _update_filter_summary(self) -> None:
         visible = sum(not self._table.isRowHidden(index) for index in range(self._table.rowCount()))
         self._summary.setText(
             f"{visible} / {len(self._rows)} parameters shown; "
-            f"{sum(row.deviation for _, _, row in self._rows)} deviations from Master."
+            f"{sum(self._is_deviation(index) for index in range(len(self._rows)))} deviations from Master."
         )
 
     def confirm_leave(self) -> bool:

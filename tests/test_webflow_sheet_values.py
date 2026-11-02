@@ -155,7 +155,6 @@ def test_creation_settings_width_fits_reason_options_and_input_content(qapp):
     qapp.processEvents()
     reasons = dialog._change_reason
     assert reasons.viewport().width() >= reasons.sizeHintForColumn(0)
-    assert dialog._base_url.width() >= dialog._base_url.fontMetrics().horizontalAdvance(config.base_url) + 24
     assert reasons.horizontalScrollBar().maximum() == 0
     dialog._reason_popup.close()
     dialog.close()

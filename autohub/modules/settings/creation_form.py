@@ -8,8 +8,8 @@ from datetime import datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView, QCheckBox, QDialog, QFormLayout, QLineEdit,
-    QListWidget, QListWidgetItem, QToolButton, QVBoxLayout, QWidget,
+    QAbstractItemView, QButtonGroup, QCheckBox, QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
+    QListWidget, QListWidgetItem, QPushButton, QToolButton, QVBoxLayout, QWidget,
 )
 
 from autohub.config import LOG_DIR
@@ -18,10 +18,13 @@ from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import (
     DEFAULT_WEBFLOW_MAX_ATTEMPTS, RECORD_PAGES_KEY, WEBFLOW_MAX_ATTEMPTS_KEY, WEBFLOW_RETRY_ENABLED_KEY,
 )
+from autohub.ui.theme import set_muted
+from autohub.core.webflow_environment import (
+    BASE_URL_KEY, ENVIRONMENT_KEY, ENVIRONMENT_URLS, environment_for_url, selected_environment, webflow_base_url,
+)
 from autohub.modules.creation.service import WebFlowConfig
 
 _DEFAULTS = {
-    "webflow_base_url": "https://rb-pde-int.bosch.com:8881/app/dashboard",
     "tool_version": "PD W0002 (Productive)",
     "routing": "Honda_MG1CS022",
 }
@@ -109,7 +112,7 @@ def load_config(settings: SettingsStore) -> WebFlowConfig:
     saved = settings.load()
     return WebFlowConfig(
         driver_path="",
-        base_url=str(saved.get("webflow_base_url", _DEFAULTS["webflow_base_url"])).strip(),
+        base_url=webflow_base_url(saved),
         tool_version=str(saved.get("tool_version", _DEFAULTS["tool_version"])).strip(),
         routing=str(saved.get("routing", _DEFAULTS["routing"])).strip(),
         trace_dir=_trace_dir() if saved.get(RECORD_PAGES_KEY, True) else "",
@@ -126,7 +129,23 @@ def load_config(settings: SettingsStore) -> WebFlowConfig:
 class CreationSettingsForm(QWidget):
     def __init__(self, config: WebFlowConfig, parent: QWidget | None = None):
         super().__init__(parent)
-        self._base_url = QLineEdit(config.base_url)
+        self._environment_buttons = QButtonGroup(self)
+        self._environment_buttons.setExclusive(True)
+        self._environment_row = QWidget()
+        environment_layout = QHBoxLayout(self._environment_row)
+        environment_layout.setContentsMargins(0, 0, 0, 0)
+        for name, url in ENVIRONMENT_URLS.items():
+            button = QPushButton(name)
+            button.setCheckable(True)
+            button.setToolTip(url)
+            button.setProperty("environment", name)
+            self._environment_buttons.addButton(button)
+            environment_layout.addWidget(button)
+        environment_layout.addStretch(1)
+        self._environment_summary = QLabel()
+        set_muted(self._environment_summary, True)
+        self._environment_buttons.buttonToggled.connect(self._update_environment_summary)
+        self._set_environment(environment_for_url(config.base_url))
         self._tool_version = QLineEdit(config.tool_version)
         self._routing = QLineEdit(config.routing)
         self._change_engineer = QLineEdit(config.change_engineer)
@@ -176,7 +195,7 @@ class CreationSettingsForm(QWidget):
         self._change_reason.itemChanged.connect(self._update_reason_summary)
         self._update_reason_summary()
         for field in (
-            self._base_url, self._tool_version, self._routing,
+            self._tool_version, self._routing,
             self._change_engineer, self._cost_allocation,
         ):
             field.setMinimumWidth(field.fontMetrics().horizontalAdvance(field.text()) + 24)
@@ -185,20 +204,35 @@ class CreationSettingsForm(QWidget):
         form.setContentsMargins(0, 0, 0, 0)
         form.setHorizontalSpacing(20)
         form.setVerticalSpacing(12)
-        form.addRow("Base URL:", self._base_url)
+        form.addRow("WebFlow Environment:", self._environment_row)
+        form.addRow("", self._environment_summary)
         form.addRow("Tool version:", self._tool_version)
         form.addRow("Routing:", self._routing)
         form.addRow("Change engineer:", self._change_engineer)
         form.addRow("Cost allocation:", self._cost_allocation)
         form.addRow("Change Reason:", self._reason_button)
 
+    def environment(self) -> str:
+        checked = self._environment_buttons.checkedButton()
+        return checked.property("environment")
+
+    def _set_environment(self, name: str) -> None:
+        for button in self._environment_buttons.buttons():
+            button.setChecked(button.property("environment") == name)
+        self._update_environment_summary()
+
+    def _update_environment_summary(self, *_args) -> None:
+        name = self.environment()
+        self._environment_summary.setText(f"Selected: {name} ({ENVIRONMENT_URLS[name]})")
+
     def restore(self, values: dict) -> None:
         for key, field in (
-            ("webflow_base_url", self._base_url), ("tool_version", self._tool_version),
+            ("tool_version", self._tool_version),
             ("routing", self._routing), ("change_engineer", self._change_engineer),
             ("cost_allocation", self._cost_allocation),
         ):
             field.setText(values[key])
+        self._set_environment(selected_environment(values))
         selected = {value.casefold() for value in values["change_reason"].split("|")}
         for index in range(self._change_reason.count()):
             item = self._change_reason.item(index)
@@ -240,7 +274,8 @@ class CreationSettingsForm(QWidget):
 
     def values(self) -> dict:
         return {
-            "webflow_base_url": self._base_url.text().strip(),
+            ENVIRONMENT_KEY: self.environment(),
+            BASE_URL_KEY: ENVIRONMENT_URLS[self.environment()],
             "tool_version": self._tool_version.text().strip(),
             "routing": self._routing.text().strip(),
             "change_engineer": self._change_engineer.text().strip(),

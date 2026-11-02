@@ -17,6 +17,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}
 th{background:#243b53;color:#fff;text-align:left;padding:8px;position:sticky;top:0}
 td{border-bottom:1px solid #e4e7eb;padding:6px 8px;vertical-align:top;word-break:break-word}
 tr.match td.status{background:#e3f6e8;color:#1b7f3b;font-weight:600}
+td.manual{font-style:italic;outline:2px dashed #7b61ff;outline-offset:-3px}
 tr.deviation{background:#fff5f5}
 tr.deviation td.status{background:#fde2e1;color:#b42318;font-weight:700}
 """.strip()
@@ -24,16 +25,24 @@ tr.deviation td.status{background:#fde2e1;color:#b42318;font-weight:700}
 
 def build_report(
     headers: Sequence[str], rows: Sequence[Sequence[str]], deviations: Sequence[bool], variants: Sequence[str],
-    exported_at: datetime,
+    exported_at: datetime, calculated: Sequence[str] = (),
 ) -> str:
     deviation_count = sum(deviations)
     head = "".join(f"<th>{escape(header)}</th>" for header in headers)
+    status_column = headers.index("Status")
+    calculated = list(calculated) + [""] * (len(rows) - len(calculated))
+
+    def cell(column: int, value: str, original: str) -> str:
+        if column != status_column:
+            return f"<td>{escape(value)}</td>"
+        note = f' title="Calculated: {escape(original)} | Manually changed"' if original else ""
+        return f'<td class="status{" manual" if original else ""}"{note}>{escape(value)}</td>'
+
     body = "".join(
         f'<tr class="{"deviation" if deviation else "match"}">'
-        + "".join(f'<td class="status">{escape(value)}</td>' if column == len(headers) - 1 else f"<td>{escape(value)}</td>"
-                  for column, value in enumerate(row))
+        + "".join(cell(column, value, original) for column, value in enumerate(row))
         + "</tr>"
-        for row, deviation in zip(rows, deviations)
+        for row, deviation, original in zip(rows, deviations, calculated)
     )
     return (
         '<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8">'

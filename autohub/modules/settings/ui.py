@@ -193,11 +193,12 @@ class SettingsWidget(QWidget):
         self._show_link.toggled.connect(self._refresh_apply)
         self._a2l_comp_id_symbol.textChanged.connect(self._refresh_apply)
         for field in (
-            self._creation._base_url, self._creation._tool_version, self._creation._routing,
+            self._creation._tool_version, self._creation._routing,
             self._creation._change_engineer, self._creation._cost_allocation,
         ):
             field.textChanged.connect(self._refresh_apply)
         self._creation._change_reason.itemChanged.connect(self._refresh_apply)
+        self._creation._environment_buttons.buttonToggled.connect(self._refresh_apply)
         self._refresh_apply()
         footer = QHBoxLayout()
         footer.addWidget(self._save_status)
