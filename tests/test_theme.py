@@ -395,7 +395,9 @@ def test_settings_controls_are_organized_in_groups(qapp):
 
     page = SettingsWidget(MemorySettings())
     groups = {group.title(): group for group in page.findChildren(QGroupBox)}
-    assert set(groups) == {"Theme", "Logging", "Analysis", "Home", "Creation", "WebFlow Retry", "Exclude Compare Data"}
+    assert set(groups) == {
+        "Theme", "Logging", "Analysis", "Home", "Creation", "New variants", "WebFlow Retry", "Exclude Compare Data",
+    }
     assert page._theme.parentWidget() is groups["Theme"]
     assert page._logging.parentWidget() is groups["Logging"]
     assert page._record.parentWidget() is groups["Analysis"]

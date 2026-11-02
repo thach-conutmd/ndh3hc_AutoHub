@@ -7,13 +7,10 @@ from typing import Any, Callable
 import msoffcrypto
 import win32com.client
 
+from autohub.services.common.encrypted_workbook import DEFAULT_PASSWORD
 from autohub.services.common.sheet_grid import LayoutError, SheetGrid, locate_and_parse
 
 _logger = logging.getLogger(__name__)
-
-#: Password tried for protected workbooks.
-DEFAULT_PASSWORD = "hondabosch"
-
 
 class ExcelDocument:
     """Shared open/close handling; subclasses implement `load_data` on top of `_parse`."""

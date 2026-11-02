@@ -15,6 +15,8 @@ from autohub.core.logger import (
 )
 from autohub.core.a2l_hex import DEFAULT_COMP_ID_SYMBOL
 from autohub.core.settings import SettingsStore
+from autohub.core.settings_keys import NEW_VARIANT_DEFAULTS_KEY
+from autohub.core.webflow_defaults import new_variant_defaults
 from autohub.core.settings_keys import (
     A2L_COMP_ID_SYMBOL_KEY,
     DEFAULT_WEBFLOW_MAX_ATTEMPTS,
@@ -34,6 +36,7 @@ from autohub.core.settings_keys import (
 from autohub.modules.comparison.xml_parser import comparison_exclusions
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode, set_muted
 from autohub.modules.settings.creation_form import CreationSettingsForm, load_config
+from autohub.modules.settings.new_variant_form import NewVariantSettingsForm
 
 THEME_KEY = "theme"
 _LABELS = {"system": "System", "light": "Light", "dark": "Dark"}
@@ -127,6 +130,10 @@ class SettingsWidget(QWidget):
         self._creation = CreationSettingsForm(load_config(settings))
         QVBoxLayout(creation_group).addWidget(self._creation)
 
+        new_variants_group = QGroupBox("New variants")
+        self._new_variant_defaults = NewVariantSettingsForm(new_variant_defaults(settings.load()))
+        QVBoxLayout(new_variants_group).addWidget(self._new_variant_defaults)
+
         exclusions_group = QGroupBox("Exclude Compare Data")
         exclusions_layout = QVBoxLayout(exclusions_group)
         self._exclusions_master_only = QCheckBox("Apply to Master Sheet Compare")
@@ -179,6 +186,8 @@ class SettingsWidget(QWidget):
             home_group: "Control Home's variant list and configure the A2L component-ID symbol.",
             creation_group: "Configure the WebFlow connection and ECR details. Leave all four ECR "
                             "fields empty to skip ECR import, or complete all four to enable it.",
+            new_variants_group: "Set the default values used when New variants builds Master Sheet rows. "
+                                "Values already supplied by source files remain unchanged.",
             retry_group: "Recover from browser failures without recreating completed jobs. "
                          "After an app crash, AutoHub asks before resuming saved progress.",
             exclusions_group: "Exclude parameters/rows whose normalized paths start with these prefixes. "
@@ -192,7 +201,7 @@ class SettingsWidget(QWidget):
         for tab_name, groups in (
             ("General", (theme_group,)),
             ("Home", (home_group,)),
-            ("Creation", (creation_group, retry_group)),
+            ("Creation", (creation_group, new_variants_group, retry_group)),
             ("Diagnostics", (logging_group, analysis_group)),
             ("Comparison", (exclusions_group,)),
         ):
@@ -247,6 +256,11 @@ class SettingsWidget(QWidget):
             self._creation._change_engineer, self._creation._cost_allocation,
         ):
             field.textChanged.connect(self._refresh_apply)
+        for field in self._new_variant_defaults._text_fields.values():
+            field.textChanged.connect(self._refresh_apply)
+        for field in self._new_variant_defaults._boolean_fields.values():
+            field.toggled.connect(self._refresh_apply)
+        self._new_variant_defaults._project_number.valueChanged.connect(self._refresh_apply)
         self._creation._change_reason.itemChanged.connect(self._refresh_apply)
         self._creation._environment_buttons.buttonToggled.connect(self._refresh_apply)
         self._refresh_apply()
@@ -321,7 +335,9 @@ class SettingsWidget(QWidget):
             self._theme.currentData(), self._logging.isChecked(), self._record.isChecked(),
             self._attempts.value(), self._retry.isChecked(),
             self._latest.currentData(), self._show_link.isChecked(),
-            *self._creation.values().values(), self._exclusions_master_only.isChecked(),
+            *self._creation.values().values(),
+            *self._new_variant_defaults.values().values(),
+            self._exclusions_master_only.isChecked(),
             self._a2l_comp_id_symbol.text().strip(),
             self._disabled_exclusion_values(),
             self._exclusion_values(),
@@ -353,9 +369,19 @@ class SettingsWidget(QWidget):
             self._retry.setChecked(self._applied[4])
             self._latest.setCurrentIndex(self._latest.findData(self._applied[5]))
             self._show_link.setChecked(self._applied[6])
-            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:-4])))
-            self._exclusions_master_only.setChecked(self._applied[-4])
-            self._a2l_comp_id_symbol.setText(self._applied[-3])
+            creation_count = len(self._creation.values())
+            defaults_start = 7 + creation_count
+            defaults_count = len(self._new_variant_defaults.values())
+            exclusions_start = defaults_start + defaults_count
+            self._creation.restore(dict(zip(
+                self._creation.values(), self._applied[7:defaults_start]
+            )))
+            self._new_variant_defaults.restore(dict(zip(
+                self._new_variant_defaults.values(),
+                self._applied[defaults_start:exclusions_start],
+            )))
+            self._exclusions_master_only.setChecked(self._applied[exclusions_start])
+            self._a2l_comp_id_symbol.setText(self._applied[exclusions_start + 1])
             self._restore_exclusions(self._applied[-1], self._applied[-2])
         return True
 
@@ -374,17 +400,28 @@ class SettingsWidget(QWidget):
             WEBFLOW_RETRY_ENABLED_KEY: retry,
             LATEST_COUNT_KEY: latest, SHOW_WEBFLOW_LINK_KEY: show_link,
             **self._creation.values(),
+            NEW_VARIANT_DEFAULTS_KEY: self._new_variant_defaults.values(),
             XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY: self._exclusions_master_only.isChecked(),
             A2L_COMP_ID_SYMBOL_KEY: self._a2l_comp_id_symbol.text().strip(),
             XML_COMPARISON_DISABLED_EXCLUSIONS_KEY: list(disabled),
             XML_COMPARISON_EXCLUSIONS_KEY: list(exclusions),
         }
-        changes = {
-            key: values[key] for key, previous in zip(values, self._applied)
-            if (tuple(values[key]) if key in (
-                XML_COMPARISON_EXCLUSIONS_KEY, XML_COMPARISON_DISABLED_EXCLUSIONS_KEY,
-            ) else values[key]) != previous
-        }
+        changes = {}
+        position = 0
+        for key, value in values.items():
+            if key == NEW_VARIANT_DEFAULTS_KEY:
+                previous = self._applied[position : position + len(value)]
+                position += len(value)
+                if tuple(value.values()) != previous:
+                    changes[key] = value
+            else:
+                previous = self._applied[position]
+                position += 1
+                current = tuple(value) if key in (
+                    XML_COMPARISON_EXCLUSIONS_KEY, XML_COMPARISON_DISABLED_EXCLUSIONS_KEY,
+                ) else value
+                if current != previous:
+                    changes[key] = value
         self._settings.update(**values)
         set_logging_enabled(enabled)
         apply_theme(QApplication.instance(), mode)

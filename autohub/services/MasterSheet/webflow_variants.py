@@ -12,7 +12,10 @@ from autohub.core.webflow_options import GENERAL_OPTION_FIELDS, normalize_option
 COMPARISON_RESULT_COLUMN = "O"
 
 #: Sheet columns a request row is read from to build a WebFlow variant.
-WEBFLOW_SOURCE_COLUMNS = tuple(dict.fromkeys(("C", COMPARISON_RESULT_COLUMN, *VARIANT_FIELD_LABELS, "CR")))
+_FORM_B_COLUMNS = ("AP", "AN", "AR", "AX", "AZ", "BA", "AW", "AD", "BG", "CX", "CY", "CZ")
+WEBFLOW_SOURCE_COLUMNS = tuple(
+    dict.fromkeys(("C", COMPARISON_RESULT_COLUMN, *VARIANT_FIELD_LABELS, "CR", *_FORM_B_COLUMNS))
+)
 
 _GENERAL_COLUMNS = {
     "delivery_type": "T", "release_class": "U", "release_scope": "V", "limitations": "W",
@@ -52,7 +55,7 @@ def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
     mapped = {
         "C", "H", "J", "Q", "R", "S", "BI",
         *_GENERAL_COLUMNS.values(), *_ECU_COLUMNS.values(), *_CUSTOMER_COLUMNS.values(),
-        *(field[0] for field in HARDWARE_FIELDS),
+        *(field[0] for field in HARDWARE_FIELDS), *_FORM_B_COLUMNS,
     }
     project, event_name = project_event(row.get("H"))
     return {
@@ -72,6 +75,10 @@ def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
         },
         "ecu": {key: _text(row.get(column)) for key, column in _ECU_COLUMNS.items()},
         "customer": {key: _text(row.get(column)) for key, column in _CUSTOMER_COLUMNS.items()},
+        "form_b": {
+            column: row.get(column) if column == "BA" else _text(row.get(column))
+            for column in _FORM_B_COLUMNS
+        },
         "unmapped_fields": {
             f"{column} ({VARIANT_FIELD_LABELS.get(column, column)})": _text(value)
             for column, value in row.items()

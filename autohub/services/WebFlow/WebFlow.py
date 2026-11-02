@@ -17,6 +17,7 @@ from . import Constants as Constants
 from .Body import Body
 from .browser import edge_service
 from .components import wait_until_idle
+from .FilesTab import FilesTab
 from .job_filler import JobFiller
 from .job_batch import JobBatch
 from .SideMenuBar import SideMenuBar
@@ -142,6 +143,16 @@ class WebFlow(webdriver.Edge):
         if not self.open_job(job_id, url=link):
             raise RuntimeError(f"Could not open WebFlow job {job_id} for Export XML.")
         return export_xml(self)
+
+    def get_container_crc32(self, link: str, filename: str) -> str:
+        """Reads the Execution Files CRC32, downloading the .cnt only when WebFlow has none."""
+        job_id = urlsplit(link).path.rstrip("/").rsplit("/", 1)[-1]
+        if not self.open_job(job_id, url=link):
+            raise RuntimeError(f"Could not open WebFlow job {job_id} to read {filename} CRC32.")
+        files = FilesTab(self)
+        if not files.select_files_tab():
+            raise RuntimeError(f"Could not open the Files tab for WebFlow job {job_id}.")
+        return files.container_crc32(filename)
 
     def create_and_fill_jobs(
         self,

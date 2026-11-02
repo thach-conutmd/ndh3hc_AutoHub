@@ -10,6 +10,8 @@ from autohub.modules.comparison.module import ComparisonModule
 from autohub.modules.comparison.service import ComparisonService
 from autohub.modules.creation.module import CreationModule
 from autohub.modules.creation.service import WebFlowJobService
+from autohub.modules.form_b.module import FormBModule
+from autohub.services.FormB.form_b import FormBService
 from autohub.modules.home.module import HomeModule
 from autohub.modules.home.service import VariantService
 from autohub.modules.settings.module import SettingsModule
@@ -39,6 +41,7 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
     return [
         HomeModule(build_variant_service, settings),
         CreationModule(lambda: WebFlowJobService(WebFlow, open_master_sheet, com_session, journal=JsonBatchJournal()), settings),
+        FormBModule(lambda: FormBService(WebFlow)),
         ComparisonModule(
             lambda: ComparisonService(WebFlow), settings, lambda: MasterImplUpdater(open_master_sheet, com_session)
         ),

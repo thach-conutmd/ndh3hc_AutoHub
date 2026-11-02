@@ -18,7 +18,7 @@ class _StubModule(AutoHubModule):
 
 def test_registered_modules_create_widgets(qapp):
     modules = build_modules(MemorySettings())
-    assert [m.display_name for m in modules] == ["Home", "Creation", "Comparison"]
+    assert [m.display_name for m in modules] == ["Home", "Creation", "Form B", "Comparison", "Settings"]
     for module in modules:
         assert module.create_widget() is not None
 
@@ -28,6 +28,7 @@ def test_module_icons_match_their_sidebar_labels():
     expected = {
         "Home": "home.svg",
         "Creation": "creation.svg",
+        "Form B": "creation.svg",
         "Comparison": "comparison.svg",
         "Settings": "settings.svg",
     }
@@ -40,4 +41,4 @@ def test_module_icons_match_their_sidebar_labels():
 
 def test_a_new_module_appears_in_the_window_without_other_changes(qapp):
     window = MainWindow([*build_modules(MemorySettings()), _StubModule()])
-    assert window._pages.count() == 4
+    assert window._pages.count() == 6

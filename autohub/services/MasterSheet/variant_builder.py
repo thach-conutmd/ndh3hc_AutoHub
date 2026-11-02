@@ -22,12 +22,11 @@ from autohub.core.normalizers import (
     tp_level,
 )
 from autohub.core.records import BootRow, EcuGroup, EcuInfoData, HWLookup, HWRecord, KickOffInfo, SystemMatrixData
-from autohub.core.webflow_defaults import WEBFLOW_DEFAULTS
+from autohub.core.webflow_defaults import WEBFLOW_DEFAULTS, WebFlowDefaults
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 from autohub.core.webflow_options import GENERAL_OPTION_FIELDS, normalize_option_value
 
 _SECURITY_KEY_FIELDS = ("SK1", "SK2", "SK3")
-_PROJECT_NUMBER_FIRST_PART = 159
 
 
 def variant_key(customer_event_purpose, part_number, initial_software_id) -> tuple[str, str, str]:
@@ -119,20 +118,27 @@ def build_request_values(
     hw: HWRecord | None = None,
     now: datetime | None = None,
     kick_off: KickOffInfo | None = None,
+    variant_defaults: WebFlowDefaults | None = None,
 ) -> dict:
     """Column-letter -> value for one variant's REQ row (including the created date "C")."""
-    defaults = WEBFLOW_DEFAULTS
+    defaults = variant_defaults or WEBFLOW_DEFAULTS
     project = clean_text(general.get("Project"))
     part_number = normalize_part_number(main.get("NumCompID"))
     program_id = clean_text(main.get("NumProgID"))
     hardware = clean_text(system_variant.get("Hardware"))
+    general_defaults = defaults.general()
+    yes_no_defaults = {
+        key: "Yes" if value else "No"
+        for key, value in general_defaults.items()
+        if isinstance(value, bool)
+    }
 
     request_values = {
         "C": now or datetime.now(),
         "H": project_purpose(project, ecu.get("Event"), ecu.get("MP")),
         "J": part_number,
         "Q": defaults.ecu_generation,
-        "R": "Honda",
+        "R": defaults.brand,
         "S": hardware,
         "BI": program_id,
         "CO": clean_text(ecu.get("SecurityKey")),
@@ -144,7 +150,15 @@ def build_request_values(
         "CV": program_id,
         "CY": clean_text(system_variant.get("ECUMARK")),
         "CZ": clean_text(system_variant.get("SSID")),
-        "AL": _PROJECT_NUMBER_FIRST_PART,
+        "AL": defaults.project_number_first_part,
+        "T": general_defaults["delivery_type"],
+        "U": general_defaults["release_class"],
+        "V": general_defaults["release_scope"],
+        "W": general_defaults["limitations"],
+        "X": yes_no_defaults["safety_monitoring"],
+        "Y": yes_no_defaults["safety_calibration"],
+        "Z": yes_no_defaults["calibration"],
+        "AA": yes_no_defaults["data_integration"],
         "AB": project,
         "AD": title_status(ecu.get("Immobi")),
         "AE": normalize_displacement(system_variant.get("Displacement")),
@@ -166,9 +180,13 @@ def build_request_values(
         "CM": defaults.ecu_rewriting_id,
         "CQ": defaults.sw_version_for(hardware),
         "BC": defaults.indi_spec(hardware),
-        "AU": "HONDA",
+        "AU": defaults.customer_name,
     }
-    security_type_1 = "FFFFFFFFFFFF" if hardware.casefold() == "mg1cs022" else security_type_1_value(boot)
+    security_type_1 = (
+        defaults.security_coefficient
+        if hardware.casefold() == defaults.security_coefficient_hardware.casefold()
+        else security_type_1_value(boot)
+    )
     if security_type_1:
         request_values["CN"] = security_type_1
     if hw:
@@ -188,6 +206,7 @@ def compute_new_variant_rows(
     hw: HWLookup | None = None,
     now: datetime | None = None,
     kick_off: KickOffInfo | None = None,
+    variant_defaults: WebFlowDefaults | None = None,
 ) -> list[dict]:
     """REQ-row values for the variants not yet in the sheet (keys in `existing_keys`)."""
     main_variants = ecu_info.get("Main", [])
@@ -221,6 +240,7 @@ def compute_new_variant_rows(
             hw.find(part_number) if hw else None,
             now,
             kick_off,
+            variant_defaults,
         )
         key = variant_key_from_values(values)
         if key in seen:
