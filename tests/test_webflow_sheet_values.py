@@ -472,11 +472,15 @@ def test_matching_hardware_values_skip_editing(monkeypatch, readonly, key, value
     control.send_keys.assert_not_called()
 
 
-def test_hardware_read_only_field_fails_explicitly(monkeypatch):
+def test_hardware_disabled_field_is_skipped(monkeypatch):
     fields, form = _hardware(monkeypatch)
-    form.find_element.return_value.is_enabled.return_value = False
-    assert fields.fill("vehicle_model", "62XS") is False
-    form.find_element.return_value.send_keys.assert_not_called()
+    field = form.find_element.return_value
+    field.is_enabled.return_value = False
+    assert fields.fill("vehicle_model", "62XS") is True
+    field.send_keys.assert_not_called()
+    assert fields.skipped_fields == [
+        "Model: WebFlow disabled the field; the requested value '62XS' was skipped."
+    ]
 
 
 def test_field_expands_only_its_own_panel(monkeypatch):
@@ -556,13 +560,13 @@ def test_matching_multiselect_skips_without_opening(monkeypatch, disabled, key, 
 
 
 @pytest.mark.parametrize("selected", [["Brazil", "Japan"], ["Japan"], ["---"]])
-def test_different_disabled_multiselect_does_not_report_success(monkeypatch, selected):
+def test_different_disabled_multiselect_is_skipped(monkeypatch, selected):
     fields, form = _hardware(monkeypatch)
     control = form.find_element.return_value
     control.get_attribute.return_value = "true"
     control.find_elements.return_value = [Mock(text=label) for label in selected]
 
-    assert not fields._select_multiple(form, "Brazil", "market")
+    assert fields._select_multiple(form, "Brazil", "market") is True
     control.find_element.assert_not_called()
 
 
@@ -837,12 +841,12 @@ def test_classification_scrolls_before_clicking_and_checks_final_transition(monk
     assert events == ["scroll", "ready", "click"] * 3
 
 
-def test_classification_disabled_host_is_not_clicked(monkeypatch):
+def test_classification_disabled_host_is_skipped(monkeypatch):
     fields, _ = _hardware(monkeypatch)
     checkbox = fields.sections["Classification"].body.return_value.find_element.return_value.find_element.return_value
     monkeypatch.setattr(hardware_module, "checkbox_value", lambda _checkbox: None)
     monkeypatch.setattr(hardware_module, "checkbox_is_disabled", lambda *_: True)
-    assert fields.prepare_classification() is False
+    assert fields.prepare_classification() is True
     checkbox.click.assert_not_called()
 
 

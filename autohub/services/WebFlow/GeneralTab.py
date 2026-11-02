@@ -34,8 +34,8 @@ class GeneralTab:
 
     def __init__(self, driver: WebDriver):
         self.driver = driver
-        self.skipped_fields: list[str] = []
         self._hardware = HardwareFields(driver)
+        self.skipped_fields = self._hardware.skipped_fields
         self._tab = TabLink(driver, Constants.GENERAL_TAB_XPATH)
         self._configurator_items = Section(
             driver, Constants.GENERAL_CONFIGURATOR_ITEMS_TITLE_XPATH, Constants.GENERAL_CONFIGURATOR_ITEMS_BODY_CSS
@@ -143,9 +143,6 @@ class GeneralTab:
                 return True
 
             if _checkbox_is_disabled(form_element, checkbox_element):
-                if current is None:
-                    _logger.error("%s: WebFlow disabled the checkbox while it is blank", label)
-                    return False
                 warning = (
                     f"{label}: WebFlow disabled the control (current value {current!r}, "
                     f"requested {check!r}); the value was not changed."

@@ -357,12 +357,13 @@ def test_general_checkbox_reaches_nonblank_state(monkeypatch, method, initial, r
         assert len(clicks) == (1 if target else 2)
 
 
-def test_disabled_blank_checkbox_fails_instead_of_being_skipped(monkeypatch):
+def test_disabled_blank_checkbox_is_skipped(monkeypatch):
     wait = Mock()
     monkeypatch.setattr(general_tab_module, "WebDriverWait", lambda *_args: wait)
     monkeypatch.setattr(general_tab_module, "_checkbox_value", lambda *_args: None)
     monkeypatch.setattr(general_tab_module, "_checkbox_is_disabled", lambda *_args: True)
     tab = GeneralTab(object())
     tab.expand_configurator_items = lambda: True
-    assert tab.select_safety_monitoring_sw(False) is False
+    assert tab.select_safety_monitoring_sw(False) is True
     wait.until.return_value.find_element.return_value.find_element.return_value.click.assert_not_called()
+    assert len(tab.skipped_fields) == 1

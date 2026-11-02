@@ -130,7 +130,11 @@ def select_dropdown(
 
         if shows(value) or (similar and shows_similar()):
             return True
-        button_element().click()
+        button = button_element()
+        if not button_is_enabled(button):
+            _logger.warning("Drop-down %s is disabled; skipping requested value %r", title_xpath, value)
+            return True
+        button.click()
         if not wait_until_idle(driver):
             return False
 
@@ -171,6 +175,21 @@ def button_is_enabled(button: Any) -> bool:
             for attribute in ("aria-disabled", "ng-reflect-disabled", "ng-reflect-is-disabled")
         )
     )
+
+
+def field_is_disabled(field: Any) -> bool:
+    if not field.is_enabled():
+        return True
+    if any(isinstance(field.get_attribute(attribute), str) for attribute in ("disabled", "readonly")):
+        return True
+    if any(
+        field.get_attribute(attribute) == "true"
+        for attribute in ("aria-disabled", "ng-reflect-disabled", "ng-reflect-is-disabled")
+    ):
+        return True
+    class_names = field.get_attribute("class")
+    classes = class_names.split() if isinstance(class_names, str) else []
+    return any(name in classes for name in ("disabled", "p-disabled", "bg-disabled"))
 
 
 def checkbox_icon_value(checkbox: Any) -> bool | None:
@@ -299,9 +318,11 @@ class Section:
                 _logger.info("WebFlow input %s already equals %r; skipping", input_css, value)
                 return True
             scroll_into_view_if_hidden(self.driver, field)
-            if not field.is_enabled() or field.get_attribute("readonly") is not None:
-                _logger.error("WebFlow input %s is read-only; requested %r", input_css, value)
-                return False
+            if field_is_disabled(field):
+                _logger.warning(
+                    "WebFlow input %s is disabled or read-only; skipping requested value %r", input_css, value
+                )
+                return True
             field.clear()
             field.send_keys(value)
             pause()

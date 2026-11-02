@@ -4,7 +4,15 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from . import Constants as Constants
-from .components import Section, TabLink, checkbox_icon_value, pause, select_dropdown, wait_for
+from .components import (
+    Section,
+    TabLink,
+    checkbox_icon_value,
+    checkbox_is_disabled,
+    pause,
+    select_dropdown,
+    wait_for,
+)
 from .dropdown import read_options
 
 _logger = logging.getLogger(__name__)
@@ -91,6 +99,9 @@ class ECUTab:
             checkbox_element = title_element.find_element(By.XPATH, "..").find_element(
                 By.CSS_SELECTOR, Constants.ECU_PROJECT_LCTVORB_CHECKBOX_CSS
             )
+            if checkbox_is_disabled(checkbox_element, checkbox_element):
+                _logger.warning("WebFlow Project with LCTVorb checkbox is disabled; skipping")
+                return True
             current = checkbox_icon_value(checkbox_element)
             target = None if check is None else bool(check)
             clicks = (_LCTVORB_CYCLE.index(target) - _LCTVORB_CYCLE.index(current)) % len(_LCTVORB_CYCLE)
