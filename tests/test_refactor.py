@@ -226,6 +226,24 @@ def test_file_form_dialog_needs_the_required_files(tmp_path):
     assert ok.isEnabled() and dialog.values() == {"ECU": str(real), "HW": ""}
 
 
+def test_file_form_dialog_accepts_an_optional_existing_folder(tmp_path):
+    from PySide6.QtWidgets import QApplication, QDialogButtonBox
+
+    from autohub.core.file_fields import FileField
+    from autohub.core.file_form_dialog import FileFormDialog
+
+    QApplication.instance() or QApplication([])
+    dialog = FileFormDialog(
+        "New variant", [FileField("Calibration folder", "", required=False, directory=True)], {}
+    )
+    ok = dialog._buttons.button(QDialogButtonBox.Ok)
+    assert ok.isEnabled()
+    dialog._edits["Calibration folder"].setText(str(tmp_path))
+    assert ok.isEnabled()
+    dialog._edits["Calibration folder"].setText(str(tmp_path / "missing"))
+    assert not ok.isEnabled() and "folder not found" in dialog._message.text()
+
+
 def test_create_jobs_reports_progress_and_forwards_it():
     seen = []
     service = WebFlowJobService(FakeWebFlow)

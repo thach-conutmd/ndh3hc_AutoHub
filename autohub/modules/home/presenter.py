@@ -6,12 +6,18 @@ from pathlib import Path
 from typing import Callable, Protocol
 
 from autohub.core.dialogs import Dialogs
+from autohub.core.a2l_hex import DEFAULT_COMP_ID_SYMBOL
 from autohub.core.file_fields import FileField
 from autohub.core.progress import ProgressCallback, ProgressWindow, no_progress
 from autohub.core.settings import SettingsStore
-from autohub.core.settings_keys import LATEST_COUNT_CHOICES, LATEST_COUNT_KEY, normalize_latest_count
+from autohub.core.settings_keys import (
+    A2L_COMP_ID_SYMBOL_KEY,
+    LATEST_COUNT_CHOICES,
+    LATEST_COUNT_KEY,
+    normalize_latest_count,
+)
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS
-from autohub.modules.home.service import VariantService
+from autohub.modules.home.service import NewVariantResult, VariantService
 
 _logger = logging.getLogger(__name__)
 
@@ -21,7 +27,7 @@ UPDATE_TEXT = "Update Master Sheet"
 LOAD_TEXT = "Load variants"
 NEW_VARIANT_TIP = (
     "Create new variants by reading ECU Info Sheet CR and System Matrix CR. "
-    "Optionally select a calibration hex file for the Data Version."
+    "Optionally select a folder containing one A2L file and one calibration HEX file."
 )
 
 # Field label -> settings.json key. Only the Master Sheet is remembered; the New variant source files are not.
@@ -29,14 +35,16 @@ SETTINGS_KEYS = {"Master Sheet": "master_sheet_path"}
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
 _KICK_OFF_FILTER = "Kick Off Meeting (*.pptx)"
-_HEX_FILE_FILTER = "Hex files (*.hex)"
 
 _SOURCE_FIELDS = (
     FileField("ECU Info Sheet", _EXCEL_FILTER),
     FileField("System Matrix", _EXCEL_FILTER),
     FileField("HW Info", _HW_INFO_FILTER, required=False, hint="Bosch HW / B-number (.xlsx, .eml or .msg)"),
     FileField("Kick Off", _KICK_OFF_FILTER, required=False, hint="Kick Off Meeting (.pptx)"),
-    FileField("Hex file", _HEX_FILE_FILTER, required=False, hint="Calibration hex file (.hex)"),
+    FileField(
+        "Calibration folder", "", required=False,
+        hint="Folder containing one .a2l file and one .hex file", directory=True,
+    ),
 )
 
 
@@ -304,9 +312,14 @@ class HomePresenter:
         sources = self._ask_sources()
         if sources is None:
             return
-        ecu_info_path, system_matrix_path, hw_info_path, kick_off_path, hex_file_path = (
+        ecu_info_path, system_matrix_path, hw_info_path, kick_off_path, hex_folder_path = (
             sources[field.name] for field in _SOURCE_FIELDS
         )
+        a2l_symbol_name = str(
+            self._settings.load().get(A2L_COMP_ID_SYMBOL_KEY, DEFAULT_COMP_ID_SYMBOL)
+        ).strip()
+        if not a2l_symbol_name:
+            a2l_symbol_name = DEFAULT_COMP_ID_SYMBOL
 
         paths = (master_sheet_path, ecu_info_path, system_matrix_path, hw_info_path, kick_off_path)
         _logger.info("New variant clicked (%s)", paths)
@@ -315,9 +328,12 @@ class HomePresenter:
         window = self._dialogs.open_progress(NEW_VARIANT_TEXT)
         self._start_task(
             lambda: self._service.compute_new_variants(
-                *paths, progress=window.step, hex_file_path=hex_file_path
+                *paths,
+                progress=window.step,
+                hex_folder_path=hex_folder_path,
+                a2l_symbol_name=a2l_symbol_name,
             ),
-            lambda new_variants: self._finish_new_variant(new_variants, window, keep_rows),
+            lambda result: self._finish_new_variant(result, window, keep_rows),
             lambda error: self._fail_new_variant(error, window),
         )
 
@@ -331,20 +347,23 @@ class HomePresenter:
                 _logger.info("%s file selected: %s", field.name, chosen[field.name])
         return {field.name: chosen.get(field.name, "") for field in _SOURCE_FIELDS}
 
-    def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow, keep_rows: bool) -> None:
+    def _finish_new_variant(self, result: NewVariantResult, window: ProgressWindow, keep_rows: bool) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
-        count = self._show_added_rows(new_variants, keep_rows)
+        count = self._show_added_rows(result.variants, keep_rows)
         if count > 0:
             self._view.set_update_state(True, UPDATE_TEXT)  # new rows can be written as they are
             self._edited = True
         _logger.info("Found %d new variant(s) (not yet written)", count)
         if count == 0:
-            window.succeed("No new variants. Existing variants were skipped.")
+            message = "No new variants. Existing variants were skipped."
         else:
-            window.succeed(
+            message = (
                 f"Found {count} new variant{'s' if count != 1 else ''}. Review/edit below, "
-                "then click Update to save to the Master Sheet.",
+                "then click Update to save to the Master Sheet."
             )
+        if result.warnings:
+            message += "\n\nCalibration ID warning(s):\n- " + "\n- ".join(result.warnings)
+        window.succeed(message)
 
     def _fail_new_variant(self, error: str, window: ProgressWindow) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)

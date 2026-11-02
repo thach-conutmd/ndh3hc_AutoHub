@@ -133,6 +133,22 @@ def test_leaving_with_changes_apply_discard_or_cancel():
     assert page.confirm_leave() is True and settings.load()["theme"] == "light"
     apply_theme(QApplication.instance(), "dark")
 
+
+def test_settings_page_saves_and_discards_the_a2l_component_id_symbol(qapp):
+    from tests.fakes import FakeDialogs
+
+    settings = MemorySettings()
+    page = SettingsWidget(settings, dialogs=FakeDialogs(table_answer=False))
+    assert page._a2l_comp_id_symbol.text() == "I14229_numCompID_CA"
+    page._a2l_comp_id_symbol.setText("CustomCompId")
+    assert page._apply.isEnabled()
+    page._apply.click()
+    assert settings.load()["a2l_comp_id_symbol"] == "CustomCompId"
+
+    page._a2l_comp_id_symbol.setText("Discarded")
+    assert page.confirm_leave() is True
+    assert page._a2l_comp_id_symbol.text() == "CustomCompId"
+
     page, settings = _changed_page(False)
     assert page.confirm_leave() is True and "theme" not in settings.load()
     assert page._theme.currentData() == "dark" and not page._apply.isEnabled()

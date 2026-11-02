@@ -37,7 +37,9 @@ def test_new_variant_enables_update_without_editing(tmp_path):
     assert view.rows == [{"J": "37820-62X-MD10-M6"}]
     assert view.states["update"] == (True, "Update Master Sheet")
     assert view.states["new"] == (True, "New variants")
-    assert dialogs.asked_fields == ["ECU Info Sheet", "System Matrix", "HW Info", "Kick Off", "Hex file"]
+    assert dialogs.asked_fields == [
+        "ECU Info Sheet", "System Matrix", "HW Info", "Kick Off", "Calibration folder"
+    ]
 
 
 def test_new_variant_with_nothing_new_keeps_update_disabled(tmp_path):
@@ -61,13 +63,22 @@ def test_new_variant_passes_hw_info_to_the_master_sheet(tmp_path):
 
 
 def test_new_variant_uses_optional_hex_filename_as_data_version(tmp_path):
+    from tests.test_a2l_hex import write_calibration_folder
+
+    folder = write_calibration_folder(tmp_path, "P1", "CustomCompId")
     master = FakeMasterSheet(new_rows=[{"J": "P1"}, {"J": "P2"}])
-    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "calibration-v3.hex"], hex_file_answer=True)
-    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", str(folder)], hex_folder_answer=True)
+    settings = MemorySettings(
+        {"master_sheet_path": str(tmp_path / "master.xlsx"), "a2l_comp_id_symbol": "CustomCompId"}
+    )
+    presenter, view, dialogs, _ = _presenter(
+        tmp_path, build_service(master=master), dialogs, settings=settings
+    )
 
     presenter.new_variant()
 
     assert [row["AZ"] for row in view.rows] == ["calibration-v3.hex", "calibration-v3.hex"]
+    assert "P2: calibration ID 'P1' does not match" in dialogs.infos[-1][1]
 
 
 def test_new_variant_stops_when_a_file_dialog_is_cancelled(tmp_path):
@@ -253,7 +264,9 @@ def test_new_variant_asks_for_every_source_file_in_one_dialog_and_remembers_noth
 
     presenter.new_variant()
 
-    assert dialogs.asked_fields == ["ECU Info Sheet", "System Matrix", "HW Info", "Kick Off", "Hex file"]
+    assert dialogs.asked_fields == [
+        "ECU Info Sheet", "System Matrix", "HW Info", "Kick Off", "Calibration folder"
+    ]
     assert set(settings.data) == {"master_sheet_path"}
     presenter.new_variant()
     assert dialogs.initial == {}  # no history: the dialog always starts empty
