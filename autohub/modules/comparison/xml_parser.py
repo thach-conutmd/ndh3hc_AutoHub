@@ -23,8 +23,8 @@ def normalize_parameter_path(path: str) -> str:
     return "/".join(quote(unquote(segment.strip()), safe=" _-().[]") for segment in path.strip().split("/"))
 
 
-def comparison_exclusions(settings: Mapping, *, manual: bool = False, enabled_only: bool = True) -> tuple[str, ...]:
-    if manual and settings.get(XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY, False):
+def comparison_exclusions(settings: Mapping, *, master: bool = False, enabled_only: bool = True) -> tuple[str, ...]:
+    if master and not settings.get(XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY, False):
         return ()
     values = settings.get(XML_COMPARISON_EXCLUSIONS_KEY, DEFAULT_XML_COMPARISON_EXCLUSIONS)
     disabled = settings.get(XML_COMPARISON_DISABLED_EXCLUSIONS_KEY, [])

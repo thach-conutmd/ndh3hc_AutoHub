@@ -129,7 +129,7 @@ class SettingsWidget(QWidget):
 
         exclusions_group = QGroupBox("Exclude Compare Data")
         exclusions_layout = QVBoxLayout(exclusions_group)
-        self._exclusions_master_only = QCheckBox("Apply only to Master Sheet Compare")
+        self._exclusions_master_only = QCheckBox("Apply to Master Sheet Compare")
         self._exclusions_master_only.setChecked(
             bool(settings.load().get(XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY, False))
         )
@@ -183,7 +183,8 @@ class SettingsWidget(QWidget):
                          "After an app crash, AutoHub asks before resuming saved progress.",
             exclusions_group: "Exclude parameters/rows whose normalized paths start with these prefixes. "
                               "A trailing / excludes an entire hierarchy. Excluded rows are not compared or shown. "
-                              "Apply to both modes, or only Master Sheet Compare using the option below. "
+                              "Always applies to Manual XML Compare. Enable the option below to also apply "
+                              "to Master Sheet Compare. "
                               "An empty list excludes nothing. "
                               "Uncheck a row to keep it saved without excluding it. "
                               "Changes apply to new comparisons after Apply changes.",

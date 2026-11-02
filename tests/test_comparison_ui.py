@@ -78,7 +78,7 @@ def test_master_comparison_reads_latest_saved_exclusions(qapp, master_only):
         wait_done(page, qapp)
         page._progress_dialog.close()
         assert not dialogs.errors
-        assert ("General/Power" in {row.parameter for _, _, row in page._rows}) is power_present
+        assert ("General/Power" in {row.parameter for _, _, row in page._rows}) is (power_present or not master_only)
 
 
 def test_comparison_lists_only_valid_links_and_allows_multiple_selection(qapp):
