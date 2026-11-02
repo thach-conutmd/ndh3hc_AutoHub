@@ -249,8 +249,10 @@ def test_tab_link_clicks_only_an_unselected_tab(page):
     assert TabLink(Driver(), "//missing").select() is False
 
 
-def test_files_tab_uploads_the_selected_hex_into_the_calibration_file_row(tmp_path, monkeypatch):
+@pytest.mark.parametrize("button_state", ["enabled", "disabled", "click fails"])
+def test_files_tab_uploads_the_selected_hex_into_the_calibration_file_row(tmp_path, monkeypatch, button_state):
     from unittest.mock import Mock
+    from selenium.webdriver.remote.webelement import WebElement
 
     from autohub.services.WebFlow import FilesTab as files_tab_module
     from autohub.services.WebFlow.FilesTab import FilesTab
@@ -266,25 +268,55 @@ def test_files_tab_uploads_the_selected_hex_into_the_calibration_file_row(tmp_pa
     request_files = Mock()
     request_files.find_elements.return_value = [row]
     upload = Mock()
-    upload.send_keys.side_effect = lambda _path: setattr(filename_cell, "text", hex_file.name)
+    control = Mock()
+    control.find_element.return_value = upload
+    add_button = Mock(spec=WebElement)
+    add_button.get_attribute.return_value = None
+    add_button.is_displayed.return_value = True
+    add_button.is_enabled.return_value = button_state != "disabled"
+    if button_state == "click fails":
+        add_button.click.side_effect = RuntimeError("click failed")
+    row.find_element.return_value = add_button
+    operations = []
+    if button_state != "click fails":
+        add_button.click.side_effect = lambda: operations.append("plus")
+    upload.send_keys.side_effect = lambda _path: (
+        operations.append("upload"), setattr(filename_cell, "text", hex_file.name)
+    )
     driver = Mock()
     driver.find_element.return_value = request_files
-    request_files.find_element.return_value = upload
+    request_files.find_element.return_value = control
 
     class ImmediateWait:
         def __init__(self, _driver, _timeout):
             pass
 
         def until(self, condition):
-            return condition(driver)
+            result = condition(driver)
+            if not result:
+                from selenium.common.exceptions import TimeoutException
+                raise TimeoutException("condition not met")
+            return result
 
     monkeypatch.setattr(files_tab_module, "WebDriverWait", ImmediateWait)
     monkeypatch.setattr(files_tab_module, "wait_until_idle", lambda *_args: True)
 
-    assert FilesTab(driver).upload_calibration_hex(str(hex_file))
-    assert row.click.call_count == 1
+    assert FilesTab(driver).upload_calibration_hex(str(hex_file)) is (button_state == "enabled")
+    row.click.assert_not_called()
+    if button_state != "enabled":
+        upload.send_keys.assert_not_called()
+        if button_state == "click fails":
+            assert "removeEventListener" in driver.execute_script.call_args.args[0]
+        else:
+            add_button.click.assert_not_called()
+        return
+    request_files.find_element.assert_called_once_with(
+        files_tab_module.By.XPATH, "./ancestor::app-filelistcontrol[1]"
+    )
+    row.find_element.assert_called_once_with(files_tab_module.By.CSS_SELECTOR, 'button[name="btnFile"]')
+    assert operations == ["plus", "upload"]
     upload.send_keys.assert_called_once_with(str(hex_file.resolve()))
-    assert driver.execute_script.call_count == 2
+    assert driver.execute_script.call_count == 3
 
 
 def test_files_tab_does_not_upload_a_calibration_file_twice(tmp_path):

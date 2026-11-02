@@ -16,6 +16,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 - Collapsible sidebar (220px to 56px icon-only) with the logo and Home / Creation / Comparison navigation.
 - The window title shows the active module.
 - Cross-module wiring: variants loaded on Home are passed to Creation automatically.
+- **Calibration upload**: WebFlow creation clicks the Calibration file row's **+** button in Files > Request Files before uploading the variant's CAL HEX from the remembered calibration folder. Selenium supplies the file directly without opening an OS file chooser.
 - Reloading Home or loading another Master Sheet replaces Creation's data and WebFlow links, including cleared links; links from the previous load are not retained. Save Home edits with Update Master Sheet before creating jobs.
 - All external job links open on double-click only, in both Home and Creation. Single-click does not open a browser.
 - On close, pages that hold resources (the WebFlow browser session) are shut down.

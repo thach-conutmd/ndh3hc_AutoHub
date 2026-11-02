@@ -5,10 +5,11 @@ import logging
 from pathlib import Path
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from . import Constants
-from .components import TabLink, wait_until_idle
+from .components import TabLink, button_is_enabled, wait_until_idle
 
 _logger = logging.getLogger(__name__)
 
@@ -44,17 +45,31 @@ class FilesTab:
                 _logger.info("Calibration HEX file %s is already attached", path.name)
                 return True
 
-            row.click()
-            upload = request_files.find_element(By.CSS_SELECTOR, 'input[type="file"]')
+            control = request_files.find_element(By.XPATH, "./ancestor::app-filelistcontrol[1]")
+            upload = control.find_element(By.CSS_SELECTOR, 'input[type="file"]')
+            add_button = row.find_element(By.CSS_SELECTOR, 'button[name="btnFile"]')
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", add_button)
+            WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(EC.element_to_be_clickable(add_button))
+            if not button_is_enabled(add_button):
+                _logger.error("Calibration file + button is disabled")
+                return False
+            # Run WebFlow's row-specific handler without opening an OS file dialog.
             self.driver.execute_script(
-                "arguments[0].style.display = 'block'; arguments[0].style.visibility = 'visible';", upload
+                "const input = arguments[0];"
+                "input._autoHubPreventChooser = event => event.preventDefault();"
+                "input.addEventListener('click', input._autoHubPreventChooser);",
+                upload,
             )
             try:
-                upload.send_keys(str(path.resolve()))
+                add_button.click()
             finally:
                 self.driver.execute_script(
-                    "arguments[0].style.display = 'none'; arguments[0].style.visibility = 'hidden';", upload
+                    "const input = arguments[0];"
+                    "input.removeEventListener('click', input._autoHubPreventChooser);"
+                    "delete input._autoHubPreventChooser;",
+                    upload,
                 )
+            upload.send_keys(str(path.resolve()))
 
             def uploaded(_driver):
                 current_rows = request_files.find_elements(By.CSS_SELECTOR, "tbody tr")
