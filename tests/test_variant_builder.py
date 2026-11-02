@@ -4,6 +4,8 @@ from datetime import datetime
 import pytest
 
 from autohub.core import normalizers as n
+from autohub.core.settings_keys import NEW_VARIANT_DEFAULTS_KEY
+from autohub.core.webflow_defaults import new_variant_defaults
 from autohub.services.MasterSheet.variant_builder import (
     build_request_values,
     compute_new_variant_rows,
@@ -74,6 +76,45 @@ def test_request_values_for_a_variant():
     assert values["CL"] == n.ascii_hex("37805-62X-MD10")
     assert values["C"] == datetime(2026, 1, 2)
     assert values["CN"] == "FFFFFFFFFFFF"
+
+
+def test_saved_new_variant_defaults_override_only_the_configured_fields():
+    defaults = new_variant_defaults({
+        NEW_VARIANT_DEFAULTS_KEY: {
+            "ecu_generation": "MG2",
+            "brand": "Acme",
+            "delivery_type": "Trial",
+            "safety_monitoring": False,
+            "ecu_default_id": "CUSTOM-ID",
+            "project_number_first_part": 271,
+            "customer_name": "CUSTOMER",
+            "security_coefficient": "0123456789AB",
+        }
+    })
+    values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM, variant_defaults=defaults)
+    assert values["Q"] == "MG2"
+    assert values["R"] == "Acme"
+    assert values["T"] == "Trial" and values["X"] == "No"
+    assert values["BH"] == "CUSTOM-ID"
+    assert values["AL"] == 271
+    assert values["AU"] == "CUSTOMER"
+    assert values["CN"] == "0123456789AB"
+    assert values["U"] == "Production"
+
+
+def test_invalid_saved_new_variant_defaults_fall_back_to_current_defaults():
+    defaults = new_variant_defaults({
+        NEW_VARIANT_DEFAULTS_KEY: {
+            "brand": 42,
+            "safety_monitoring": "false",
+            "project_number_first_part": True,
+            "release_class": "Pilot",
+        }
+    })
+    assert defaults.brand == "Honda"
+    assert defaults.safety_monitoring is True
+    assert defaults.project_number_first_part == 159
+    assert defaults.release_class == "Pilot"
 
 
 def test_project_purpose_uses_project_event_and_milestone():

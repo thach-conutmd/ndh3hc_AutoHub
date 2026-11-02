@@ -7,6 +7,7 @@ from typing import Callable, Sequence
 
 from autohub.core.a2l_hex import component_id_matches, load_calibration_folder
 from autohub.core.progress import ProgressCallback, no_progress
+from autohub.core.webflow_defaults import WebFlowDefaults
 from autohub.core.ports import (
     EcuInfoDocument,
     HWInfoDocument,
@@ -71,6 +72,7 @@ class VariantService:
         progress: ProgressCallback = no_progress,
         hex_folder_path: str = "",
         a2l_symbol_name: str = "I14229_numCompID_CA",
+        variant_defaults: WebFlowDefaults | None = None,
     ) -> NewVariantResult:
         self._require_master_sheet(master_sheet_path)
         with self._session():
@@ -104,7 +106,7 @@ class VariantService:
                 master_sheet.open()
                 progress("Building the new variants...")
                 variants = master_sheet.compute_new_variants(
-                    system_matrix.system_info, ecu_info_sheet.ecu_info, hw_info, kick_off
+                    system_matrix.system_info, ecu_info_sheet.ecu_info, hw_info, kick_off, variant_defaults
                 )
                 warnings = []
                 if hex_folder_path:

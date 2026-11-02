@@ -4,9 +4,10 @@ Each protocol lists only what one client needs, so a fake can stand in for Excel
 """
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Callable, Protocol, runtime_checkable
 
 from autohub.core.records import DocumentReader, EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
+from autohub.core.webflow_defaults import WebFlowDefaults
 
 
 class SheetSession(Protocol):
@@ -15,6 +16,12 @@ class SheetSession(Protocol):
     def open(self) -> None: ...
 
     def close(self) -> None: ...
+
+
+class FormBGenerator(Protocol):
+    def generate(self, variants: list[dict], output_path: str, progress: Callable[[str], None]) -> object: ...
+
+    def shutdown(self) -> None: ...
 
 
 class VariantReader(Protocol):
@@ -56,6 +63,7 @@ class NewVariantSource(Protocol):
         ecu_info: EcuInfoData,
         hw_info: HWLookup | None = None,
         kick_off: KickOffInfo | None = None,
+        variant_defaults: WebFlowDefaults | None = None,
     ) -> list[dict]: ...
 
 

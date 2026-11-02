@@ -10,6 +10,7 @@ from autohub.core.a2l_hex import DEFAULT_COMP_ID_SYMBOL
 from autohub.core.file_fields import FileField
 from autohub.core.progress import ProgressCallback, ProgressWindow, no_progress
 from autohub.core.settings import SettingsStore
+from autohub.core.webflow_defaults import new_variant_defaults
 from autohub.core.settings_keys import (
     A2L_COMP_ID_SYMBOL_KEY,
     CALIBRATION_FOLDER_PATH_KEY,
@@ -434,6 +435,7 @@ class HomePresenter:
         ).strip()
         if not a2l_symbol_name:
             a2l_symbol_name = DEFAULT_COMP_ID_SYMBOL
+        variant_defaults = new_variant_defaults(self._settings.load())
 
         paths = (master_sheet_path, ecu_info_path, system_matrix_path, hw_info_path, kick_off_path)
         _logger.info("New variant clicked (%s)", paths)
@@ -446,6 +448,7 @@ class HomePresenter:
                 progress=window.step,
                 hex_folder_path=hex_folder_path,
                 a2l_symbol_name=a2l_symbol_name,
+                variant_defaults=variant_defaults,
             ),
             lambda result: self._finish_new_variant(result, window, keep_rows),
             lambda error: self._fail_new_variant(error, window),

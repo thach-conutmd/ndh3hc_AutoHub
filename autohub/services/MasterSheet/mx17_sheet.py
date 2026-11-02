@@ -12,6 +12,7 @@ from openpyxl.utils import column_index_from_string, get_column_letter
 
 from autohub.core.normalizers import needs_text_format, normalize_part_number
 from autohub.core.records import EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
+from autohub.core.webflow_defaults import WebFlowDefaults
 from autohub.services.common.read_only_flag import clear_read_only_recommended
 from autohub.services.common.file_access import write_block_reason
 from autohub.services.MasterSheet import mx17_layout as layout
@@ -151,10 +152,13 @@ class Mx17MasterSheet(MasterSheet):
         ecu_info: EcuInfoData,
         hw_info: HWLookup | None = None,
         kick_off: KickOffInfo | None = None,
+        variant_defaults: WebFlowDefaults | None = None,
     ) -> list[dict]:
         """Variants whose part number is not in the main sheet yet (the Purpose column is free text here)."""
         known = {normalize_part_number(values.get(layout.PART_NUMBER_COLUMN)).upper() for _row, values in self._main_rows()}
-        rows = compute_new_variant_rows(ecu_info, system_info, set(), hw_info, kick_off=kick_off)
+        rows = compute_new_variant_rows(
+            ecu_info, system_info, set(), hw_info, kick_off=kick_off, variant_defaults=variant_defaults
+        )
         return [row for row in rows if normalize_part_number(row.get("J")).upper() not in known]
 
     # -- Writing ---------------------------------------------------------------------

@@ -61,8 +61,8 @@ class FakeMasterSheet(FakeDocument):
         self.deleted = None
         self.compute_args = None
 
-    def compute_new_variants(self, system_info, ecu_info, hw_info=None, kick_off=None):
-        self.compute_args = (system_info, ecu_info, hw_info, kick_off)
+    def compute_new_variants(self, system_info, ecu_info, hw_info=None, kick_off=None, variant_defaults=None):
+        self.compute_args = (system_info, ecu_info, hw_info, kick_off, variant_defaults)
         return self.new_rows
 
     def save_variant_rows(self, variants, save=True):

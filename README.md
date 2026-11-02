@@ -13,12 +13,12 @@ automation. Each feature is a module plugged into the main window sidebar.
 
 - Fixed-size window (1024x700) with a dark theme and dark title bar.
 - Startup dialog: a themed loading card (logo, version, current step, progress bar) appears immediately at launch while AutoHub applies settings and logging, prepares the interface, loads modules and configuration, builds the main window, and loads the remembered Master Sheet's variants. The dialog opens on the monitor under the mouse (otherwise the primary monitor), and the main window opens centered on that same monitor. Each step is logged. If a step fails, the dialog closes and an error message explains why AutoHub could not start.
-- Collapsible sidebar (220px to 56px icon-only) with the logo and Home / Creation / Comparison navigation.
+- Collapsible sidebar (220px to 56px icon-only) with the logo and Home / Creation / Form B / Comparison navigation.
 - The window title shows the active module.
-- Cross-module wiring: variants loaded on Home are passed to Creation and Comparison automatically.
+- Cross-module wiring: variants loaded on Home are passed to Creation, Form B and Comparison automatically.
 - **Calibration upload**: WebFlow creation clicks the Calibration file row's **+** button in Files > Request Files before uploading the variant's CAL HEX from the remembered calibration folder. Selenium supplies the file directly without opening an OS file chooser.
-- Reloading Home or loading another Master Sheet replaces Creation's data and WebFlow links, including cleared links; links from the previous load are not retained. Save Home edits with Update Master Sheet before creating jobs.
-- All external job links open on double-click only, in both Home and Creation. Single-click does not open a browser.
+- Reloading Home or loading another Master Sheet replaces Creation and Form B data and WebFlow links, including cleared links; links from the previous load are not retained. Save Home edits with Update Master Sheet before creating jobs.
+- All external job links open on double-click only, in Home, Creation and Form B. Single-click does not open a browser.
 - On close, pages that hold resources (the WebFlow browser session) are shut down.
 - WebFlow job filling reads each drop-down list in one query (no per-option waits, no option cap) and confirms the "Saved successfully" toast after Save; an error toast or no toast fails the job with a clear log line.
 - Job creation stops before submission if a form selection fails. If WebFlow replaces the Confirm button or loading indicator during an Angular refresh, automation re-finds it within the existing timeout; a successful submission is never retried.
@@ -95,8 +95,9 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Only changed existing rows are updated; the confirmation lists each affected Part Number. Changes to any field in a row qualify.
   - New rows are inserted from the variant template and stamped with the created date.
   - The table is then reloaded from the sheet.
-- After Create/Load/Update, the WebFlow-ready variant list is sent to the Creation page.
+- After Create/Load/Update, the WebFlow-ready variant list is sent to the Creation and Form B pages.
 - Results and errors are shown in message boxes. Button text shows progress.
+- **New variants defaults**: edit the default ECU, General, ID, customer and security values in **Settings → Creation → New variants**. The existing values are the defaults; values supplied by the source files remain authoritative.
 
 ### Creation module
 
@@ -126,6 +127,12 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Settings uses **General**, **Home**, **Creation**, and **Diagnostics** tabs, with descriptive groups and theme-aware styling. Creation includes connection/ECR settings and WebFlow Retry; Diagnostics contains Logging and Analysis. Each tab scrolls independently. The persistent footer shows saved/unsaved status, and **Apply changes** saves across all tabs. Home and Creation no longer have separate settings buttons or dialogs.
    - **Retry and resume**: Settings > **Enable automatic retries** switches retries on or off (default on). When unchecked, WebFlow makes one attempt and the attempt-count control is disabled, preserving its value. **Maximum WebFlow attempts** controls total attempts, including the first (1-100, default 5); setting it to 1 also prevents automatic retries. Each retry uses a new browser, waits 5 seconds, and continues from saved progress. Progress is saved to `%APPDATA%/AutoHub/webflow_batch.json` before every server-side effect, so retries never create the batch again, never refill completed jobs and never click Import from pool or ECR Import a second time; an import already clicked without a readable number is reported as a warning. Failures that could duplicate jobs (creation submitted but job IDs unknown) and validation errors are not retried. If AutoHub crashes or is closed mid-run, or all configured attempts fail, the next start asks whether to continue the unfinished work (Yes resumes with the saved settings, retry switch and attempt limit, No discards it). A confirmed resume starts a fresh set of attempts; older saved batches without retry settings use retries enabled and 5 attempts.
   - The browser session is closed after every failed attempt, including the final attempt allowed by Settings, or on app exit. Unfinished progress remains available for resume.
+
+### Form B module
+
+- Receives selected variants from Home and uses Master Sheet values to fill the supplied Form B workbook template.
+- Fills up to six variants per block; additional variants get another formatted block below. The exported workbook preserves the template styling and never overwrites the template.
+- Uses the Master Sheet checksum in column BA when present. If it is blank, Form B opens the linked WebFlow job, reads the Container `.cnt` CRC32 from Files > Execution Files, and downloads the `.cnt` to calculate an uppercase CRC32 only when WebFlow has no checksum.
 
 ### Comparison module
 

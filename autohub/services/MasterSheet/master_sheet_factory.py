@@ -8,13 +8,12 @@ import zipfile
 from pathlib import Path
 from typing import IO
 
-import msoffcrypto
 import openpyxl
 from openpyxl.utils import column_index_from_string
 
 from autohub.core.variant_schema import VARIANT_FIELD_ORDER
 
-from autohub.services.common.workbook import DEFAULT_PASSWORD
+from autohub.services.common.encrypted_workbook import decrypt_workbook
 from autohub.services.MasterSheet import mx17_layout
 from autohub.services.MasterSheet.MasterSheet import MasterSheet
 from autohub.services.MasterSheet.mx17_sheet import Mx17MasterSheet
@@ -37,13 +36,7 @@ def workbook_sheet_names(path: str | IO[bytes]) -> list[str]:
 
 def _protected_workbook(path: str) -> io.BytesIO:
     """Decrypt a protected workbook in memory, using the existing Master Sheet password."""
-    with open(path, "rb") as file:
-        office_file = msoffcrypto.OfficeFile(file)
-        office_file.load_key(password=DEFAULT_PASSWORD)
-        decrypted = io.BytesIO()
-        office_file.decrypt(decrypted)
-    decrypted.seek(0)
-    return decrypted
+    return decrypt_workbook(path)
 
 
 def master_sheet_format_error(path: str) -> str:

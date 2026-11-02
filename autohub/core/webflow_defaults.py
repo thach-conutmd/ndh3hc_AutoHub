@@ -1,12 +1,24 @@
 """Fixed WebFlow job values for Honda MG1 variants, in one place so a change touches one file."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
+from typing import Mapping
+
+from autohub.core.settings_keys import NEW_VARIANT_DEFAULTS_KEY
+
+_EDITABLE_DEFAULTS = (
+    "ecu_generation", "brand", "delivery_type", "release_class", "release_scope", "limitations",
+    "safety_monitoring", "safety_calibration", "calibration", "data_integration",
+    "ecu_default_id", "ecu_rewriting_id", "sw_version", "sw_version_hardware", "no_sw_version",
+    "indi_spec_template", "project_number_first_part", "customer_name",
+    "security_coefficient_hardware", "security_coefficient",
+)
 
 
 @dataclass(frozen=True)
 class WebFlowDefaults:
     ecu_generation: str = "MG1"
+    brand: str = "Honda"
     delivery_type: str = "Plant Introduction"
     release_class: str = "Production"
     release_scope: str = "Program and Data"
@@ -23,6 +35,10 @@ class WebFlowDefaults:
     no_sw_version: str = "-"
     component_id: str = "-"
     indi_spec_template: str = "Honda_{hardware}{type}_IndiSpec_01"
+    project_number_first_part: int = 159
+    customer_name: str = "HONDA"
+    security_coefficient_hardware: str = "MG1CS022"
+    security_coefficient: str = "FFFFFFFFFFFF"
 
     def general(self) -> dict:
         return {
@@ -45,3 +61,27 @@ class WebFlowDefaults:
 
 
 WEBFLOW_DEFAULTS = WebFlowDefaults()
+
+
+def new_variant_defaults(settings: Mapping) -> WebFlowDefaults:
+    """Return saved, validated New variants defaults, falling back field-by-field to current values."""
+    saved = settings.get(NEW_VARIANT_DEFAULTS_KEY, {})
+    if not isinstance(saved, Mapping):
+        return WEBFLOW_DEFAULTS
+    current = asdict(WEBFLOW_DEFAULTS)
+    for key in _EDITABLE_DEFAULTS:
+        value = saved.get(key)
+        default = current[key]
+        if isinstance(default, bool):
+            if type(value) is bool:
+                current[key] = value
+        elif isinstance(default, int):
+            if type(value) is int:
+                current[key] = value
+        elif isinstance(value, str):
+            current[key] = value
+    return replace(WEBFLOW_DEFAULTS, **{key: current[key] for key in _EDITABLE_DEFAULTS})
+
+
+def editable_new_variant_defaults(defaults: WebFlowDefaults) -> dict:
+    return {key: getattr(defaults, key) for key in _EDITABLE_DEFAULTS}
