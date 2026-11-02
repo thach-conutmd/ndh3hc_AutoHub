@@ -10,8 +10,8 @@ from threading import Event
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QMenu, QPushButton, QSizePolicy, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
+    QAbstractItemView, QApplication, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QMenu, QPushButton, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -156,24 +156,7 @@ class ComparisonWidget(QWidget):
         sources.addWidget(self._impl_btn)
         sources.addWidget(self._compare_btn)
         self._search = QLineEdit()
-        self._search.setPlaceholderText("Search parameters, values, variants or status...")
-        self._variant_filter = QComboBox()
-        self._variant_filter.setAccessibleName("Part Number filter")
-        self._variant_filter.setToolTip("Filter by Part Number")
-        self._variant_filter.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        self._variant_filter.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self._variant_filter.setMaximumWidth(420)
-        self._variant_filter.view().setTextElideMode(Qt.ElideNone)
-        self._status_filter = QComboBox()
-        self._status_filter.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        self._status_filter.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self._deviations = QCheckBox("Deviations only")
-        self._deviations.setToolTip("Hide target values matching Master, including matches to both Master and Base.")
-        filters = QHBoxLayout()
-        filters.addWidget(self._search, 1)
-        filters.addWidget(self._variant_filter)
-        filters.addWidget(self._status_filter)
-        filters.addWidget(self._deviations)
+        self._search.setPlaceholderText("Search parameters, values, part numbers or status...")
         self._table = ResultTable(0, len(_TARGET_HEADERS))
         self._table.setHorizontalHeaderLabels(_TARGET_HEADERS)
         self._table.setEditTriggers(QAbstractItemView.DoubleClicked)
@@ -206,7 +189,7 @@ class ComparisonWidget(QWidget):
         layout.addWidget(subtitle)
         layout.addWidget(self._variants_table)
         layout.addLayout(sources)
-        layout.addLayout(filters)
+        layout.addWidget(self._search)
         layout.addWidget(self._table, 1)
         layout.addWidget(self._summary)
         self._select_all_btn.clicked.connect(self._select_all)
@@ -218,9 +201,6 @@ class ComparisonWidget(QWidget):
         self._export_btn.clicked.connect(self._export)
         self._impl_btn.clicked.connect(self._update_impl)
         self._search.textChanged.connect(self._apply_filters)
-        self._variant_filter.currentIndexChanged.connect(self._apply_filters)
-        self._status_filter.currentTextChanged.connect(self._apply_filters)
-        self._deviations.toggled.connect(self._apply_filters)
         self._progress.connect(self._on_progress)
         self._refresh_variants()
 
@@ -324,25 +304,7 @@ class ComparisonWidget(QWidget):
         self._base_variants = set()
         self._table.setRowCount(0)
         self._header_filter.reset()
-        self._variant_filter.blockSignals(True)
-        self._variant_filter.clear()
-        self._variant_filter.addItem("All part numbers", None)
-        self._variant_filter.blockSignals(False)
-        self._size_variant_filter()
-        self._fill_status_filter()
         self._source_changed()
-
-    def _fill_status_filter(self) -> None:
-        self._status_filter.blockSignals(True)
-        self._status_filter.clear()
-        self._status_filter.addItem("All statuses")
-        statuses = (
-            tuple(Status)
-            if self._base_variants else
-            (Status.MATCH, Status.VALUE_MISMATCH, Status.MISSING_IN_MASTER, Status.MISSING_IN_WEBFLOW)
-        )
-        self._status_filter.addItems([status.value for status in statuses])
-        self._status_filter.blockSignals(False)
 
     def _reviewer(self) -> str:
         saved = self._settings.load() if self._settings is not None else {}
@@ -571,7 +533,6 @@ class ComparisonWidget(QWidget):
                 result.variant: build_impl_update(result.software, result.rows)
                 for result in results if result.rows and not result.error and not result.cancelled
             }
-            self._fill_status_filter()
             self._render_results()
         self._set_running(False)
         self._summary.setText(self._summary.text() if rows else "No comparison results were produced.")
@@ -599,13 +560,6 @@ class ComparisonWidget(QWidget):
     def _render_results(self) -> None:
         self._table.setRowCount(0)
         self._header_filter.reset()
-        self._variant_filter.blockSignals(True)
-        self._variant_filter.clear()
-        self._variant_filter.addItem("All part numbers", None)
-        for part in dict.fromkeys(part for part, _, _ in self._rows):
-            self._variant_filter.addItem(part, part)
-        self._variant_filter.blockSignals(False)
-        self._size_variant_filter()
         self._table.blockSignals(True)
         self._table.setRowCount(len(self._rows))
         for index, (part, software, row) in enumerate(self._rows):
@@ -838,26 +792,13 @@ class ComparisonWidget(QWidget):
         if menu is not None:
             menu.exec(view.viewport().mapToGlobal(pos))
 
-    def _size_variant_filter(self) -> None:
-        width = self._variant_filter.sizeHint().width()
-        self._variant_filter.setMinimumWidth(min(420, max(200, width)))
-        self._variant_filter.view().setMinimumWidth(max(200, width))
-
     def _apply_filters(self, *_args) -> None:
         self._header_filter.apply()
 
     def _matches_global_filters(self, index: int) -> bool:
         search = self._search.text().strip().casefold()
-        status = self._status_filter.currentText()
-        variant = self._variant_filter.currentData()
-        part, _, row = self._rows[index]
         text = " ".join(self._table.item(index, column).text() for column in range(self._table.columnCount()))
-        return (
-            (not search or search in text.casefold())
-            and (variant is None or variant == part)
-            and (status == "All statuses" or status == self._effective_status(index).value)
-            and (not self._deviations.isChecked() or self._is_deviation(index))
-        )
+        return not search or search in text.casefold()
 
     def _update_filter_summary(self) -> None:
         visible = sum(not self._table.isRowHidden(index) for index in range(self._table.rowCount()))
