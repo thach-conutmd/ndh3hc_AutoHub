@@ -19,19 +19,24 @@ MASTER_SHEET = "Master Sheet"
 NEW_VARIANT_TEXT = "New variants"
 UPDATE_TEXT = "Update Master Sheet"
 LOAD_TEXT = "Load variants"
-NEW_VARIANT_TIP = "Create new variant by reading ECU Info Sheet CR and System Matrix CR."
+NEW_VARIANT_TIP = (
+    "Create new variants by reading ECU Info Sheet CR and System Matrix CR. "
+    "Optionally select a calibration hex file for the Data Version."
+)
 
 # Field label -> settings.json key. Only the Master Sheet is remembered; the New variant source files are not.
 SETTINGS_KEYS = {"Master Sheet": "master_sheet_path"}
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
 _KICK_OFF_FILTER = "Kick Off Meeting (*.pptx)"
+_HEX_FILE_FILTER = "Hex files (*.hex)"
 
 _SOURCE_FIELDS = (
     FileField("ECU Info Sheet", _EXCEL_FILTER),
     FileField("System Matrix", _EXCEL_FILTER),
     FileField("HW Info", _HW_INFO_FILTER, required=False, hint="Bosch HW / B-number (.xlsx, .eml or .msg)"),
     FileField("Kick Off", _KICK_OFF_FILTER, required=False, hint="Kick Off Meeting (.pptx)"),
+    FileField("Hex file", _HEX_FILE_FILTER, required=False, hint="Calibration hex file (.hex)"),
 )
 
 
@@ -299,7 +304,7 @@ class HomePresenter:
         sources = self._ask_sources()
         if sources is None:
             return
-        ecu_info_path, system_matrix_path, hw_info_path, kick_off_path = (
+        ecu_info_path, system_matrix_path, hw_info_path, kick_off_path, hex_file_path = (
             sources[field.name] for field in _SOURCE_FIELDS
         )
 
@@ -309,7 +314,9 @@ class HomePresenter:
         self._view.set_update_state(False, UPDATE_TEXT)
         window = self._dialogs.open_progress(NEW_VARIANT_TEXT)
         self._start_task(
-            lambda: self._service.compute_new_variants(*paths, progress=window.step),
+            lambda: self._service.compute_new_variants(
+                *paths, progress=window.step, hex_file_path=hex_file_path
+            ),
             lambda new_variants: self._finish_new_variant(new_variants, window, keep_rows),
             lambda error: self._fail_new_variant(error, window),
         )

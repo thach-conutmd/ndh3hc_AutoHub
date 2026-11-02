@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
+from pathlib import Path
 from typing import Callable, Sequence
 
 from autohub.core.progress import ProgressCallback, no_progress
@@ -49,6 +50,7 @@ class VariantService:
         hw_info_path: str = "",
         kick_off_path: str = "",
         progress: ProgressCallback = no_progress,
+        hex_file_path: str = "",
     ) -> list[dict]:
         with self._session():
             progress("Opening the source files...")
@@ -80,7 +82,14 @@ class VariantService:
                 progress("Opening the Master Sheet...")
                 master_sheet.open()
                 progress("Building the new variants...")
-                return master_sheet.compute_new_variants(system_matrix.system_info, ecu_info_sheet.ecu_info, hw_info, kick_off)
+                variants = master_sheet.compute_new_variants(
+                    system_matrix.system_info, ecu_info_sheet.ecu_info, hw_info, kick_off
+                )
+                if hex_file_path:
+                    data_version = Path(hex_file_path).name
+                    for variant in variants:
+                        variant["AZ"] = data_version
+                return variants
             finally:
                 master_sheet.close()
                 ecu_info_sheet.close()
