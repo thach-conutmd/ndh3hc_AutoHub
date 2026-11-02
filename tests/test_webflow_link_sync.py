@@ -13,6 +13,68 @@ from autohub.ui.main_window import MainWindow
 from tests.fakes import MemorySettings
 
 
+@pytest.mark.parametrize("fresh_link", ["", None, "https://webflow/app/ShowJob/221486"])
+def test_home_reload_replaces_creation_data_including_blank_links(qapp, fresh_link):
+    settings = MemorySettings()
+    home = HomeWidget(Mock(), settings)
+    creation = CreationWidget(Mock(), settings)
+    MainWindow._wire_cross_module_signals([home, creation])
+    creation.set_variants([{
+        "part_number": "P", "ecu_type": "MG1", "webflow_link": "https://webflow/app/ShowJob/16472",
+        "ecu": {"family_name": "old"}, "hardware": {"software_part_number": "old SW"},
+    }])
+    creation._checklist.set_links({"P": "https://webflow/app/ShowJob/16473"})
+    creation._checklist._checkboxes["P"].setChecked(True)
+    row = {"_row": 11, "J": "P", "_webflow_link": fresh_link or ""}
+    variant = {
+        "part_number": "P", "ecu_type": "MG1", "ecu": {"family_name": "new"},
+        "hardware": {"software_part_number": "", "ecr_number": "new ECR"},
+    }
+    if fresh_link is not None:
+        variant["webflow_link"] = fresh_link
+
+    home._presenter._apply_load(([row], [variant]), keep_rows=False)
+
+    checklist = creation._checklist
+    table = checklist._table
+    assert checklist.has_link("P") is bool(fresh_link)
+    assert checklist.selected_variants() == []
+    assert table.item(0, 2).text() == "new"
+    assert table.item(0, 6).text() == ""
+    assert table.item(0, 7).text() == "new ECR"
+    if fresh_link:
+        assert table.cellWidget(0, 5).text() == "WF221486"
+    else:
+        assert table.cellWidget(0, 5) is None
+    assert home.read_rows()[0].get("_webflow_link", "") == (fresh_link or "")
+
+
+def test_clearing_creation_variants_removes_links_from_the_previous_sheet(qapp):
+    creation = CreationWidget(Mock(), MemorySettings())
+    creation.set_variants([{
+        "part_number": "P", "ecu_type": "MG1", "webflow_link": "https://webflow/app/ShowJob/16472",
+    }])
+
+    creation.set_variants([])
+
+    assert not creation._checklist.has_link("P")
+    creation.set_variants([{"part_number": "P", "ecu_type": "MG1"}])
+    assert creation._checklist._table.cellWidget(0, 5) is None
+    creation._checklist._checkboxes["P"].setChecked(True)
+    assert creation._without_declined_duplicates(creation._checklist.selected_variants())
+
+
+def test_created_link_updates_creation_payload_as_well_as_its_display(qapp):
+    creation = CreationWidget(Mock(), MemorySettings())
+    creation.set_variants([{"part_number": "P", "ecu_type": "MG1"}])
+    checklist = creation._checklist
+    checklist.set_links({"P": "https://webflow/app/ShowJob/42"})
+    checklist._checkboxes["P"].setChecked(True)
+
+    assert checklist.selected_variants()[0]["webflow_link"] == "https://webflow/app/ShowJob/42"
+    assert checklist._table.cellWidget(0, 5).text() == "WF42"
+
+
 def test_created_links_reach_home_without_discarding_edits(qapp):
     settings = MemorySettings({"show_webflow_link": True})
     home = HomeWidget(Mock(), settings)
