@@ -59,8 +59,9 @@ def visible_rows(page):
     return [index for index in range(page._table.rowCount()) if not page._table.isRowHidden(index)]
 
 
-def test_master_comparison_reads_latest_saved_exclusions(qapp):
-    settings = MemorySettings()
+@pytest.mark.parametrize("master_only", [False, True])
+def test_master_comparison_reads_latest_saved_exclusions(qapp, master_only):
+    settings = MemorySettings({"xml_comparison_exclusions_master_only": master_only})
     page, dialogs, _, _ = build_page(
         exports=[export_xml(target_parameters()), export_xml(target_parameters())], settings=settings,
     )
@@ -935,6 +936,43 @@ def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
 
         page.set_variants([])
         assert not page._export_btn.isEnabled()
+    finally:
+        page.shutdown()
+        page.close()
+        page.deleteLater()
+
+
+def test_clear_data_resets_sources_and_comparison_results(qapp, tmp_path):
+    page, _, _, _ = build_page()
+    try:
+        page._select_all()
+        page._compare()
+        wait_done(page, qapp)
+        page._progress_dialog.close()
+        assert page._rows and page._compare_btn.isEnabled() and page._export_btn.isEnabled()
+
+        base_path, target_path = str(tmp_path / "base.xml"), str(tmp_path / "target.xml")
+        page._xml_paths["Base"] = base_path
+        page._base_chips.set_files([base_path])
+        page._xml_labels["Base"].hide()
+        page._target_paths.append(target_path)
+        page._refresh_target_files()
+        assert page._compare_btn.isEnabled()
+
+        page._clear_data_btn.click()
+
+        assert page._xml_paths["Base"] == "" and page._target_paths == []
+        assert not page._xml_labels["Base"].isHidden()
+        assert page._rows == [] and page._table.rowCount() == 0
+        assert page._mode_results == {}
+        assert page._selected_rows() == []
+        assert not page._compare_btn.isEnabled() and not page._export_btn.isEnabled()
+        assert page._variants_table.item(0, 4).text() == "Pending"
+        assert page._variants_table.item(0, 5).text() == ""
+
+        page._manual_mode_btn.click()
+        assert page._table.rowCount() == 0
+        assert not page._compare_btn.isEnabled() and not page._export_btn.isEnabled()
     finally:
         page.shutdown()
         page.close()

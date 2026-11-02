@@ -92,6 +92,30 @@ def test_new_manual_comparisons_read_latest_saved_exclusions(qapp, tmp_path, tar
         assert [row.parameter for _, _, row in page._rows] == expected
 
 
+@pytest.mark.parametrize("target_count", [1, 2])
+def test_master_only_exclusions_leave_manual_comparison_unfiltered(qapp, tmp_path, target_count):
+    paths = [tmp_path / f"source{index}.xml" for index in range(target_count + 1)]
+    for path in paths:
+        path.write_bytes(export_xml({"General/Power": "93", "Files/Attachment": "file"}, job_id=None))
+    page, dialogs, _, _ = manual_page(paths[:2])
+    if target_count == 2:
+        dialogs.files = [[str(paths[2])]]
+        page._xml_buttons["Target"].click()
+    for master_only, expected in (
+        (True, ["Files/Attachment", "General/Power"]),
+        (False, ["General/Power"]),
+    ):
+        page._settings.update(
+            xml_comparison_exclusions=["Files/"],
+            xml_comparison_exclusions_master_only=master_only,
+        )
+        page._compare_btn.click()
+        wait_done(page, qapp)
+        page._progress_dialog.close()
+        assert not dialogs.errors
+        assert [row.parameter for _, _, row in page._rows] == expected
+
+
 def test_manual_mode_needs_no_master_or_browser_and_reuses_result_table(qapp, xml_files):
     page, dialogs, browser, updater = manual_page(xml_files)
     original = [path.read_bytes() for path in xml_files]
