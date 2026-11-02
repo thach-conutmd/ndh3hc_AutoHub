@@ -102,13 +102,13 @@ def test_automatic_batch_combines_results_and_supports_all_filters(qapp):
     assert "2 completed; 0 failed" in page._summary.text()
     page._header_filter.set_column_filter(5, ColumnFilter(allowed=frozenset({Status.VALUE_MISMATCH.value})))
     assert len(visible_rows(page)) == 1
-    page._search.setText("power")
+    page._header_filter.set_column_filter(1, ColumnFilter(text="power"))
     assert len(visible_rows(page)) == 1
     index = visible_rows(page)[0]
     assert page._table.item(index, 2).text() == "93"
     assert page._table.item(index, 4).text() == "94"
     assert page._table.item(index, 5).text() == Status.VALUE_MISMATCH
-    page._search.clear()
+    page._header_filter.set_column_filter(1, ColumnFilter())
     page._header_filter.set_column_filter(5, ColumnFilter(allowed=frozenset({Status.VALUE_MISMATCH.value})))
     assert len(visible_rows(page)) == 1
     page._header_filter.set_column_filter(0, ColumnFilter(allowed=frozenset({"P2"})))
@@ -521,7 +521,11 @@ def test_software_mismatch_still_fails_without_exposing_identity_in_error(qapp):
     assert page._table.rowCount() == 0
 
 
-def test_search_fills_filter_area_and_absorbs_resize(qapp):
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_result_table_follows_actions_without_search_and_absorbs_resize(qapp, theme):
+    from autohub.ui.theme import apply_theme
+
+    apply_theme(qapp, theme)
     part = "37820-6SA-T310-M6"
     page, _, _, _ = build_page(
         [variant(part)], [export_xml(target_parameters(part))],
@@ -533,16 +537,19 @@ def test_search_fills_filter_area_and_absorbs_resize(qapp):
     wait_done(page, qapp)
     page._progress_dialog._button.click()
     qapp.processEvents()
-    search_width = page._search.width()
-    assert page._search.width() == page._table.width()
-    assert page._search.placeholderText() == "Search parameters, values, part numbers or status..."
-    assert not any(hasattr(page, name) for name in ("_variant_filter", "_status_filter", "_deviations"))
+    table_width = page._table.width()
+    assert not hasattr(page, "_search")
+    assert not hasattr(page, "_matches_global_filters")
+    assert page._layout.itemAt(page._layout.indexOf(page._table) - 1).widget() is page._file_info
+    assert page._file_info.isHidden()
+    assert page._table.geometry().top() - page._compare_btn.geometry().bottom() - 1 == page._layout.spacing()
     page.resize(1400, 650)
     qapp.processEvents()
-    assert page._search.width() > search_width
+    assert page._table.width() > table_width
     page.resize(900, 650)
     qapp.processEvents()
-    assert page._search.width() < search_width
+    assert page._table.width() < table_width
+    apply_theme(qapp, "dark")
 
 
 @pytest.mark.parametrize("column", range(7))
@@ -591,9 +598,9 @@ def test_header_filters_combine_with_each_other_and_all_global_controls(qapp):
     assert len(visible_rows(page)) == 2
     filters.set_column_filter(4, ColumnFilter(allowed=frozenset({"94"})))
     assert len(visible_rows(page)) == 1
-    page._search.setText("not present")
+    filters.set_column_filter(1, ColumnFilter(text="not present"))
     assert not visible_rows(page)
-    page._search.clear()
+    filters.set_column_filter(1, ColumnFilter())
     filters.set_column_filter(0, ColumnFilter(allowed=frozenset({"P2"})))
     assert not visible_rows(page)
     filters.set_column_filter(0, ColumnFilter(allowed=frozenset({"P1"})))
@@ -894,7 +901,7 @@ def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
         assert total and page._export_btn.isEnabled()
 
         page._select_all(); page._clear_selection(); page._select_all()
-        page._search.setText("no-such-text")
+        page._header_filter.set_column_filter(1, ColumnFilter(text="no-such-text"))
         assert page._table.rowCount() == total and not visible_rows(page)
         assert page._export_btn.isEnabled()
 
@@ -951,7 +958,7 @@ def test_update_master_impl_writes_only_completed_target_values_and_keeps_result
         page._progress_dialog.close()
         assert list(page._impl_updates) == ["P1"] and page._impl_btn.isEnabled()
         rows = len(page._rows)
-        page._search.setText("power")
+        page._header_filter.set_column_filter(1, ColumnFilter(text="power"))
         page._set_status(0, Status.VALUE_MISMATCH)
         page._store_review(0, comment="keep review")
         reviews = dict(page._reviews)
@@ -965,7 +972,7 @@ def test_update_master_impl_writes_only_completed_target_values_and_keeps_result
         assert reloads == [] and dialogs.infos
         assert dialogs.infos[-1][1] == "Master Sheet updated successfully for 1 of 1 variant(s)."
         assert page._variants_table.item(0, 4).text() == "Completed"
-        assert page._search.text() == "power" and page._reviews == reviews
+        assert page._header_filter.is_active() and page._reviews == reviews
         assert page._selected_rows() == selected
         assert next(row.master for _, _, row in page._rows if row.parameter == "General/Power") == "95"
         assert len(page._rows) == rows and page._impl_btn.isEnabled()
@@ -990,7 +997,7 @@ def test_silent_impl_refresh_preserves_table_state(qapp, value, expected):
     wait_done(page, qapp)
     page._progress_dialog.close()
     page._variants_table.item(0, 3).setText("https://webflow/app/ShowJob/99")
-    page._search.setText("power")
+    page._header_filter.set_column_filter(1, ColumnFilter(text="power"))
     page._header_filter.set_column_filter(0, ColumnFilter(allowed=frozenset({"P1"})))
     page._set_status(0, Status.VALUE_MISMATCH)
     page._store_review(0, comment="retained")
@@ -1002,7 +1009,7 @@ def test_silent_impl_refresh_preserves_table_state(qapp, value, expected):
     assert page._variants_table.item(0, 4).text() == expected
     assert page._variants_table.item(0, 3).data(Qt.UserRole) == "https://webflow/app/ShowJob/99"
     assert page._selected_rows() == selected and page._reviews == reviews
-    assert page._search.text() == "power" and page._header_filter.is_active()
+    assert page._header_filter.is_active()
     assert [page._table.item(0, col) for col in range(7)] == old_items
     assert session.export_job_xml.call_count == 1
     assert len(dialogs.infos) == 1 and not dialogs.errors
@@ -1054,7 +1061,8 @@ def test_manual_status_and_comment_are_retained_exported_and_do_not_touch_master
         ]
         assert [a.text() for a in page._result_menu(index, 2).actions()] == ["Copy", "Copy Row"]
 
-        page._search.setText("zzz"); page._search.setText("")
+        page._header_filter.set_column_filter(1, ColumnFilter(text="zzz"))
+        page._header_filter.set_column_filter(1, ColumnFilter())
         page._header_filter.set_column_filter(5, ColumnFilter(allowed=frozenset({other.value})))
         assert index in visible_rows(page)
         page._header_filter.set_column_filter(5, ColumnFilter())
@@ -1134,8 +1142,8 @@ def test_result_comment_paste_cut_delete_persist_in_export(reviewed_page, tmp_pa
     QTest.keyClick(table, Qt.Key_V, Qt.ControlModifier)
     assert [page._comment(i) for i in range(2)] == ["review first", "review second"]
     assert table.item(0, 6).toolTip() == "review first"
-    page._search.setText("review")
-    page._search.clear()
+    page._header_filter.set_column_filter(6, ColumnFilter(text="review"))
+    page._header_filter.reset()
     page._render_results()
     assert table.item(1, 6).text() == "review second"
     dialogs.save_path = str(tmp_path / "edited.html")
@@ -1198,7 +1206,7 @@ def test_comment_editor_uses_native_shortcuts_commit_and_escape(reviewed_page, q
     editor.setFocus()
     editor.selectAll()
     QTest.keyClicks(editor, "save on focus loss")
-    page._search.setFocus()
+    page._export_btn.setFocus()
     qapp.processEvents()
     assert page._comment(0) == "save on focus loss"
     table.editItem(table.item(0, 6))
@@ -1250,7 +1258,7 @@ def test_comment_edit_follows_model_index_after_row_sort(reviewed_page):
     assert table.item(0, 6).text() == "sorted review"
 
 
-def test_search_and_header_filters_preserve_review_model_and_refresh_values(reviewed_page):
+def test_header_filters_preserve_review_model_and_refresh_values(reviewed_page):
     page, _, session = reviewed_page
     index = next(i for i, (_, _, row) in enumerate(page._rows) if row.parameter == "General/Power")
     page._set_comment(index, "owner reviewed")
@@ -1262,12 +1270,11 @@ def test_search_and_header_filters_preserve_review_model_and_refresh_values(revi
     filters.set_column_filter(0, ColumnFilter(allowed=frozenset({"P1"})))
     filters.set_column_filter(5, ColumnFilter(allowed=frozenset({"VALUE_MISMATCH"})))
     filters.set_column_filter(6, ColumnFilter(text="owner"))
-    page._search.setText("power")
+    filters.set_column_filter(1, ColumnFilter(text="power"))
     assert visible_rows(page) == [index]
     assert not page._table.frozen.view.isRowHidden(index)
-    page._search.setText("absent")
+    filters.set_column_filter(1, ColumnFilter(text="absent"))
     assert not visible_rows(page)
-    page._search.clear()
     filters.reset()
     assert page._rows == rows and page._reviews == reviews
     page._render_results()
@@ -1293,9 +1300,9 @@ def test_part_number_overlay_stays_fixed_and_shares_selection_filters(reviewed_p
     view.selectionModel().setCurrentIndex(view.model().index(0, 0), QItemSelectionModel.ClearAndSelect)
     QTest.keyClick(view, Qt.Key_C, Qt.ControlModifier)
     assert QApplication.clipboard().text() == table.item(0, 0).text()
-    page._search.setText("not-a-real-parameter")
+    page._header_filter.set_column_filter(1, ColumnFilter(text="not-a-real-parameter"))
     assert all(view.isRowHidden(row) and table.isRowHidden(row) for row in range(table.rowCount()))
-    page._search.clear()
+    page._header_filter.reset()
     assert not view.isRowHidden(0)
     table.setRowHeight(0, 40)
     assert view.rowHeight(0) == 40

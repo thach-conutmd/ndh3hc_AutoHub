@@ -11,7 +11,7 @@ from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QColor, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QButtonGroup, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QMenu, QPushButton, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
+    QMenu, QPushButton, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -202,8 +202,6 @@ class ComparisonWidget(QWidget):
         sources.addWidget(self._export_btn)
         sources.addWidget(self._impl_btn)
         sources.addWidget(self._compare_btn)
-        self._search = QLineEdit()
-        self._search.setPlaceholderText("Search parameters, values, part numbers or status...")
         self._table = ResultTable(0, len(_TARGET_HEADERS))
         self._table.setHorizontalHeaderLabels(_TARGET_HEADERS)
         self._table.setEditTriggers(QAbstractItemView.DoubleClicked)
@@ -226,7 +224,7 @@ class ComparisonWidget(QWidget):
         self._summary = QLabel("Load a Master Sheet on Home and select linked variants.")
         self._summary.setWordWrap(True)
         self._header_filter = TableFilter(
-            self._table, (self._table.frozen.view,), first_column=0, row_visible=self._matches_global_filters,
+            self._table, (self._table.frozen.view,), first_column=0,
             on_applied=self._update_filter_summary,
         )
         self._layout = layout = QVBoxLayout(self)
@@ -239,7 +237,6 @@ class ComparisonWidget(QWidget):
         layout.addWidget(self._manual_sources)
         layout.addLayout(sources)
         layout.addWidget(self._file_info)
-        layout.addWidget(self._search)
         layout.addWidget(self._table, 1)
         layout.addWidget(self._summary)
         self._select_all_btn.clicked.connect(self._select_all)
@@ -250,7 +247,6 @@ class ComparisonWidget(QWidget):
         self._compare_btn.clicked.connect(self._compare)
         self._export_btn.clicked.connect(self._export)
         self._impl_btn.clicked.connect(self._update_impl)
-        self._search.textChanged.connect(self._apply_filters)
         self._table.model().layoutChanged.connect(self._apply_filters)
         self._progress.connect(self._on_progress)
         self._manual_mode_btn.toggled.connect(self._change_mode)
@@ -279,15 +275,10 @@ class ComparisonWidget(QWidget):
         self._manual_sources.setVisible(manual)
         self._layout.removeWidget(self._summary)
         if manual:
-            self._layout.insertWidget(self._layout.indexOf(self._search), self._summary)
+            self._layout.insertWidget(self._layout.indexOf(self._table), self._summary)
         else:
             self._layout.addWidget(self._summary)
         self._compare_btn.setText("Compare" if manual else "Compare selected")
-        self._search.setPlaceholderText(
-            "Search parameters, values or status..." if manual
-            else "Search parameters, values, part numbers or status..."
-        )
-        self._search.clear()
         self._render_results()
         self._set_running(False)
 
@@ -981,11 +972,6 @@ class ComparisonWidget(QWidget):
 
     def _apply_filters(self, *_args) -> None:
         self._header_filter.apply()
-
-    def _matches_global_filters(self, index: int) -> bool:
-        search = self._search.text().strip().casefold()
-        text = " ".join(self._table.item(index, column).text() for column in range(self._table.columnCount()))
-        return not search or search in text.casefold()
 
     def _update_filter_summary(self) -> None:
         visible = sum(not self._table.isRowHidden(index) for index in range(self._table.rowCount()))
