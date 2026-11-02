@@ -4,8 +4,7 @@ Clipboard, search, column filters, the context menu and the frozen leading colum
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QAbstractItemView, QApplication, QTableWidget, QTableWidgetItem
 
 from autohub.core.variant_choices import VARIANT_CHOICES
@@ -15,7 +14,7 @@ from autohub.modules.home.choice_delegate import ChoiceDelegate, MultiChoiceDele
 from autohub.modules.home.column_limits import ColumnLimits
 from autohub.modules.home.frozen_columns import FrozenColumns
 from autohub.ui.hover_cursor import HoverCursor
-from autohub.ui.webflow_link_delegate import WebFlowLinkContextMenu, format_webflow_link_item
+from autohub.ui.webflow_link_delegate import WebFlowLinkContextMenu, format_webflow_link_item, open_webflow_link
 from autohub.modules.home.table_actions import TableActions
 from autohub.modules.home.table_clipboard import TableClipboard
 from autohub.modules.home.table_filter import TableFilter
@@ -151,7 +150,7 @@ class VariantTable(QTableWidget):
         item = self.item(row, column)
         link = item.data(Qt.UserRole) if column == self._link_column and item else ""
         if link:
-            QDesktopServices.openUrl(QUrl(link))
+            open_webflow_link(link)
 
     def clear_rows(self) -> None:
         self._filter.reset()

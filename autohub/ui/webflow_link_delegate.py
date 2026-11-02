@@ -1,11 +1,12 @@
 """Shared short-link display, editing, and copy-context behavior."""
-from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtCore import QEvent, QObject, Qt, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QMenu, QStyledItemDelegate
 
 from autohub.core.webflow_links import is_link, webflow_link_text
 
 
-COPY_TOOLTIP = "Right-click to copy full WebFlow link"
+COPY_TOOLTIP = "Double-click to open. Right-click for options"
 
 
 def webflow_link_display_text(link: str, fallback: str = "") -> str:
@@ -22,15 +23,31 @@ def format_webflow_link_item(item, link: str, *, editable: bool = False) -> None
     item.setData(Qt.UserRole, link)
     item.setText(webflow_link_display_text(link))
     item.setToolTip(webflow_link_tooltip(link))
-    if not editable:
-        item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+    item.setFlags(item.flags() | Qt.ItemIsEditable if editable else item.flags() & ~Qt.ItemIsEditable)
+    if is_link(link):
+        item.setForeground(QApplication.palette().link())
+    else:
+        item.setData(Qt.ForegroundRole, None)
 
 
-def _show_copy_menu(parent, link: str, position) -> None:
+def open_webflow_link(link: str) -> None:
+    if is_link(link):
+        QDesktopServices.openUrl(QUrl(link))
+
+
+def _show_link_menu(parent, link: str, position, *, edit=None, clear=None) -> None:
     menu = QMenu(parent)
     copy = menu.addAction("Copy WebFlow Link")
-    if menu.exec(position) == copy:
+    copy.setEnabled(is_link(link))
+    edit_action = menu.addAction("Edit WebFlow Link") if edit is not None else None
+    clear_action = menu.addAction("Clear WebFlow Link") if clear is not None else None
+    selected = menu.exec(position)
+    if selected == copy and is_link(link):
         QApplication.clipboard().setText(link)
+    elif edit_action is not None and selected == edit_action:
+        edit()
+    elif clear_action is not None and selected == clear_action:
+        clear()
 
 
 class WebFlowLinkContextMenu(QObject):
@@ -59,7 +76,9 @@ class WebFlowLinkContextMenu(QObject):
 
     def eventFilter(self, watched, event) -> bool:
         event_type = event.type()
-        if event_type not in (QEvent.MouseButtonPress, QEvent.MouseButtonRelease, QEvent.ContextMenu):
+        if event_type not in (
+            QEvent.MouseButtonPress, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick, QEvent.ContextMenu,
+        ):
             return super().eventFilter(watched, event)
         if self._table:
             view = self._views.get(watched)
@@ -70,12 +89,23 @@ class WebFlowLinkContextMenu(QObject):
             if not index.isValid() or index.column() not in self._columns:
                 return super().eventFilter(watched, event)
             link = index.data(Qt.UserRole) or ""
+            editable = bool(index.flags() & Qt.ItemIsEditable)
         else:
             link = self._link_getter() or ""
-        if not is_link(link):
+            editable = False
+        if not is_link(link) and not editable:
+            return super().eventFilter(watched, event)
+        if event_type == QEvent.MouseButtonDblClick:
+            if self._table and event.button() == Qt.LeftButton and is_link(link):
+                open_webflow_link(link)
+                return True
             return super().eventFilter(watched, event)
         if event_type == QEvent.ContextMenu:
-            _show_copy_menu(self._table or self._widget, link, event.globalPos())
+            _show_link_menu(
+                self._table or self._widget, link, event.globalPos(),
+                edit=(lambda: view.edit(index)) if editable else None,
+                clear=(lambda: self._table.item(index.row(), index.column()).setText("")) if editable else None,
+            )
             return True
         if event.button() == Qt.RightButton:
             return True
