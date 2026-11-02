@@ -7,7 +7,7 @@ from autohub.modules.settings.ui import SettingsWidget
 
 class SettingsModule(AutoHubModule):
     display_name = "Settings"
-    icon_file = "settings.png"
+    icon_file = "settings.svg"
     pinned_bottom = True
 
     def __init__(self, settings: SettingsStore):

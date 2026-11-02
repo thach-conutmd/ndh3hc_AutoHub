@@ -6,7 +6,7 @@ from autohub.modules.comparison.ui import ComparisonWidget
 
 class ComparisonModule(AutoHubModule):
     display_name = "Comparison"
-    icon_file = "comparison.png"
+    icon_file = "comparison.svg"
 
     def create_widget(self) -> QWidget:
         return ComparisonWidget()

@@ -10,7 +10,7 @@ from autohub.modules.creation.ui import CreationWidget
 
 class CreationModule(AutoHubModule):
     display_name = "Creation"
-    icon_file = "creation.png"
+    icon_file = "creation.svg"
 
     def __init__(self, service_factory: Callable[[], WebFlowJobService], settings: SettingsStore):
         self._service_factory = service_factory
