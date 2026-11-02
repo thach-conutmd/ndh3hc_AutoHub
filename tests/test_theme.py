@@ -276,6 +276,18 @@ def test_home_settings_apply_to_existing_home_page(qapp):
     assert not home._variant_table.isColumnHidden(2)
 
 
+def test_master_sheet_card_height_fits_its_content(qapp):
+    from PySide6.QtWidgets import QGroupBox, QSizePolicy
+    from autohub.modules.home.ui import HomeWidget
+    from tests.fakes import build_service
+
+    home = HomeWidget(build_service(), MemorySettings())
+    group = next(group for group in home.findChildren(QGroupBox) if group.title() == "Master Sheet")
+    margins = group.layout().contentsMargins()
+    assert group.sizePolicy().verticalPolicy() == QSizePolicy.Maximum
+    assert (margins.top(), margins.bottom()) == (14, 8)
+
+
 def test_home_settings_discard_restores_both_controls(qapp):
     from tests.fakes import FakeDialogs
 
