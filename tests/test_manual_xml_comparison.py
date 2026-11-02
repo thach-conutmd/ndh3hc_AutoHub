@@ -93,7 +93,7 @@ def test_manual_reviews_survive_sort_filter_resize_new_files_and_master_reload(q
     page._table.sortItems(3, Qt.AscendingOrder)
     assert len(visible_rows(page)) == 2
     assert all(page._table.item(row, 3).text() == "MATCH" for row in visible_rows(page))
-    page._search.setText("reviewed")
+    page._header_filter.set_column_filter(4, ColumnFilter(text="reviewed"))
     assert len(visible_rows(page)) == 1
     page.resize(1400, 800)
     page._table.setColumnWidth(1, 200)
@@ -142,7 +142,7 @@ def test_manual_export_uses_completed_sources_and_all_retained_reviews(qapp, xml
     wait_done(page, qapp)
     page._set_comment(0, "review <ok>")
     page._set_status(0, Status.MATCH)
-    page._search.setText("nothing-visible")
+    page._header_filter.set_column_filter(0, ColumnFilter(text="nothing-visible"))
     dialogs.files = [str(xml_files[1])]
     page._xml_buttons["Base"].click()
     dialogs.save_path = str(tmp_path / "report.html")
