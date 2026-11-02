@@ -10,7 +10,7 @@ from autohub.modules.home.ui import HomeWidget
 
 class HomeModule(AutoHubModule):
     display_name = "Home"
-    icon_file = "home.png"
+    icon_file = "home.svg"
 
     def __init__(self, service_factory: Callable[[], VariantService], settings: SettingsStore):
         self._service_factory = service_factory

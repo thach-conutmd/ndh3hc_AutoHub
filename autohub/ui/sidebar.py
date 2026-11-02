@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import Collection
 
 from PySide6.QtCore import QEvent, QSize, Qt, Signal
-from PySide6.QtGui import QFont, QIcon, QImage, QPixmap
+from PySide6.QtGui import QFont, QIcon, QImage, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget
 
 from autohub.config import APP_NAME, ICONS_DIR, LOGO_PATH
@@ -115,7 +116,19 @@ class Sidebar(QWidget):
         path = ICONS_DIR / icon_file if icon_file else None
         if not path or not path.exists():
             return QIcon()
-        image = QImage(str(path))
+        if path.suffix.lower() == ".svg":
+            renderer = QSvgRenderer(str(path))
+            if not renderer.isValid():
+                raise ValueError(f"Invalid sidebar icon: {path}")
+            image = QImage(_ICON_SIZE.width() * 3, _ICON_SIZE.height() * 3, QImage.Format_ARGB32)
+            image.fill(Qt.transparent)
+            painter = QPainter(image)
+            renderer.render(painter)
+            painter.end()
+        else:
+            image = QImage(str(path))
+            if image.isNull():
+                raise ValueError(f"Invalid sidebar icon: {path}")
         if self.palette().window().color().lightness() > 128:
             image.invertPixels(QImage.InvertRgb)  # the icons are light; a light theme needs them dark
         return QIcon(QPixmap.fromImage(image))
