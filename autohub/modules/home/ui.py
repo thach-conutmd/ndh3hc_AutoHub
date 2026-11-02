@@ -55,7 +55,7 @@ class HomeWidget(QWidget):
         self._open_master_btn = QPushButton(f"Open {MASTER_SHEET}")
         self._open_master_btn.setEnabled(False)
         self._open_master_btn.setToolTip("Open the selected Master Sheet in its default application.")
-        name_label = QLabel("Not selected")
+        name_label = QLabel()
         name_label.setMinimumWidth(_FILE_NAME_LABEL_WIDTH)
         name_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         name_label.setWordWrap(True)
@@ -158,15 +158,17 @@ class HomeWidget(QWidget):
         label = self._file_name_labels.get(field_name)
         if label is None:
             return
-        label.setText(Path(path).name)
-        label.setToolTip(path)
-        set_muted(label, False)
+        valid = bool(path) and Path(path).is_file()
+        label.setText(Path(path).name if valid else "")
+        label.setToolTip(path if valid else "")
+        set_muted(label, not valid)
         if field_name == MASTER_SHEET:
-            self._open_master_btn.setEnabled(bool(path))
+            self._open_master_btn.setEnabled(valid)
 
     def _on_open_master_sheet(self) -> None:
         path = str(self._settings.load().get("master_sheet_path", "")).strip()
         if not path or not Path(path).is_file():
+            self.show_file_name(MASTER_SHEET, path)
             self._dialogs.error("Open Master Sheet", "Select a valid Master Sheet file.")
             return
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).resolve()))):
