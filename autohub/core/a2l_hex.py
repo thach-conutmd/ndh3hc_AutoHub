@@ -1,31 +1,33 @@
-"""Read an A2L-addressed ASCII component ID from an Intel HEX calibration."""
+"""Read a length-prefixed ASCII component ID from an A2L-addressed Intel HEX value block."""
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
-
-from autohub.core.normalizers import normalize_part_number
+import re
 
 DEFAULT_COMP_ID_SYMBOL = "I14229_numCompID_CA"
 _TOKEN = re.compile(r'"(?:\\.|[^"\\])*"|[^\s]+')
 _COMMENTS = re.compile(r"/\*.*?\*/|//[^\r\n]*", re.DOTALL)
 
 
-def files_in_folder(folder: str | Path) -> tuple[Path, Path]:
+def files_in_folder(folder: str | Path) -> tuple[Path, list[Path]]:
     path = Path(folder)
     if not path.is_dir():
         raise ValueError(f"Calibration folder not found: {path}")
-    a2l_files = [item for item in path.iterdir() if item.is_file() and item.suffix.casefold() == ".a2l"]
-    hex_files = [item for item in path.iterdir() if item.is_file() and item.suffix.casefold() == ".hex"]
+    a2l_files = sorted(
+        item for item in path.iterdir() if item.is_file() and item.suffix.casefold() == ".a2l"
+    )
+    hex_files = sorted(
+        item for item in path.iterdir() if item.is_file() and item.suffix.casefold() == ".hex"
+    )
     if len(a2l_files) != 1:
         raise ValueError(f"Calibration folder must contain exactly one .a2l file (found {len(a2l_files)}).")
-    if len(hex_files) != 1:
-        raise ValueError(f"Calibration folder must contain exactly one .hex file (found {len(hex_files)}).")
-    return a2l_files[0], hex_files[0]
+    if not hex_files:
+        raise ValueError("Calibration folder must contain at least one .hex file.")
+    return a2l_files[0], hex_files
 
 
-def _a2l_address(a2l_path: Path, symbol: str) -> int:
+def _a2l_symbol_info(a2l_path: Path, symbol: str) -> tuple[int, int]:
     text = _COMMENTS.sub("", a2l_path.read_text(encoding="latin-1"))
     tokens = _TOKEN.findall(text)
     matches: list[tuple[str, list[str]]] = []
@@ -61,9 +63,21 @@ def _a2l_address(a2l_path: Path, symbol: str) -> int:
     if address is None:
         raise ValueError(f"A2L symbol '{symbol}' has no supported ECU address.")
     try:
-        return int(address, 0)
+        address = int(address, 0)
     except ValueError as error:
         raise ValueError(f"A2L symbol '{symbol}' has an invalid ECU address: {address}.") from error
+
+    element_count = None
+    for index, token in enumerate(body[:-1]):
+        if token == "NUMBER":
+            try:
+                element_count = int(body[index + 1], 0)
+            except ValueError as error:
+                raise ValueError(f"A2L symbol '{symbol}' has an invalid NUMBER value.") from error
+            break
+    if element_count is None or element_count < 2:
+        raise ValueError(f"A2L symbol '{symbol}' must declare at least two NUMBER elements.")
+    return address, element_count
 
 
 def _intel_hex_data(hex_path: Path, target_address: int, target_length: int) -> bytes:
@@ -129,41 +143,40 @@ def _intel_hex_data(hex_path: Path, target_address: int, target_length: int) -> 
 
 
 @dataclass(frozen=True)
-class A2LHexCalibration:
+class CalibrationComponentId:
     hex_filename: str
-    symbol: str
-    address: int
-    id_bytes: bytes
-
-    def read_component_id(self, expected_length: int) -> str:
-        if expected_length < 1:
-            raise ValueError("Expected component ID length must be positive.")
-        if expected_length > len(self.id_bytes):
-            raise ValueError(f"HEX value for '{self.symbol}' is shorter than the expected ID.")
-        raw = self.id_bytes[:expected_length]
-        try:
-            value = raw.rstrip(b"\x00\xff").decode("ascii").strip()
-        except UnicodeDecodeError as error:
-            raise ValueError(f"Intel HEX value for '{self.symbol}' is not ASCII text.") from error
-        if not value:
-            raise ValueError(f"Intel HEX value for '{self.symbol}' is empty.")
-        return value
+    component_id: str
 
 
-def load_calibration_folder(
-    folder: str | Path, symbol: str, expected_length: int
-) -> A2LHexCalibration:
-    a2l_path, hex_path = files_in_folder(folder)
-    address = _a2l_address(a2l_path, symbol.strip())
-    id_bytes = _intel_hex_data(hex_path, address, expected_length)
-    return A2LHexCalibration(hex_path.name, symbol, address, id_bytes)
+def _decode_component_id(raw: bytes, symbol: str, hex_path: Path) -> str:
+    length = raw[0]
+    if length <= len(raw) - 1:
+        value_bytes = raw[1 : length + 1]
+    else:
+        value_bytes = raw.rstrip(b"\x00\xff")
+    try:
+        value = value_bytes.decode("ascii").strip()
+    except UnicodeDecodeError as error:
+        raise ValueError(f"Intel HEX value for '{symbol}' in {hex_path.name} is not ASCII text.") from error
+    if not value:
+        raise ValueError(f"Intel HEX value for '{symbol}' in {hex_path.name} is empty.")
+    return value
 
 
-def read_component_id(folder: str | Path, symbol: str, expected_length: int) -> tuple[str, str]:
-    """Return the hex filename and ASCII ID bytes at the A2L symbol address."""
-    calibration = load_calibration_folder(folder, symbol, expected_length)
-    return calibration.hex_filename, calibration.read_component_id(expected_length)
+def load_calibration_folder(folder: str | Path, symbol: str) -> list[CalibrationComponentId]:
+    """Read the configured component-ID value from each HEX file beside the A2L."""
+    a2l_path, hex_files = files_in_folder(folder)
+    address, element_count = _a2l_symbol_info(a2l_path, symbol.strip())
+    return [
+        CalibrationComponentId(
+            hex_path.name,
+            _decode_component_id(_intel_hex_data(hex_path, address, element_count), symbol, hex_path),
+        )
+        for hex_path in hex_files
+    ]
 
 
 def component_id_matches(value: str, expected: str) -> bool:
-    return normalize_part_number(value).casefold() == normalize_part_number(expected).casefold()
+    normalized_value = re.sub(r"[^a-z0-9]", "", value.casefold())
+    normalized_expected = re.sub(r"[^a-z0-9]", "", expected.casefold())
+    return normalized_value == normalized_expected

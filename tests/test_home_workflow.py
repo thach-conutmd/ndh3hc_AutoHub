@@ -77,8 +77,22 @@ def test_new_variant_uses_optional_hex_filename_as_data_version(tmp_path):
 
     presenter.new_variant()
 
-    assert [row["AZ"] for row in view.rows] == ["calibration-v3.hex", "calibration-v3.hex"]
-    assert "P2: calibration ID 'P1' does not match" in dialogs.infos[-1][1]
+    assert [row.get("AZ") for row in view.rows] == ["calibration-v3.hex", None]
+    assert "P2: no calibration HEX file matches the DWG number" in dialogs.infos[-1][1]
+
+
+def test_new_variant_matches_each_dwg_to_its_hex_file(tmp_path):
+    from tests.test_a2l_hex import write_calibration_folder
+
+    folder = write_calibration_folder(tmp_path, "P1", additional_comp_ids=("P2",))
+    master = FakeMasterSheet(new_rows=[{"J": "P1"}, {"J": "P2"}])
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", str(folder)], hex_folder_answer=True)
+    presenter, view, dialogs, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+
+    presenter.new_variant()
+
+    assert [row["AZ"] for row in view.rows] == ["calibration-v3.hex", "calibration-v4.hex"]
+    assert "Calibration ID warning" not in dialogs.infos[-1][1]
 
 
 def test_new_variant_stops_when_a_file_dialog_is_cancelled(tmp_path):

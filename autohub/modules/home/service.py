@@ -6,9 +6,15 @@ from dataclasses import dataclass
 from typing import Callable, Sequence
 
 from autohub.core.a2l_hex import component_id_matches, load_calibration_folder
-from autohub.core.normalizers import normalize_part_number
 from autohub.core.progress import ProgressCallback, no_progress
-from autohub.core.ports import EcuInfoDocument, HWInfoDocument, KickOffDocument, PartNumberDeleter, SystemMatrixDocument, VariantSheet
+from autohub.core.ports import (
+    EcuInfoDocument,
+    HWInfoDocument,
+    KickOffDocument,
+    PartNumberDeleter,
+    SystemMatrixDocument,
+    VariantSheet,
+)
 
 #: Opens whatever per-thread resource the documents need (COM) around one operation.
 SessionFactory = Callable[[], AbstractContextManager]
@@ -96,27 +102,30 @@ class VariantService:
                 )
                 warnings = []
                 if hex_folder_path:
-                    expected_values = [
-                        normalize_part_number(variant.get("J")) for variant in variants
-                    ]
-                    expected_length = max(map(len, expected_values), default=0)
-                    calibration = load_calibration_folder(
-                        hex_folder_path, a2l_symbol_name, expected_length
-                    )
-                    actual = (
-                        calibration.read_component_id(expected_length)
-                        if expected_length
-                        else ""
-                    )
-                    for variant, expected in zip(variants, expected_values):
-                        variant["AZ"] = calibration.hex_filename
+                    calibrations = load_calibration_folder(hex_folder_path, a2l_symbol_name)
+                    for variant in variants:
+                        expected = str(variant.get("J") or "").strip()
                         if not expected:
                             warnings.append("A new variant has no DWG number to compare with the calibration ID.")
                             continue
-                        if not component_id_matches(actual, expected):
-                            warnings.append(
-                                f"{expected}: calibration ID '{actual}' does not match the DWG number."
+                        matching_calibration = next(
+                            (
+                                item
+                                for item in calibrations
+                                if component_id_matches(item.component_id, expected)
+                            ),
+                            None,
+                        )
+                        if matching_calibration is None:
+                            available = ", ".join(
+                                f"{item.hex_filename}: {item.component_id}" for item in calibrations
                             )
+                            warnings.append(
+                                f"{expected}: no calibration HEX file matches the DWG number "
+                                f"(found {available})."
+                            )
+                        else:
+                            variant["AZ"] = matching_calibration.hex_filename
                 return NewVariantResult(variants, warnings)
             finally:
                 master_sheet.close()
