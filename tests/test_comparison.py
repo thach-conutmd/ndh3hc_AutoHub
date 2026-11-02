@@ -112,6 +112,32 @@ def test_all_comparison_engines_exclude_files_and_notes_from_scope():
         assert not any(row.deviation for row in rows)
 
 
+@pytest.mark.parametrize("exclusions,expected", [
+    ((), ["Files/Attachment", "General/Power", "Notes/Review"]),
+    (("General/",), ["Files/Attachment", "Notes/Review"]),
+    (("Files/", "Notes/"), ["General/Power"]),
+])
+def test_configured_exclusions_replace_defaults_in_every_engine(exclusions, expected):
+    values = {"Files/Attachment": "file", "Notes/Review": "note", "General/Power": "93"}
+    for rows in (
+        compare_parameters(values, values, exclusions=exclusions),
+        compare_parameters(values, values, values, exclusions=exclusions),
+        compare_xml_parameters(values, values, exclusions=exclusions),
+        compare_xml_datasets(values, [values, values], exclusions=exclusions),
+    ):
+        assert [row.parameter for row in rows] == expected
+
+
+def test_exclusion_prefixes_normalize_like_xml_parameter_paths():
+    from autohub.modules.comparison.xml_parser import comparison_exclusions
+
+    prefixes = comparison_exclusions({"xml_comparison_exclusions": [" Custom / caf\u00e9 /", "Custom/caf%C3%A9/"]})
+    assert prefixes == ("Custom/caf%C3%A9/",)
+    assert comparison_parameters({"Custom/caf%C3%A9/Nested": "x", "Custom/Other": "y"}, prefixes) == {"Custom/Other": "y"}
+    assert comparison_exclusions({}) == ("Files/", "Notes/")
+    assert comparison_exclusions({"xml_comparison_exclusions": []}) == ()
+
+
 def test_parser_accepts_namespaces_and_utf16():
     data = '<Job xmlns="urn:webflow"><Fields><Field Name="Power" Group="General">93</Field></Fields></Job>'
     assert parse_xml(data.encode("utf-16")) == {"General/Power": "93"}

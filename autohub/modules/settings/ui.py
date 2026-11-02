@@ -6,7 +6,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QPushButton,
-    QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
+    QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QHeaderView,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
@@ -26,7 +26,10 @@ from autohub.core.settings_keys import (
     WEBFLOW_MAX_ATTEMPTS_KEY,
     WEBFLOW_RETRY_ENABLED_KEY,
     normalize_latest_count,
+    DEFAULT_XML_COMPARISON_EXCLUSIONS,
+    XML_COMPARISON_EXCLUSIONS_KEY,
 )
+from autohub.modules.comparison.xml_parser import comparison_exclusions
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode, set_muted
 from autohub.modules.settings.creation_form import CreationSettingsForm, load_config
 
@@ -122,6 +125,32 @@ class SettingsWidget(QWidget):
         self._creation = CreationSettingsForm(load_config(settings))
         QVBoxLayout(creation_group).addWidget(self._creation)
 
+        exclusions_group = QGroupBox("XML Comparison Exclusions")
+        exclusions_layout = QVBoxLayout(exclusions_group)
+        self._exclusions = QTableWidget(0, 3)
+        self._exclusions.setHorizontalHeaderLabels(("Path prefix", "", ""))
+        self._exclusions.verticalHeader().hide()
+        self._exclusions.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        for column in (1, 2):
+            self._exclusions.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        exclusions_layout.addWidget(self._exclusions)
+        self._add_exclusion_btn = QPushButton("+ Add exclusion")
+        self._restore_exclusions_btn = QPushButton("Restore defaults")
+        self._add_exclusion_btn.clicked.connect(lambda: self._add_exclusion(""))
+        self._restore_exclusions_btn.clicked.connect(
+            lambda: self._restore_exclusions(DEFAULT_XML_COMPARISON_EXCLUSIONS)
+        )
+        exclusion_actions = QHBoxLayout()
+        exclusion_actions.addWidget(self._add_exclusion_btn)
+        exclusion_actions.addWidget(self._restore_exclusions_btn)
+        exclusion_actions.addStretch(1)
+        exclusions_layout.addLayout(exclusion_actions)
+        try:
+            self._restore_exclusions(comparison_exclusions(settings.load()))
+        except ValueError as error:
+            self._dialogs.error("XML Comparison Exclusions", str(error))
+            self._restore_exclusions(("",))
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(12)
@@ -141,12 +170,16 @@ class SettingsWidget(QWidget):
                             "fields empty to skip ECR import, or complete all four to enable it.",
             retry_group: "Recover from browser failures without recreating completed jobs. "
                          "After an app crash, AutoHub asks before resuming saved progress.",
+            exclusions_group: "Exclude normalized parameter paths starting with these prefixes in all XML "
+                              "comparisons. A trailing / excludes an entire hierarchy. An empty list excludes nothing. "
+                              "Changes apply to new comparisons after Apply changes.",
         }
         for tab_name, groups in (
             ("General", (theme_group,)),
             ("Home", (home_group,)),
             ("Creation", (creation_group, retry_group)),
             ("Diagnostics", (logging_group, analysis_group)),
+            ("Comparison", (exclusions_group,)),
         ):
             content = QWidget()
             groups_layout = QVBoxLayout(content)
@@ -192,6 +225,7 @@ class SettingsWidget(QWidget):
         self._latest.currentIndexChanged.connect(self._refresh_apply)
         self._show_link.toggled.connect(self._refresh_apply)
         self._a2l_comp_id_symbol.textChanged.connect(self._refresh_apply)
+        self._exclusions.itemChanged.connect(self._refresh_apply)
         for field in (
             self._creation._tool_version, self._creation._routing,
             self._creation._change_engineer, self._creation._cost_allocation,
@@ -205,6 +239,41 @@ class SettingsWidget(QWidget):
         footer.addStretch(1)
         footer.addWidget(self._apply)
         layout.addLayout(footer)
+
+    def _exclusion_values(self) -> tuple[str, ...]:
+        return tuple(self._exclusions.item(row, 0).text().strip() for row in range(self._exclusions.rowCount()))
+
+    def _add_exclusion(self, value: str) -> None:
+        blocked = self._exclusions.blockSignals(True)
+        row = self._exclusions.rowCount()
+        self._exclusions.insertRow(row)
+        item = QTableWidgetItem(value)
+        self._exclusions.setItem(row, 0, item)
+        edit = QPushButton("Edit")
+        edit.clicked.connect(lambda: self._exclusions.editItem(item))
+        delete = QPushButton("Delete")
+        delete.clicked.connect(lambda: self._delete_exclusion(item))
+        self._exclusions.setCellWidget(row, 1, edit)
+        self._exclusions.setCellWidget(row, 2, delete)
+        self._exclusions.blockSignals(blocked)
+        if hasattr(self, "_applied"):
+            self._refresh_apply()
+        if not value:
+            self._exclusions.setCurrentItem(item)
+            self._exclusions.editItem(item)
+
+    def _delete_exclusion(self, item: QTableWidgetItem) -> None:
+        self._exclusions.removeRow(item.row())
+        self._refresh_apply()
+
+    def _restore_exclusions(self, values) -> None:
+        self._exclusions.blockSignals(True)
+        self._exclusions.setRowCount(0)
+        for value in values:
+            self._add_exclusion(value)
+        self._exclusions.blockSignals(False)
+        if hasattr(self, "_applied"):
+            self._refresh_apply()
 
     def _on_open_log(self) -> None:
         if not LOG_FILE_PATH.is_file():
@@ -228,6 +297,7 @@ class SettingsWidget(QWidget):
             self._attempts.value(), self._retry.isChecked(),
             self._latest.currentData(), self._show_link.isChecked(),
             *self._creation.values().values(), self._a2l_comp_id_symbol.text().strip(),
+            self._exclusion_values(),
         )
 
     def _refresh_apply(self, *_args) -> None:
@@ -247,6 +317,7 @@ class SettingsWidget(QWidget):
             return False
         if answer:
             self._on_apply()
+            return not self._apply.isEnabled()
         else:
             self._theme.setCurrentIndex(self._theme.findData(self._applied[0]))
             self._logging.setChecked(self._applied[1])
@@ -255,11 +326,18 @@ class SettingsWidget(QWidget):
             self._retry.setChecked(self._applied[4])
             self._latest.setCurrentIndex(self._latest.findData(self._applied[5]))
             self._show_link.setChecked(self._applied[6])
-            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:-1])))
-            self._a2l_comp_id_symbol.setText(self._applied[-1])
+            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:-2])))
+            self._a2l_comp_id_symbol.setText(self._applied[-2])
+            self._restore_exclusions(self._applied[-1])
         return True
 
     def _on_apply(self) -> None:
+        try:
+            exclusions = comparison_exclusions({XML_COMPARISON_EXCLUSIONS_KEY: self._exclusion_values()})
+        except ValueError as error:
+            self._dialogs.error("XML Comparison Exclusions", str(error))
+            return
+        self._restore_exclusions(exclusions)
         mode, enabled, record, attempts, retry, latest, show_link = self._current()[:7]
         values = {
             THEME_KEY: mode, LOGGING_ENABLED_KEY: enabled, RECORD_PAGES_KEY: record,
@@ -268,10 +346,11 @@ class SettingsWidget(QWidget):
             LATEST_COUNT_KEY: latest, SHOW_WEBFLOW_LINK_KEY: show_link,
             **self._creation.values(),
             A2L_COMP_ID_SYMBOL_KEY: self._a2l_comp_id_symbol.text().strip(),
+            XML_COMPARISON_EXCLUSIONS_KEY: list(exclusions),
         }
         changes = {
             key: values[key] for key, previous in zip(values, self._applied)
-            if values[key] != previous
+            if (tuple(values[key]) if key == XML_COMPARISON_EXCLUSIONS_KEY else values[key]) != previous
         }
         self._settings.update(**values)
         set_logging_enabled(enabled)

@@ -54,6 +54,19 @@ def test_exports_are_filtered_before_master_matching_and_comparison(monkeypatch)
         assert not any(path.startswith(("Files/", "Notes/")) for path in values)
 
 
+@pytest.mark.parametrize("with_base", [False, True])
+def test_master_comparison_uses_configured_prefixes(with_base):
+    selected = variant()
+    exports = [export_xml(target_parameters())]
+    if with_base:
+        selected["base_webflow_link"] = "https://webflow/app/ShowJob/99"
+        exports.append(export_xml(target_parameters(), job_id="99"))
+    _, factory = session_factory(exports)
+    result = ComparisonService(factory).run([selected], [selected], exclusions=("General/Power",))[0]
+    assert not result.error and result.rows
+    assert "General/Power" not in {row.parameter for row in result.rows}
+
+
 @pytest.mark.parametrize("failure", [
     "export", "timeout", "invalid_xml", "invalid_link", "wrong_variant", "wrong_sw",
     "wrong_job", "master_missing", "missing_sw",

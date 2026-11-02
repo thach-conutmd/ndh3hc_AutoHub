@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Mapping
-from urllib.parse import quote
+from collections.abc import Mapping, Sequence
+from urllib.parse import quote, unquote
 import xml.etree.ElementTree as ET
+
+from autohub.core.settings_keys import DEFAULT_XML_COMPARISON_EXCLUSIONS, XML_COMPARISON_EXCLUSIONS_KEY
 
 ParameterValue = str | tuple[str, ...] | None
 ParameterMap = dict[str, ParameterValue]
@@ -12,9 +14,24 @@ MAX_XML_BYTES = 10 * 1024 * 1024
 _MAX_PARAMETERS = 20000
 
 
-def comparison_parameters(parameters: Mapping[str, ParameterValue]) -> ParameterMap:
+def normalize_parameter_path(path: str) -> str:
+    """Canonicalize path segments using the export parser's escaping convention."""
+    return "/".join(quote(unquote(segment.strip()), safe=" _-().[]") for segment in path.strip().split("/"))
+
+
+def comparison_exclusions(settings: Mapping) -> tuple[str, ...]:
+    values = settings.get(XML_COMPARISON_EXCLUSIONS_KEY, DEFAULT_XML_COMPARISON_EXCLUSIONS)
+    if not isinstance(values, (list, tuple)) or any(not isinstance(value, str) or not value.strip() for value in values):
+        raise ValueError("XML comparison exclusions must be a list of non-empty path prefixes.")
+    return tuple(dict.fromkeys(normalize_parameter_path(value) for value in values))
+
+
+def comparison_parameters(
+    parameters: Mapping[str, ParameterValue], exclusions: Sequence[str] = DEFAULT_XML_COMPARISON_EXCLUSIONS,
+) -> ParameterMap:
     """Exclude non-comparable hierarchies from normalized parameter maps."""
-    return {path: value for path, value in parameters.items() if not path.startswith(("Files/", "Notes/"))}
+    prefixes = tuple(normalize_parameter_path(prefix) for prefix in exclusions)
+    return {path: value for path, value in parameters.items() if not normalize_parameter_path(path).startswith(prefixes)}
 
 
 def _tag(element: ET.Element) -> str:
