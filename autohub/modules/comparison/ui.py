@@ -1,6 +1,7 @@
 """Multi-variant comparison workspace; browser work runs off the UI thread."""
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime
@@ -327,6 +328,11 @@ class ComparisonWidget(QWidget):
         self._status_filter.addItems([status.value for status in statuses])
         self._status_filter.blockSignals(False)
 
+    def _reviewer(self) -> str:
+        saved = self._settings.load() if self._settings is not None else {}
+        name = str(saved.get("change_engineer", "")).strip()
+        return name or os.environ.get("USERNAME") or os.environ.get("USER") or ""
+
     def _export(self) -> None:
         if self._running or not self._rows:
             return
@@ -351,6 +357,7 @@ class ComparisonWidget(QWidget):
                 row.status.value if self._effective_status(index) != row.status else ""
                 for index, (_, _, row) in enumerate(self._rows)
             ],
+            self._reviewer(),
         )
         try:
             with open(path, "w", encoding="utf-8") as file:

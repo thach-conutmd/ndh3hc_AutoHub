@@ -939,7 +939,7 @@ def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
         assert session.export_job_xml.call_count == calls
         assert dialogs.saved[1].startswith("Comparison_Result_")
         html = open(dialogs.save_path, encoding="utf-8").read()
-        assert "<title>Comparison Result</title>" in html and "Exported:" in html
+        assert "<title>Comparison Result</title>" in html and "Date:" in html and "Reviewer:" in html
         assert html.count("<tr class=") == total
         assert "http://" not in html and "https://" not in html
         assert dialogs.saved[1].endswith(".html")
