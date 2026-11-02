@@ -177,6 +177,9 @@ class HomeWidget(QWidget):
     def show_rows(self, rows: list[dict]) -> None:
         self._variant_table.populate(rows)
 
+    def reload_master(self) -> None:
+        self._presenter.reload_variants()
+
     def set_webflow_links(self, links: dict[str, str]) -> None:
         self._variant_table.set_webflow_links(links)
         self._presenter.set_webflow_links(links)

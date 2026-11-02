@@ -916,8 +916,6 @@ def test_progress_footer_buttons_stay_compact_and_bottom_right(qapp, theme):
 
 
 def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
-    from openpyxl import load_workbook
-
     page, dialogs, session, _ = build_page()
     try:
         assert not page._export_btn.isEnabled()
@@ -934,13 +932,15 @@ def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
         assert page._export_btn.isEnabled()
 
         calls = session.export_job_xml.call_count
-        dialogs.save_path = str(tmp_path / "out.xlsx")
+        dialogs.save_path = str(tmp_path / "out.html")
         page._export()
         assert session.export_job_xml.call_count == calls
         assert dialogs.saved[1].startswith("Comparison_Result_")
-        sheet = load_workbook(dialogs.save_path).active
-        assert [cell.value for cell in sheet[1]] == ["Variant", "Parameter", "Master", "Base", "Target", "Status"]
-        assert sheet.max_row == total + 1
+        html = open(dialogs.save_path, encoding="utf-8").read()
+        assert "<title>Comparison Result</title>" in html and "Exported:" in html
+        assert html.count("<tr class=") == total
+        assert "http://" not in html and "https://" not in html
+        assert dialogs.saved[1].endswith(".html")
 
         page.set_variants([])
         assert not page._export_btn.isEnabled()
@@ -948,3 +948,48 @@ def test_results_are_retained_and_exported_in_full(qapp, tmp_path):
         page.shutdown()
         page.close()
         page.deleteLater()
+
+
+def test_update_master_impl_writes_only_completed_target_values_and_keeps_results(qapp):
+    from autohub.core.impl_update import ImplOutcome
+
+    class Updater:
+        def __init__(self):
+            self.calls = []
+
+        def update(self, path, updates):
+            self.calls.append((path, updates))
+            return {part: ImplOutcome(len(update.values)) for part, update in updates.items()}
+
+    updater = Updater()
+    settings = Mock()
+    settings.load.return_value = {"master_sheet_path": "master.xlsx"}
+    session = Mock()
+    session.open_dashboard_page.return_value = True
+    session.export_job_xml.side_effect = [export_xml(target_parameters()), RuntimeError("boom")]
+    dialogs = FakeDialogs()
+    page = ui.ComparisonWidget(dialogs, ComparisonService(Mock(return_value=session)), settings, updater)
+    reloads = []
+    page.masterReloadRequested.connect(lambda: reloads.append(1))
+    try:
+        page.set_variants([variant(), variant("P2", link="https://webflow/app/ShowJob/2")])
+        assert not page._impl_btn.isEnabled()
+        page._select_all()
+        page._compare()
+        wait_done(page, qapp)
+        page._progress_dialog.close()
+        assert list(page._impl_updates) == ["P1"] and page._impl_btn.isEnabled()
+        rows = len(page._rows)
+        page._update_impl()
+        assert dialogs.confirmed and "P1" in dialogs.confirmed[0][1] and "P2" not in dialogs.confirmed[0][1]
+        timer = QElapsedTimer(); timer.start()
+        while page._running and timer.elapsed() < 5000:
+            qapp.processEvents(); QTest.qWait(5)
+        assert updater.calls[0][0] == "master.xlsx" and list(updater.calls[0][1]) == ["P1"]
+        assert reloads == [1] and dialogs.infos
+        page.set_variants([variant(), variant("P2", link="https://webflow/app/ShowJob/2")])
+        assert len(page._rows) == rows and page._impl_btn.isEnabled()
+        page.set_variants([variant()])
+        assert not page._rows and not page._impl_btn.isEnabled()
+    finally:
+        page.shutdown(); page.close(); page.deleteLater()

@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from autohub.core.impl_update import ImplOutcome, ImplUpdate
 from autohub.core.webflow_links import webflow_link_text
-from autohub.core.normalizers import needs_text_format, normalize_part_number
+from autohub.core.normalizers import clean_text, needs_text_format, normalize_part_number
 
 FIRST_DATA_ROW = 11  # rows above hold the template and examples
 
@@ -14,6 +15,7 @@ _ROWS_PER_VARIANT = 3  # request, implementation and comparison rows
 _INSERT_SHIFT_DOWN = -4121  # xlShiftDown
 _TEMPLATE_ROW_TYPES = {"REQ", "IMPL"}
 _PRESERVED_COLUMNS = {2, 4}  # No. and the REQ/IMPL mark
+SOFTWARE_PART_COLUMN = "AX"
 
 
 class VariantRowWriter:
@@ -123,6 +125,45 @@ class VariantRowWriter:
             cell.NumberFormat = "@"
             cell.Value = str(value)
         return len(numbers)
+
+    def write_impl_values(
+        self, request_rows: dict[str, list[int]], updates: dict[str, ImplUpdate]
+    ) -> dict[str, ImplOutcome]:
+        """Writes each variant's values into the IMPL row under its REQ row, after checking that row is the right one."""
+        worksheet = self._worksheet
+        outcomes: dict[str, ImplOutcome] = {}
+        plan = []
+        for part, update in updates.items():
+            rows = request_rows.get(normalize_part_number(part).upper(), [])
+            if len(rows) != 1:
+                outcomes[part] = ImplOutcome(error="No Master Sheet row found." if not rows else
+                                             "The variant appears in several Master Sheet rows.")
+                continue
+            impl_row = rows[0] + 1
+            software = normalize_part_number(worksheet.Range(f"{SOFTWARE_PART_COLUMN}{rows[0]}").Value).upper()
+            if clean_text(worksheet.Cells(impl_row, 4).Value).upper() != "IMPL":
+                outcomes[part] = ImplOutcome(error="The row below the request row is not an IMPL row.")
+            elif software != normalize_part_number(update.software).upper():
+                outcomes[part] = ImplOutcome(error="The Master Sheet SW Part Number no longer matches the comparison.")
+            else:
+                plan.append((part, impl_row, update))
+        for part, impl_row, update in plan:
+            written = skipped = 0
+            try:
+                for column, value in update.values.items():
+                    cell = worksheet.Range(f"{column}{impl_row}")
+                    if cell.HasFormula:
+                        skipped += 1
+                        continue
+                    if isinstance(value, str) and needs_text_format(value):
+                        cell.NumberFormat = "@"
+                    cell.Value = value
+                    written += 1
+            except Exception as error:
+                outcomes[part] = ImplOutcome(written, skipped, str(error))
+            else:
+                outcomes[part] = ImplOutcome(written, skipped)
+        return outcomes
 
     def write_values(self, row: int, values: dict) -> None:
         worksheet = self._worksheet

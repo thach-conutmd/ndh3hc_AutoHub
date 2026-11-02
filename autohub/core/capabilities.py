@@ -55,6 +55,18 @@ class WebFlowOptionsSink(Protocol):
 
 
 @runtime_checkable
+class MasterReloadSource(Protocol):
+    """Page asking for the Master Sheet to be reloaded, through a Qt ``Signal()``."""
+
+    masterReloadRequested: Any
+
+
+@runtime_checkable
+class MasterReloadSink(Protocol):
+    def reload_master(self) -> None: ...
+
+
+@runtime_checkable
 class SettingsSource(Protocol):
     settingsChanged: Any
 

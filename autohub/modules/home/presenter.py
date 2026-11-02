@@ -469,6 +469,12 @@ class HomePresenter:
         _logger.info("Load variants clicked (master=%s)", master_sheet_path)
         self._start_load(master_sheet_path, keep_rows)
 
+    def reload_variants(self) -> None:
+        """Reloads the Master Sheet without asking, keeping the rows (and edits) already in the table."""
+        master_sheet_path = self._valid_master_sheet(LOAD_TEXT)
+        if master_sheet_path is not None:
+            self._start_load(master_sheet_path, True)
+
     def auto_load_variants(self, progress: ProgressCallback = no_progress) -> None:
         """At startup, loads the remembered Master Sheet when it exists and has a supported layout.
 

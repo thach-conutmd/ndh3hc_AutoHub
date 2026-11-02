@@ -1,6 +1,7 @@
 """Master Sheet workbook session: opens the workbook and delegates row reading, writing and value building."""
 import os
 
+from autohub.core.impl_update import ImplOutcome, ImplUpdate
 from autohub.core.normalizers import normalize_part_number
 from autohub.core.records import EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
 from autohub.services.common.workbook import ExcelDocument
@@ -102,6 +103,15 @@ class MasterSheet(ExcelDocument):
         if save and written:
             self.save()
         return written
+
+    def write_impl_values(self, updates: dict[str, ImplUpdate], save: bool = True) -> dict[str, ImplOutcome]:
+        request_rows: dict[str, list[int]] = {}
+        for row, part in VariantRowReader(self._worksheet()).request_rows_with_part_number():
+            request_rows.setdefault(part.upper(), []).append(row)
+        outcomes = VariantRowWriter(self._worksheet(), self.excel_app).write_impl_values(request_rows, updates)
+        if save and any(outcome.written for outcome in outcomes.values()):
+            self.save()
+        return outcomes
 
     def load_variant_rows(self) -> list[dict]:
         return VariantRowReader(self._worksheet()).load_variant_rows()

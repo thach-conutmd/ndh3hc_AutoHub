@@ -172,6 +172,9 @@ class Mx17MasterSheet(MasterSheet):
             self.save()
         return written
 
+    def write_impl_values(self, updates, save: bool = True):
+        raise ValueError("This Master Sheet layout has no IMPL rows to update.")
+
     def save_variant_rows(self, variants: list[dict], save: bool = True) -> list[dict]:
         """A "_row" entry updates that main sheet row (and its Info row); otherwise a row is appended to both."""
         self._require_writable()

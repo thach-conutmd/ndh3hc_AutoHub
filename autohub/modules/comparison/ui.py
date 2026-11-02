@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
+from autohub.core.impl_update import ImplUpdate
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
 from autohub.core.webflow_links import is_link
@@ -23,8 +24,9 @@ from autohub.ui.hover_cursor import HoverCursor
 from autohub.ui.webflow_link_delegate import WebFlowLinkDelegate, format_webflow_link_item
 
 from .comparison import ComparisonRow, Status
-from .export import export_rows
+from .impl_update import MasterImplUpdater, build_impl_update
 from .matching import validate_link
+from .report import build_report
 from .progress import ComparisonProgressDialog
 from .service import ComparisonService, VariantResult
 from .xml_parser import ParameterValue
@@ -71,15 +73,20 @@ class _CenteredCheckDelegate(QStyledItemDelegate):
 
 class ComparisonWidget(QWidget):
     _progress = Signal(int, str, str)
+    #: asks Home to reload the Master Sheet after IMPL values were written.
+    masterReloadRequested = Signal()
 
     def __init__(
         self, dialogs: Dialogs | None = None, service: ComparisonService | None = None,
-        settings: SettingsStore | None = None,
+        settings: SettingsStore | None = None, impl_updater: MasterImplUpdater | None = None,
     ):
         super().__init__()
         self._dialogs = dialogs or QtDialogs(self)
         self._service = service
         self._settings = settings
+        self._impl_updater = impl_updater
+        self._impl_updates: dict[str, ImplUpdate] = {}
+        self._keep_results = False
         self._variants: list[dict] = []
         self._rows: list[tuple[str, str, ComparisonRow]] = []
         self._worker: FunctionWorker | None = None
@@ -125,14 +132,17 @@ class ComparisonWidget(QWidget):
         self._variants_table.setMaximumHeight(160)
         self._select_all_btn = QPushButton("Select all")
         self._clear_selection_btn = QPushButton("Clear selection")
-        self._export_btn = QPushButton("Export")
+        self._export_btn = QPushButton("Export Comparison")
         self._export_btn.setEnabled(False)
+        self._impl_btn = QPushButton("Update Master IMPL")
+        self._impl_btn.setEnabled(False)
         self._compare_btn = QPushButton("Compare selected")
         sources = QHBoxLayout()
         sources.addWidget(self._select_all_btn)
         sources.addWidget(self._clear_selection_btn)
         sources.addStretch(1)
         sources.addWidget(self._export_btn)
+        sources.addWidget(self._impl_btn)
         sources.addWidget(self._compare_btn)
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search parameters, values, variants or status...")
@@ -180,6 +190,7 @@ class ComparisonWidget(QWidget):
         self._variants_table.itemChanged.connect(self._selection_changed)
         self._compare_btn.clicked.connect(self._compare)
         self._export_btn.clicked.connect(self._export)
+        self._impl_btn.clicked.connect(self._update_impl)
         self._search.textChanged.connect(self._apply_filters)
         self._variant_filter.currentIndexChanged.connect(self._apply_filters)
         self._status_filter.currentTextChanged.connect(self._apply_filters)
@@ -188,8 +199,9 @@ class ComparisonWidget(QWidget):
         self._refresh_variants()
 
     def set_variants(self, variants: list[dict]) -> None:
+        keep, self._keep_results = self._keep_results, False
         self._variants = deepcopy(variants)
-        self._refresh_variants()
+        self._refresh_variants(keep_results=keep)
 
     def set_webflow_links(self, links: dict[str, str]) -> None:
         for variant in self._variants:
@@ -205,7 +217,7 @@ class ComparisonWidget(QWidget):
                     variant.setdefault("hardware", {})[key] = values[column]
         self._refresh_variants()
 
-    def _refresh_variants(self) -> None:
+    def _refresh_variants(self, keep_results: bool = False) -> None:
         previous = {
             self._variants_table.item(row, 0).data(Qt.UserRole + 1): (
                 self._variants_table.item(row, 0).checkState(),
@@ -240,7 +252,10 @@ class ComparisonWidget(QWidget):
                     format_webflow_link_item(item, str(text), editable=column == 3)
                 self._variants_table.setItem(row, column, item)
         self._variants_table.blockSignals(False)
-        self._clear_results()
+        if keep_results:
+            self._source_changed()
+        else:
+            self._clear_results()
 
     def _selected_rows(self) -> list[int]:
         return [
@@ -277,6 +292,7 @@ class ComparisonWidget(QWidget):
     def _clear_results(self) -> None:
         self._revision += 1
         self._rows = []
+        self._impl_updates = {}
         self._base_variants = set()
         self._table.setRowCount(0)
         self._header_filter.reset()
@@ -303,21 +319,82 @@ class ComparisonWidget(QWidget):
     def _export(self) -> None:
         if self._running or not self._rows:
             return
-        default = f"Comparison_Result_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
-        path = self._dialogs.save_file("Export comparison result", default, "Excel Files (*.xlsx)")
+        now = datetime.now()
+        path = self._dialogs.save_file(
+            "Export comparison result", f"Comparison_Result_{now:%Y%m%d_%H%M%S}.html", "HTML Files (*.html)"
+        )
         if not path:
             return
-        try:
-            export_rows(path, _TARGET_HEADERS, [
+        report = build_report(
+            _TARGET_HEADERS,
+            [
                 (part, row.parameter, _display(row.master),
                  _display(row.base) if (part, software) in self._base_variants else "",
                  _display(row.target), row.status.value)
                 for part, software, row in self._rows
-            ])
+            ],
+            [row.deviation for _, _, row in self._rows],
+            list(dict.fromkeys(part for part, _, _ in self._rows)),
+            now,
+        )
+        try:
+            with open(path, "w", encoding="utf-8") as file:
+                file.write(report)
         except OSError as error:
             self._dialogs.error("Comparison", f"Could not export the comparison result: {error}")
             return
         self._dialogs.info("Comparison", f"Comparison result exported to {path}.")
+
+    def _update_impl(self) -> None:
+        if self._running or not self._impl_updates or self._impl_updater is None:
+            return
+        path = str(self._settings.load().get("master_sheet_path", "")).strip() if self._settings is not None else ""
+        if not path:
+            self._dialogs.error("Update Master IMPL", "Load a Master Sheet on Home first.")
+            return
+        updates = dict(self._impl_updates)
+        listing = "\n".join(f"  {variant} ({len(update.values)} values)" for variant, update in updates.items())
+        if not self._dialogs.confirm(
+            "Update Master IMPL",
+            f"Write the exported Target values into the IMPL rows of {len(updates)} compared "
+            f"variant(s) in the Master Sheet?\n\n{listing}\n\nBase values are not written.",
+        ):
+            return
+        self._set_running(True)
+        self._summary.setText("Updating Master IMPL values...")
+        self._worker = FunctionWorker(lambda: self._impl_updater.update(path, updates), self)
+        self._worker.finished_ok.connect(self._finish_impl)
+        self._worker.finished_error.connect(self._fail_impl)
+        self._worker.start()
+
+    def _end_impl_worker(self) -> None:
+        if self._worker is not None:
+            self._worker.wait()
+            self._worker.deleteLater()
+            self._worker = None
+        self._set_running(False)
+
+    def _finish_impl(self, outcomes: dict) -> None:
+        self._end_impl_worker()
+        written = sum(bool(outcome.written) and not outcome.error for outcome in outcomes.values())
+        problems = [f"{variant}: {outcome.error}" for variant, outcome in outcomes.items() if outcome.error]
+        skipped = sum(outcome.skipped for outcome in outcomes.values())
+        text = f"Master IMPL updated for {written} of {len(outcomes)} variant(s)."
+        if skipped:
+            text += f" {skipped} formula cell(s) were left unchanged."
+        self._summary.setText(text)
+        if any(outcome.written for outcome in outcomes.values()):
+            self._keep_results = True
+            self.masterReloadRequested.emit()
+        if problems:
+            self._dialogs.error("Update Master IMPL", text + "\n\n" + "\n".join(problems))
+        else:
+            self._dialogs.info("Update Master IMPL", text)
+
+    def _fail_impl(self, error: str) -> None:
+        self._end_impl_worker()
+        self._summary.setText(f"Master IMPL update failed: {error}")
+        self._dialogs.error("Update Master IMPL", error)
 
     def _set_running(self, running: bool) -> None:
         self._running = running
@@ -326,6 +403,7 @@ class ComparisonWidget(QWidget):
         self._clear_selection_btn.setEnabled(not running and bool(self._selected_rows()))
         self._compare_btn.setEnabled(not running and bool(self._selected_rows()))
         self._export_btn.setEnabled(not running and bool(self._rows))
+        self._impl_btn.setEnabled(not running and bool(self._impl_updates))
 
     def _compare(self) -> None:
         if self._running:
@@ -405,6 +483,10 @@ class ComparisonWidget(QWidget):
         if rows:
             self._rows = rows
             self._base_variants = self._run_base
+            self._impl_updates = {
+                result.variant: build_impl_update(result.software, result.rows)
+                for result in results if result.rows and not result.error and not result.cancelled
+            }
             self._fill_status_filter()
             self._render_results()
         self._set_running(False)
