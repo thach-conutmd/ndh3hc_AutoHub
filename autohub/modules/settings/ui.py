@@ -1,7 +1,7 @@
 """Settings page for theme, logging, WebFlow tracing and retry attempts."""
 from __future__ import annotations
 
-from PySide6.QtCore import QUrl, Signal
+from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
@@ -29,6 +29,7 @@ from autohub.core.settings_keys import (
     DEFAULT_XML_COMPARISON_EXCLUSIONS,
     XML_COMPARISON_EXCLUSIONS_KEY,
     XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY,
+    XML_COMPARISON_DISABLED_EXCLUSIONS_KEY,
 )
 from autohub.modules.comparison.xml_parser import comparison_exclusions
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode, set_muted
@@ -152,7 +153,11 @@ class SettingsWidget(QWidget):
         exclusion_actions.addStretch(1)
         exclusions_layout.addLayout(exclusion_actions)
         try:
-            self._restore_exclusions(comparison_exclusions(settings.load()))
+            saved = settings.load()
+            self._restore_exclusions(
+                comparison_exclusions(saved, enabled_only=False),
+                comparison_exclusions({XML_COMPARISON_EXCLUSIONS_KEY: saved.get(XML_COMPARISON_DISABLED_EXCLUSIONS_KEY, [])}),
+            )
         except ValueError as error:
             self._dialogs.error("XML Comparison Exclusions", str(error))
             self._restore_exclusions(("",))
@@ -180,6 +185,7 @@ class SettingsWidget(QWidget):
                               "A trailing / excludes an entire hierarchy. Excluded rows are not compared or shown. "
                               "Apply to both modes, or only Master Sheet Compare using the option below. "
                               "An empty list excludes nothing. "
+                              "Uncheck a row to keep it saved without excluding it. "
                               "Changes apply to new comparisons after Apply changes.",
         }
         for tab_name, groups in (
@@ -252,11 +258,20 @@ class SettingsWidget(QWidget):
     def _exclusion_values(self) -> tuple[str, ...]:
         return tuple(self._exclusions.item(row, 0).text().strip() for row in range(self._exclusions.rowCount()))
 
-    def _add_exclusion(self, value: str) -> None:
+    def _disabled_exclusion_values(self) -> tuple[str, ...]:
+        return tuple(
+            self._exclusions.item(row, 0).text().strip()
+            for row in range(self._exclusions.rowCount())
+            if self._exclusions.item(row, 0).checkState() != Qt.Checked
+        )
+
+    def _add_exclusion(self, value: str, enabled: bool = True) -> None:
         blocked = self._exclusions.blockSignals(True)
         row = self._exclusions.rowCount()
         self._exclusions.insertRow(row)
         item = QTableWidgetItem(value)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked if enabled else Qt.Unchecked)
         self._exclusions.setItem(row, 0, item)
         edit = QPushButton("Edit")
         edit.clicked.connect(lambda: self._exclusions.editItem(item))
@@ -275,11 +290,11 @@ class SettingsWidget(QWidget):
         self._exclusions.removeRow(item.row())
         self._refresh_apply()
 
-    def _restore_exclusions(self, values) -> None:
+    def _restore_exclusions(self, values, disabled=()) -> None:
         self._exclusions.blockSignals(True)
         self._exclusions.setRowCount(0)
         for value in values:
-            self._add_exclusion(value)
+            self._add_exclusion(value, value not in disabled)
         self._exclusions.blockSignals(False)
         if hasattr(self, "_applied"):
             self._refresh_apply()
@@ -307,6 +322,7 @@ class SettingsWidget(QWidget):
             self._latest.currentData(), self._show_link.isChecked(),
             *self._creation.values().values(), self._exclusions_master_only.isChecked(),
             self._a2l_comp_id_symbol.text().strip(),
+            self._disabled_exclusion_values(),
             self._exclusion_values(),
         )
 
@@ -336,19 +352,20 @@ class SettingsWidget(QWidget):
             self._retry.setChecked(self._applied[4])
             self._latest.setCurrentIndex(self._latest.findData(self._applied[5]))
             self._show_link.setChecked(self._applied[6])
-            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:-3])))
-            self._exclusions_master_only.setChecked(self._applied[-3])
-            self._a2l_comp_id_symbol.setText(self._applied[-2])
-            self._restore_exclusions(self._applied[-1])
+            self._creation.restore(dict(zip(self._creation.values(), self._applied[7:-4])))
+            self._exclusions_master_only.setChecked(self._applied[-4])
+            self._a2l_comp_id_symbol.setText(self._applied[-3])
+            self._restore_exclusions(self._applied[-1], self._applied[-2])
         return True
 
     def _on_apply(self) -> None:
         try:
             exclusions = comparison_exclusions({XML_COMPARISON_EXCLUSIONS_KEY: self._exclusion_values()})
+            disabled = comparison_exclusions({XML_COMPARISON_EXCLUSIONS_KEY: self._disabled_exclusion_values()})
         except ValueError as error:
             self._dialogs.error("XML Comparison Exclusions", str(error))
             return
-        self._restore_exclusions(exclusions)
+        self._restore_exclusions(exclusions, disabled)
         mode, enabled, record, attempts, retry, latest, show_link = self._current()[:7]
         values = {
             THEME_KEY: mode, LOGGING_ENABLED_KEY: enabled, RECORD_PAGES_KEY: record,
@@ -358,11 +375,14 @@ class SettingsWidget(QWidget):
             **self._creation.values(),
             XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY: self._exclusions_master_only.isChecked(),
             A2L_COMP_ID_SYMBOL_KEY: self._a2l_comp_id_symbol.text().strip(),
+            XML_COMPARISON_DISABLED_EXCLUSIONS_KEY: list(disabled),
             XML_COMPARISON_EXCLUSIONS_KEY: list(exclusions),
         }
         changes = {
             key: values[key] for key, previous in zip(values, self._applied)
-            if (tuple(values[key]) if key == XML_COMPARISON_EXCLUSIONS_KEY else values[key]) != previous
+            if (tuple(values[key]) if key in (
+                XML_COMPARISON_EXCLUSIONS_KEY, XML_COMPARISON_DISABLED_EXCLUSIONS_KEY,
+            ) else values[key]) != previous
         }
         self._settings.update(**values)
         set_logging_enabled(enabled)

@@ -433,6 +433,48 @@ def test_xml_exclusion_settings_add_edit_delete_restore_and_save(qapp):
     assert settings.load()["xml_comparison_exclusions"] == ["Files/", "Notes/"]
 
 
+def test_exclusion_checkboxes_persist_edit_delete_and_restore(qapp):
+    from autohub.modules.comparison.xml_parser import comparison_exclusions
+
+    settings = MemorySettings()
+    page = SettingsWidget(settings)
+    assert page._exclusions.item(0, 0).checkState() == Qt.Checked
+    page._exclusions.item(0, 0).setCheckState(Qt.Unchecked)
+    page._exclusions.item(0, 0).setText(" Custom / ")
+    assert page._apply.isEnabled()
+    page._apply.click()
+    assert settings.load()["xml_comparison_exclusions"] == ["Custom/", "Notes/"]
+    assert settings.load()["xml_comparison_disabled_exclusions"] == ["Custom/"]
+    assert comparison_exclusions(settings.load()) == ("Notes/",)
+    restored = SettingsWidget(settings)
+    assert restored._exclusions.item(0, 0).checkState() == Qt.Unchecked
+    assert not restored._apply.isEnabled()
+    restored._exclusions.item(0, 0).setCheckState(Qt.Checked)
+    restored._apply.click()
+    assert comparison_exclusions(settings.load()) == ("Custom/", "Notes/")
+    restored._exclusions.item(0, 0).setCheckState(Qt.Unchecked)
+    restored._exclusions.cellWidget(0, 2).click()
+    restored._apply.click()
+    assert settings.load()["xml_comparison_disabled_exclusions"] == []
+    restored._add_exclusion_btn.click()
+    assert restored._exclusions.item(1, 0).checkState() == Qt.Checked
+    restored._restore_exclusions_btn.click()
+    assert restored._exclusion_values() == ("Files/", "Notes/")
+    assert restored._disabled_exclusion_values() == ()
+
+
+@pytest.mark.parametrize("answer", [True, False, None])
+def test_exclusion_checkboxes_follow_apply_discard_cancel(qapp, answer):
+    from tests.fakes import FakeDialogs
+
+    settings = MemorySettings()
+    page = SettingsWidget(settings, FakeDialogs(table_answer=answer))
+    page._exclusions.item(0, 0).setCheckState(Qt.Unchecked)
+    assert page.confirm_leave() is (answer is not None)
+    assert settings.load().get("xml_comparison_disabled_exclusions") == (["Files/"] if answer else None)
+    assert page._disabled_exclusion_values() == (() if answer is False else ("Files/",))
+
+
 def test_exclusion_scope_is_saved_loaded_and_emitted(qapp):
     settings = MemorySettings()
     page = SettingsWidget(settings)

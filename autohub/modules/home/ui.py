@@ -99,7 +99,7 @@ class HomeWidget(QWidget):
         table_header.addWidget(self._create_btn)
         self._update_btn = QPushButton(UPDATE_TEXT)
         self._update_btn.setEnabled(False)
-        self._clear_btn = QPushButton("Clear table")
+        self._clear_btn = QPushButton("Clear Data")
         self._clear_btn.setEnabled(False)
         self._delete_btn = QPushButton("Delete selected")
         self._delete_btn.setToolTip("Delete the variants of the selected rows (also from the Master Sheet after Update).")

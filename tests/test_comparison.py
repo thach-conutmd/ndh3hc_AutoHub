@@ -143,6 +143,21 @@ def test_parser_accepts_namespaces_and_utf16():
     assert parse_xml(data.encode("utf-16")) == {"General/Power": "93"}
 
 
+def test_disabled_exclusions_are_saved_but_not_applied():
+    from autohub.modules.comparison.xml_parser import comparison_exclusions
+
+    settings = {
+        "xml_comparison_exclusions": [" Files / ", "Notes/"],
+        "xml_comparison_disabled_exclusions": ["Files/"],
+    }
+    assert comparison_exclusions(settings) == ("Notes/",)
+    assert comparison_exclusions(settings, manual=True) == ("Notes/",)
+    assert comparison_exclusions(settings, enabled_only=False) == ("Files/", "Notes/")
+    settings["xml_comparison_exclusions_master_only"] = True
+    assert comparison_exclusions(settings) == ("Notes/",)
+    assert comparison_exclusions(settings, manual=True) == ()
+
+
 @pytest.mark.parametrize("data", [
     b"", b"<html>not an export</html>", b"<Job><Fields/></Job>", b"<Job><Fields>",
     b'<Job><Fields><Field Group="General">no name</Field></Fields></Job>',

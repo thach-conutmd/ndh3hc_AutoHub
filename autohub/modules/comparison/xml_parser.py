@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from autohub.core.settings_keys import (
     DEFAULT_XML_COMPARISON_EXCLUSIONS, XML_COMPARISON_EXCLUSIONS_KEY,
     XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY,
+    XML_COMPARISON_DISABLED_EXCLUSIONS_KEY,
 )
 
 ParameterValue = str | tuple[str, ...] | None
@@ -22,13 +23,21 @@ def normalize_parameter_path(path: str) -> str:
     return "/".join(quote(unquote(segment.strip()), safe=" _-().[]") for segment in path.strip().split("/"))
 
 
-def comparison_exclusions(settings: Mapping, *, manual: bool = False) -> tuple[str, ...]:
+def comparison_exclusions(settings: Mapping, *, manual: bool = False, enabled_only: bool = True) -> tuple[str, ...]:
     if manual and settings.get(XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY, False):
         return ()
     values = settings.get(XML_COMPARISON_EXCLUSIONS_KEY, DEFAULT_XML_COMPARISON_EXCLUSIONS)
-    if not isinstance(values, (list, tuple)) or any(not isinstance(value, str) or not value.strip() for value in values):
-        raise ValueError("XML comparison exclusions must be a list of non-empty path prefixes.")
-    return tuple(dict.fromkeys(normalize_parameter_path(value) for value in values))
+    disabled = settings.get(XML_COMPARISON_DISABLED_EXCLUSIONS_KEY, [])
+    for entries in (values, disabled):
+        if not isinstance(entries, (list, tuple)) or any(
+            not isinstance(value, str) or not value.strip() for value in entries
+        ):
+            raise ValueError("XML comparison exclusions must be a list of non-empty path prefixes.")
+    disabled_paths = {normalize_parameter_path(value) for value in disabled} if enabled_only else set()
+    return tuple(
+        path for path in dict.fromkeys(normalize_parameter_path(value) for value in values)
+        if path not in disabled_paths
+    )
 
 
 def comparison_parameters(
