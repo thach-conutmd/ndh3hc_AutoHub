@@ -1,6 +1,9 @@
 """WebFlow connection and ECR settings form embedded in the Settings page."""
 from __future__ import annotations
 
+import logging
+import os
+import re
 from datetime import datetime
 
 from PySide6.QtCore import Qt
@@ -10,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from autohub.config import LOG_DIR
+from autohub.core.com import com_session
 from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import (
     DEFAULT_WEBFLOW_MAX_ATTEMPTS, RECORD_PAGES_KEY, WEBFLOW_MAX_ATTEMPTS_KEY, WEBFLOW_RETRY_ENABLED_KEY,
@@ -21,6 +25,7 @@ _DEFAULTS = {
     "tool_version": "PD W0002 (Productive)",
     "routing": "Honda_MG1CS022",
 }
+_logger = logging.getLogger(__name__)
 
 CHANGE_REASON_OPTIONS = (
     "Correction of a situation (e.g. out of audits, legal requirements, specification)",
@@ -34,6 +39,70 @@ def _trace_dir() -> str:
     return str(LOG_DIR / "webflow_trace" / datetime.now().strftime("%Y%m%d_%H%M%S"))
 
 
+def _query_active_directory(username: str, domain: str) -> tuple[str, str] | None:
+    """Return the directory display name and department for the current domain account."""
+    labels = domain.rstrip(".").split(".")
+    if not labels or any(
+        not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
+        for label in labels
+    ):
+        raise ValueError("USERDNSDOMAIN must be a valid DNS domain name.")
+    base_dn = ",".join(f"DC={label}" for label in labels)
+    escaped_username = (
+        username.replace("\\", r"\5c")
+        .replace("*", r"\2a")
+        .replace("(", r"\28")
+        .replace(")", r"\29")
+        .replace("\0", r"\00")
+    )
+    ldap_filter = f"(&(objectCategory=person)(objectClass=user)(sAMAccountName={escaped_username}))"
+
+    import win32com.client
+
+    with com_session():
+        connection = win32com.client.Dispatch("ADODB.Connection")
+        recordset = None
+        try:
+            connection.Provider = "ADsDSOObject"
+            connection.Open("Active Directory Provider")
+            command = win32com.client.Dispatch("ADODB.Command")
+            command.ActiveConnection = connection
+            command.CommandText = (
+                f"<LDAP://{base_dn}>;{ldap_filter};displayName,department,cn;subtree"
+            )
+            result = command.Execute()
+            recordset = result[0] if isinstance(result, tuple) else result
+            if recordset.EOF:
+                return None
+            fields = recordset.Fields
+            display_name = fields.Item("displayName").Value or fields.Item("cn").Value or ""
+            department = fields.Item("department").Value or ""
+            return str(display_name).strip(), str(department).strip()
+        finally:
+            try:
+                if recordset is not None:
+                    recordset.Close()
+            finally:
+                connection.Close()
+
+
+def _change_engineer_from_environment(fallback: str) -> str:
+    username = os.environ.get("USERNAME", "").strip()
+    domain = os.environ.get("USERDNSDOMAIN", "").strip()
+    if not username or not domain:
+        return fallback
+    try:
+        profile = _query_active_directory(username, domain)
+    except Exception:
+        _logger.warning("Could not load Change engineer details from Active Directory.", exc_info=True)
+        return fallback
+    if profile is None or not profile[0]:
+        _logger.warning("Active Directory did not return a full name for USERNAME=%s.", username)
+        return fallback
+    full_name, department = profile
+    return f"{full_name} ({department})" if department else full_name
+
+
 def load_config(settings: SettingsStore) -> WebFlowConfig:
     saved = settings.load()
     return WebFlowConfig(
@@ -42,7 +111,9 @@ def load_config(settings: SettingsStore) -> WebFlowConfig:
         tool_version=str(saved.get("tool_version", _DEFAULTS["tool_version"])).strip(),
         routing=str(saved.get("routing", _DEFAULTS["routing"])).strip(),
         trace_dir=_trace_dir() if saved.get(RECORD_PAGES_KEY, True) else "",
-        change_engineer=str(saved.get("change_engineer", "")).strip(),
+        change_engineer=_change_engineer_from_environment(
+            str(saved.get("change_engineer", "")).strip()
+        ),
         cost_allocation=str(saved.get("cost_allocation", "")).strip(),
         change_reason=str(saved.get("change_reason", "")).strip(),
         max_attempts=saved.get(WEBFLOW_MAX_ATTEMPTS_KEY, DEFAULT_WEBFLOW_MAX_ATTEMPTS),
@@ -57,6 +128,9 @@ class CreationSettingsForm(QWidget):
         self._tool_version = QLineEdit(config.tool_version)
         self._routing = QLineEdit(config.routing)
         self._change_engineer = QLineEdit(config.change_engineer)
+        self._change_engineer.setToolTip(
+            "Automatically loaded from the current Windows Active Directory profile when available."
+        )
         self._cost_allocation = QLineEdit(config.cost_allocation)
         self._reason_popup = QDialog(self, Qt.Popup)
         self._reason_search = QLineEdit()
