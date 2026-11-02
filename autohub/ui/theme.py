@@ -79,8 +79,27 @@ QPushButton {{
 }}
 QPushButton:hover {{ background-color: {button_hover}; }}
 QPushButton:pressed {{ background-color: {button_pressed}; }}
-QPushButton:checked {{ background-color: {accent}; color: white; border: 1px solid {accent}; font-weight: 600; }}
+QPushButton[checkable="true"] {{
+    background-color: {sidebar_bg}; color: {sidebar_text}; border-color: {border};
+}}
+QPushButton[checkable="true"]:hover:!checked {{ background-color: {sidebar_hover}; }}
+QPushButton[checkable="true"]:checked, QPushButton[checkable="true"]:checked:hover {{
+    background-color: {accent}; color: white; border-color: {accent};
+    border-bottom-color: {link}; font-weight: 600;
+}}
 QPushButton:disabled {{ background-color: {disabled_button}; color: {disabled_text}; }}
+QPushButton[checkable="true"]:disabled, QPushButton[checkable="true"]:disabled:hover {{
+    background-color: {disabled_button}; color: {disabled_text}; border-color: {border};
+}}
+QTabBar::tab {{
+    background-color: {sidebar_bg}; color: {sidebar_text};
+    border: 1px solid {border}; padding: 5px 11px;
+}}
+QTabBar::tab:hover:!selected {{ background-color: {sidebar_hover}; }}
+QTabBar::tab:selected, QTabBar::tab:selected:hover {{
+    background-color: {accent}; color: white; border-color: {accent}; border-bottom-color: {link};
+}}
+QTabBar::tab:disabled {{ background-color: {disabled_button}; color: {disabled_text}; }}
 QScrollBar:vertical {{ background: transparent; width: 10px; margin: 0; }}
 QScrollBar::handle:vertical {{ background: {scrollbar}; border-radius: 5px; min-height: 20px; }}
 QScrollBar::add-line, QScrollBar::sub-line {{ height: 0; }}
@@ -92,8 +111,13 @@ QScrollBar::add-line, QScrollBar::sub-line {{ height: 0; }}
 }}
 #toggleButton:hover {{ color: {sidebar_title}; background-color: {sidebar_hover}; }}
 #sidebarList {{ background-color: transparent; border: none; outline: none; font-size: 13px; color: {sidebar_text}; }}
-#sidebarList::item {{ height: 36px; border-radius: 6px; margin: 2px 8px; padding-left: 6px; }}
-#sidebarList::item:selected {{ background-color: {sidebar_selected}; color: {sidebar_selected_text}; }}
+#sidebarList::item {{
+    height: 36px; border-radius: 6px; margin: 2px 8px; padding-left: 4px;
+    background-color: {sidebar_bg}; color: {sidebar_text}; border-left: 2px solid {sidebar_bg};
+}}
+#sidebarList::item:selected {{
+    background-color: {accent}; color: white; border-left-color: {link};
+}}
 #sidebarList::item:hover:!selected {{ background-color: {sidebar_hover}; }}
 """
 

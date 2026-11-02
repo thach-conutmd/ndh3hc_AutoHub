@@ -1,8 +1,142 @@
-from PySide6.QtWidgets import QApplication, QWidget
+import pytest
+from PySide6.QtCore import QCoreApplication, QEvent, QPoint, Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QPushButton, QTabBar, QWidget
 
 from autohub.modules.settings.ui import SettingsWidget
 from autohub.ui.theme import DARK, LIGHT, apply_theme, is_dark, normalize_theme_mode
 from tests.fakes import MemorySettings
+
+
+@pytest.mark.parametrize("mode,colors", [("dark", DARK), ("light", LIGHT)])
+def test_selectable_buttons_have_distinct_states_without_resizing(qapp, mode, colors):
+    apply_theme(qapp, mode)
+    window = QWidget()
+    layout = QHBoxLayout(window)
+    action = QPushButton("Mode")
+    selectable = QPushButton("Mode")
+    selectable.setCheckable(True)
+    layout.addWidget(action)
+    layout.addWidget(selectable)
+    window.show()
+    try:
+        qapp.processEvents()
+        QTest.mouseMove(window, QPoint(1, 1))
+        qapp.processEvents()
+        original_size = selectable.sizeHint()
+        assert original_size == action.sizeHint()
+
+        def background(button):
+            return button.grab().toImage().pixelColor(8, 8).name()
+
+        assert background(action) == colors.button_bg
+        assert background(selectable) == colors.sidebar_bg
+        QTest.mouseMove(selectable, QPoint(8, 8))
+        qapp.processEvents()
+        assert background(selectable) == colors.sidebar_hover
+        selectable.click()
+        assert selectable.isChecked()
+        assert background(selectable) == colors.accent
+        image = selectable.grab().toImage()
+        assert image.pixelColor(selectable.width() // 2, selectable.height() - 1).name() == colors.link
+        assert any(
+            image.pixelColor(x, y).lightness() > 250
+            for x in range(14, image.width() - 14) for y in range(8, image.height() - 8)
+        )
+        assert selectable.sizeHint() == original_size
+        selectable.setEnabled(False)
+        assert background(selectable) == colors.disabled_button
+        selectable.setEnabled(True)
+        selectable.click()
+        assert not selectable.isChecked()
+        assert background(selectable) == colors.sidebar_hover
+    finally:
+        window.close()
+        window.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        apply_theme(qapp, "dark")
+
+
+@pytest.mark.parametrize("mode,colors", [("dark", DARK), ("light", LIGHT)])
+def test_native_tabs_keep_geometry_and_show_active_hover_and_disabled_states(qapp, mode, colors):
+    qapp.setStyleSheet("")
+    tabs = QTabBar()
+    tabs.setDocumentMode(True)
+    tabs.setExpanding(False)
+    for label in ("General", "Home", "Creation", "Diagnostics"):
+        tabs.addTab(label)
+    native_sizes = [tabs.tabRect(i).size() for i in range(tabs.count())]
+    apply_theme(qapp, mode)
+    tabs.show()
+    try:
+        qapp.processEvents()
+        QTest.mouseMove(tabs, tabs.tabRect(0).center())
+        qapp.processEvents()
+        assert [tabs.tabRect(i).size() for i in range(tabs.count())] == native_sizes
+
+        def background(index):
+            rect = tabs.tabRect(index)
+            return tabs.grab().toImage().pixelColor(rect.left() + 6, rect.top() + 6).name()
+
+        assert background(0) == colors.accent
+        assert background(1) == colors.sidebar_bg
+        QTest.mouseMove(tabs, tabs.tabRect(1).center())
+        qapp.processEvents()
+        assert background(1) == colors.sidebar_hover
+        QTest.mouseClick(tabs, Qt.LeftButton, pos=tabs.tabRect(1).center())
+        assert tabs.currentIndex() == 1 and background(1) == colors.accent
+        rect = tabs.tabRect(1)
+        assert tabs.grab().toImage().pixelColor(rect.center().x(), rect.bottom()).name() == colors.link
+        tabs.setTabEnabled(2, False)
+        assert background(2) == colors.disabled_button
+        assert [tabs.tabRect(i).size() for i in range(tabs.count())] == native_sizes
+    finally:
+        tabs.close()
+        tabs.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        apply_theme(qapp, "dark")
+
+
+def test_navigation_groups_share_styling_and_follow_live_theme_changes(qapp):
+    from autohub.modules.comparison.ui import ComparisonWidget
+    from autohub.ui.sidebar import Sidebar
+    from tests.fakes import FakeDialogs
+
+    comparison = ComparisonWidget(FakeDialogs())
+    settings = SettingsWidget(MemorySettings())
+    sidebar = Sidebar([(None, "Home"), (None, "Settings")], pinned_bottom=[1])
+    buttons = [
+        (comparison._master_mode_btn, comparison._manual_mode_btn),
+        tuple(settings._creation._environment_buttons.buttons()),
+    ]
+    try:
+        for mode, colors in (("dark", DARK), ("light", LIGHT), ("dark", DARK)):
+            apply_theme(qapp, mode)
+            for first, second in buttons:
+                first.setChecked(True)
+                for button, expected in ((first, colors.accent), (second, colors.sidebar_bg)):
+                    button.ensurePolished()
+                    assert button.grab().toImage().pixelColor(8, 8).name() == expected
+                second.click()
+                assert second.isChecked() and not first.isChecked()
+                assert second.grab().toImage().pixelColor(8, 8).name() == colors.accent
+            sidebar.show()
+            qapp.processEvents()
+            sidebar.select_module(0)
+            rect = sidebar._list.visualItemRect(sidebar._list.item(0))
+            image = sidebar._list.viewport().grab().toImage()
+            assert image.pixelColor(rect.left() + 14, rect.top() + 8).name() == colors.accent
+            assert rect.height() == 40
+            sidebar.select_module(1)
+            image = sidebar._list.viewport().grab().toImage()
+            assert image.pixelColor(rect.left() + 14, rect.top() + 8).name() == colors.sidebar_bg
+    finally:
+        comparison.shutdown()
+        for widget in (comparison, settings, sidebar):
+            widget.close()
+            widget.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        apply_theme(qapp, "dark")
 
 
 def test_mode_resolution():
