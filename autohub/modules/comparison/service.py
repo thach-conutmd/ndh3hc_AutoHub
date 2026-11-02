@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Protocol
 
+from autohub.core.settings_keys import DEFAULT_XML_COMPARISON_EXCLUSIONS
+
 from .comparison import ComparisonRow, compare_parameters, compare_xml_datasets
 from .matching import (
     master_parameters, match_variant, validate_export_link, validate_link, variant_identity,
@@ -24,6 +26,7 @@ class _ComparisonCancelled(Exception):
 def compare_xml_files(
     base_path: str, target_paths: str | Sequence[str], progress: Progress = lambda *_: None,
     cancelled: Callable[[], bool] = lambda: False,
+    *, exclusions: Sequence[str] = DEFAULT_XML_COMPARISON_EXCLUSIONS,
 ) -> list[ComparisonRow] | None:
     """Read local exports without a browser or Master Sheet; never write either source."""
     targets = [target_paths] if isinstance(target_paths, str) else list(target_paths)
@@ -37,7 +40,7 @@ def compare_xml_files(
     def read(label: str, path: str) -> ParameterMap:
         try:
             with open(path, "rb") as source:
-                return comparison_parameters(parse_xml(source.read(MAX_XML_BYTES + 1)))
+                return comparison_parameters(parse_xml(source.read(MAX_XML_BYTES + 1)), exclusions)
         except (OSError, ValueError) as error:
             raise ValueError(f"{label} XML: {error} ({Path(path).name})") from error
 
@@ -66,6 +69,7 @@ def compare_xml_files(
     try:
         rows = compare_xml_datasets(
             base, datasets(), on_target=lambda index: progress(index, "Completed", ""),
+            exclusions=exclusions,
         )
     except _ComparisonCancelled:
         cancel()
@@ -101,6 +105,7 @@ class ComparisonService:
         self, selected: list[dict], master_variants: list[dict],
         connection: dict | None = None, progress: Progress = lambda *_: None,
         cancelled: Callable[[], bool] = lambda: False,
+        *, exclusions: Sequence[str] = DEFAULT_XML_COMPARISON_EXCLUSIONS,
     ) -> list[VariantResult]:
         if not selected:
             return []
@@ -141,14 +146,14 @@ class ComparisonService:
                     continue
                 try:
                     progress(index, "Exporting Target XML", "")
-                    target = comparison_parameters(parse_xml(export(variant.get("webflow_link") or "")))
+                    target = comparison_parameters(parse_xml(export(variant.get("webflow_link") or "")), exclusions)
                     validate_export_link(target, variant.get("webflow_link") or "")
                     base = None
                     base_link = (variant.get("base_webflow_link") or "").strip()
                     if base_link:
                         progress(index, "Exporting Base XML", "")
                         try:
-                            base = comparison_parameters(parse_xml(export(base_link)))
+                            base = comparison_parameters(parse_xml(export(base_link)), exclusions)
                             validate_export_link(base, base_link)
                         except Exception as error:
                             raise ValueError(f"Base XML: {error}") from error
@@ -156,7 +161,7 @@ class ComparisonService:
                     matched = match_variant(master_variants, target)
                     if variant_identity(matched) != variant_identity(variant):
                         raise ValueError("Export XML does not match the selected variant's Master Sheet identity.")
-                    result.rows = compare_parameters(master_parameters(matched), target, base)
+                    result.rows = compare_parameters(master_parameters(matched), target, base, exclusions=exclusions)
                     progress(index, "Completed", "")
                 except Exception as error:
                     _logger.exception("Comparison failed for %s | %s", result.variant, result.software)

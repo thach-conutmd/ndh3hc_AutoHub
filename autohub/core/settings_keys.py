@@ -11,6 +11,8 @@ SHOW_WEBFLOW_LINK_KEY = "show_webflow_link"
 A2L_COMP_ID_SYMBOL_KEY = "a2l_comp_id_symbol"
 WEBFLOW_GENERAL_OPTIONS_KEY = "webflow_general_options"
 CALIBRATION_FOLDER_PATH_KEY = "calibration_folder_path"
+XML_COMPARISON_EXCLUSIONS_KEY = "xml_comparison_exclusions"
+DEFAULT_XML_COMPARISON_EXCLUSIONS = ("Files/", "Notes/")
 
 
 def normalize_latest_count(value) -> int:

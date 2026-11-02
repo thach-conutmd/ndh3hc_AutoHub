@@ -1,11 +1,12 @@
 """Parameter-map comparison of Master, target and optional base exports."""
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 
 from autohub.core.webflow_options import resolve_option_values
+from autohub.core.settings_keys import DEFAULT_XML_COMPARISON_EXCLUSIONS
 
 from .matching import OPTION_PATHS
 from .xml_parser import ParameterValue, comparison_parameters
@@ -62,9 +63,10 @@ def compare_parameters(
     master: Mapping[str, ParameterValue],
     target: Mapping[str, ParameterValue],
     base: Mapping[str, ParameterValue] | None = None,
+    *, exclusions: Sequence[str] = DEFAULT_XML_COMPARISON_EXCLUSIONS,
 ) -> list[ComparisonRow]:
     """Blank/absent target values are never a match, even if the references are also blank."""
-    paths = comparison_parameters(master).keys()
+    paths = comparison_parameters(master, exclusions).keys()
     rows = []
     for path in sorted(paths):
         master_value, target_value = master.get(path), target.get(path)
@@ -90,9 +92,10 @@ def compare_parameters(
 
 def compare_xml_parameters(
     base: Mapping[str, ParameterValue], target: Mapping[str, ParameterValue],
+    *, exclusions: Sequence[str] = DEFAULT_XML_COMPARISON_EXCLUSIONS,
 ) -> list[ComparisonRow]:
     """Compare every XML path, using the same value semantics as Master comparison."""
-    base, target = comparison_parameters(base), comparison_parameters(target)
+    base, target = comparison_parameters(base, exclusions), comparison_parameters(target, exclusions)
     rows = []
     for path in sorted(base.keys() | target.keys()):
         base_value, target_value = base.get(path), target.get(path)
@@ -111,12 +114,13 @@ def compare_xml_parameters(
 def compare_xml_datasets(
     base: Mapping[str, ParameterValue], targets: Iterable[Mapping[str, ParameterValue]],
     on_target: Callable[[int], None] = lambda _: None,
+    *, exclusions: Sequence[str] = DEFAULT_XML_COMPARISON_EXCLUSIONS,
 ) -> list[ComparisonRow]:
     """Align the union of paths, retaining each target's calculated two-way status."""
-    base = comparison_parameters(base)
+    base = comparison_parameters(base, exclusions)
     compared = []
     for index, target in enumerate(targets):
-        compared.append({row.parameter: row for row in compare_xml_parameters(base, target)})
+        compared.append({row.parameter: row for row in compare_xml_parameters(base, target, exclusions=exclusions)})
         on_target(index)
     if not compared:
         raise ValueError("Select at least one Target XML dataset.")

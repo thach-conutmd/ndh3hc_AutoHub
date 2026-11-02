@@ -59,6 +59,23 @@ def visible_rows(page):
     return [index for index in range(page._table.rowCount()) if not page._table.isRowHidden(index)]
 
 
+def test_master_comparison_reads_latest_saved_exclusions(qapp):
+    settings = MemorySettings()
+    page, dialogs, _, _ = build_page(
+        exports=[export_xml(target_parameters()), export_xml(target_parameters())], settings=settings,
+    )
+    page._select_all_btn.click()
+    for prefixes, power_present in ((["General/Power"], False), ([], True)):
+        previous = page._rows
+        settings.update(xml_comparison_exclusions=prefixes)
+        assert page._rows is previous
+        page._compare()
+        wait_done(page, qapp)
+        page._progress_dialog.close()
+        assert not dialogs.errors
+        assert ("General/Power" in {row.parameter for _, _, row in page._rows}) is power_present
+
+
 def test_comparison_lists_only_valid_links_and_allows_multiple_selection(qapp):
     page, _, _, _ = build_page([
         variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13"),

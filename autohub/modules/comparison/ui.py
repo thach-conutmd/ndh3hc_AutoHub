@@ -11,7 +11,7 @@ from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QColor, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QButtonGroup, QHBoxLayout, QHeaderView, QLabel,
-    QListWidget, QListWidgetItem, QMenu, QPushButton, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
+    QMenu, QPushButton, QStyle, QStyledItemDelegate, QStyleOptionButton, QStyleOptionViewItem,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -26,6 +26,7 @@ from autohub.modules.home.table_filter import TableFilter
 from autohub.modules.home.table_clipboard import TableClipboard
 from autohub.ui.theme import set_muted
 from autohub.ui.hover_cursor import HoverCursor
+from autohub.ui.file_chips import FileChips
 from autohub.ui.webflow_link_delegate import WebFlowLinkDelegate, format_webflow_link_item
 
 from .comparison import ComparisonRow, Status
@@ -36,7 +37,7 @@ from .review import Review
 from .result_table import ResultTable
 from .progress import ComparisonProgressDialog
 from .service import ComparisonService, VariantResult, compare_xml_files
-from .xml_parser import ParameterValue
+from .xml_parser import ParameterValue, comparison_exclusions
 
 _STATUS_COLUMN = 5
 _TARGET_HEADERS = ("Part Number", "Parameter", "Master", "Base", "Target", "Status", "Comment")
@@ -147,26 +148,32 @@ class ComparisonWidget(QWidget):
         manual_layout.setContentsMargins(0, 0, 0, 0)
         self._xml_buttons: dict[str, QPushButton] = {}
         self._xml_labels: dict[str, QLabel] = {}
+        source_row = QHBoxLayout()
         for label in ("Base", "Target"):
-            source_row = QHBoxLayout()
             source_row.addWidget(QLabel(f"{label} XML:"))
             button = QPushButton("Select XML(s)..." if label == "Target" else "Select XML...")
             button.clicked.connect(lambda _=False, source=label: self._select_xml(source))
             filename = QLabel("No file selected")
             filename.setTextFormat(Qt.PlainText)
             source_row.addWidget(button)
-            source_row.addWidget(filename, 1)
-            manual_layout.addLayout(source_row)
+            if label == "Base":
+                self._base_chips = FileChips()
+                self._base_chips.setMaximumWidth(300)
+                self._base_chips.removed.connect(self._remove_base)
+                source_row.addWidget(filename)
+                source_row.addWidget(self._base_chips, 1)
+            else:
+                source_row.addWidget(filename, 1)
             self._xml_buttons[label] = button
             self._xml_labels[label] = filename
-        self._target_list = QListWidget()
-        self._target_list.setMaximumHeight(120)
-        self._target_list.hide()
-        manual_layout.addWidget(self._target_list)
         self._clear_targets_btn = QPushButton("Clear All")
         self._clear_targets_btn.clicked.connect(self._clear_targets)
         self._clear_targets_btn.hide()
-        manual_layout.addWidget(self._clear_targets_btn, 0, Qt.AlignLeft)
+        source_row.addWidget(self._clear_targets_btn)
+        manual_layout.addLayout(source_row)
+        self._target_chips = FileChips()
+        self._target_chips.removed.connect(self._remove_target)
+        manual_layout.addWidget(self._target_chips)
         self._manual_sources.hide()
         self._variants_table = QTableWidget(0, len(_VARIANT_HEADERS))
         self._variants_table.setHorizontalHeaderLabels(_VARIANT_HEADERS)
@@ -311,32 +318,21 @@ class ComparisonWidget(QWidget):
         path = self._dialogs.pick_file(f"Select {source} WebFlow Export XML", "XML Files (*.xml)")
         if path:
             self._xml_paths[source] = path
-            self._xml_labels[source].setText(os.path.basename(path))
-            self._xml_labels[source].setToolTip(path)
+            self._base_chips.set_files([path])
+            self._xml_labels["Base"].hide()
             self._source_changed()
 
+    def _remove_base(self, path: str) -> None:
+        self._xml_paths["Base"] = ""
+        self._base_chips.set_files([])
+        self._xml_labels["Base"].show()
+        self._source_changed()
+
     def _refresh_target_files(self) -> None:
-        self._target_list.clear()
-        for path in self._target_paths:
-            item = QListWidgetItem(self._target_list)
-            container = QWidget()
-            row = QHBoxLayout(container)
-            row.setContentsMargins(6, 2, 6, 2)
-            label = QLabel(os.path.basename(path))
-            label.setTextFormat(Qt.PlainText)
-            label.setToolTip(path)
-            row.addWidget(label, 1)
-            remove = QPushButton("x")
-            remove.setToolTip(f"Remove {os.path.basename(path)}")
-            remove.setAccessibleName(f"Remove {os.path.basename(path)}")
-            remove.clicked.connect(lambda _=False, value=path: self._remove_target(value))
-            row.addWidget(remove)
-            item.setSizeHint(container.sizeHint())
-            self._target_list.setItemWidget(item, container)
+        self._target_chips.set_files(self._target_paths)
         count = len(self._target_paths)
         self._xml_labels["Target"].setText(f"{count} file{'s' if count != 1 else ''} selected")
         self._xml_labels["Target"].setToolTip("")
-        self._target_list.setVisible(count > 0)
         self._clear_targets_btn.setVisible(count > 1)
         self._source_changed()
 
@@ -620,7 +616,8 @@ class ComparisonWidget(QWidget):
         self._manual_mode_btn.setEnabled(not running)
         for button in self._xml_buttons.values():
             button.setEnabled(not running)
-        self._target_list.setEnabled(not running)
+        self._target_chips.setEnabled(not running)
+        self._base_chips.setEnabled(not running)
         self._clear_targets_btn.setEnabled(not running)
         self._variants_table.setEnabled(not running)
         self._select_all_btn.setEnabled(not running and self._variants_table.rowCount() > 0)
@@ -633,8 +630,13 @@ class ComparisonWidget(QWidget):
     def _compare(self) -> None:
         if self._running:
             return
+        try:
+            exclusions = comparison_exclusions(self._settings.load() if self._settings is not None else {})
+        except ValueError as error:
+            self._dialogs.error("Comparison", str(error))
+            return
         if self._manual_mode:
-            self._compare_manual()
+            self._compare_manual(exclusions)
             return
         if self._service is None:
             self._dialogs.error("Comparison", "The WebFlow comparison service is not configured.")
@@ -675,6 +677,7 @@ class ComparisonWidget(QWidget):
             lambda: self._service.run(
                 selected, masters, connection=connection, progress=self._progress.emit,
                 cancelled=self._cancel.is_set,
+                exclusions=exclusions,
             ),
             self,
         )
@@ -682,7 +685,7 @@ class ComparisonWidget(QWidget):
         self._worker.finished_error.connect(self._fail)
         self._worker.start()
 
-    def _compare_manual(self) -> None:
+    def _compare_manual(self, exclusions: tuple[str, ...]) -> None:
         self._run_files = (self._xml_paths["Base"], *self._target_paths)
         self._run_rows = []
         self._run_revision = self._revision
@@ -701,6 +704,7 @@ class ComparisonWidget(QWidget):
         self._worker = FunctionWorker(
             lambda: compare_xml_files(
                 base, targets, progress=self._progress.emit, cancelled=self._cancel.is_set,
+                exclusions=exclusions,
             ), self,
         )
         self._worker.finished_ok.connect(self._finish_manual)

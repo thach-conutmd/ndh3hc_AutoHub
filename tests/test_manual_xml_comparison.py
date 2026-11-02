@@ -68,14 +68,38 @@ def test_exclusions_precede_manual_comparison_and_never_reach_results_or_export(
     assert "General/Power" in html and "Files/Attachment" not in html and "Notes/Review" not in html
 
 
+@pytest.mark.parametrize("target_count", [1, 2])
+def test_new_manual_comparisons_read_latest_saved_exclusions(qapp, tmp_path, target_count):
+    paths = [tmp_path / f"source{index}.xml" for index in range(target_count + 1)]
+    for path in paths:
+        path.write_bytes(export_xml({"General/Power": "93", "Files/Attachment": "file", "Notes/Review": "note"}, job_id=None))
+    page, dialogs, _, _ = manual_page(paths[:2])
+    if target_count == 2:
+        dialogs.files = [[str(paths[2])]]
+        page._xml_buttons["Target"].click()
+    for prefixes, expected in (
+        (["General/"], ["Files/Attachment", "Notes/Review"]),
+        ([], ["Files/Attachment", "General/Power", "Notes/Review"]),
+        (["Files/", "Notes/"], ["General/Power"]),
+    ):
+        previous = page._rows
+        page._settings.update(xml_comparison_exclusions=prefixes)
+        assert page._rows is previous
+        page._compare()
+        wait_done(page, qapp)
+        page._progress_dialog.close()
+        assert not dialogs.errors
+        assert [row.parameter for _, _, row in page._rows] == expected
+
+
 def test_manual_mode_needs_no_master_or_browser_and_reuses_result_table(qapp, xml_files):
     page, dialogs, browser, updater = manual_page(xml_files)
     original = [path.read_bytes() for path in xml_files]
     assert page._variants == [] and page._compare_btn.isEnabled()
     assert page._variants_table.isHidden() and page._impl_btn.isHidden()
     assert page._select_all_btn.isHidden() and page._clear_selection_btn.isHidden()
-    assert page._xml_labels["Base"].text() == xml_files[0].name
-    assert page._xml_labels["Base"].toolTip() == str(xml_files[0])
+    assert page._base_chips.chips[0].label.text() == xml_files[0].name
+    assert page._base_chips.chips[0].label.toolTip() == str(xml_files[0])
     page._compare_btn.click()
     assert page._progress_dialog is not None
     assert not page._manual_mode_btn.isEnabled() and not page._master_mode_btn.isEnabled()
@@ -88,8 +112,8 @@ def test_manual_mode_needs_no_master_or_browser_and_reuses_result_table(qapp, xm
     assert page._table.columnCount() == 5
     assert [page._table.horizontalHeaderItem(i).text() for i in range(5)] == list(ui._MANUAL_HEADERS)
     assert page._table.rowCount() == 4 and page._export_btn.isEnabled()
-    assert page._xml_labels["Base"].text() == xml_files[0].name
-    assert page._target_list.count() == 1
+    assert page._base_chips.chips[0].label.text() == xml_files[0].name
+    assert len(page._target_chips.chips) == 1
     assert "Total: 4 | Match: 1 | Deviation: 3" in page._summary.text()
     assert page._summary.isHidden()
     actions = page._layout.itemAt(page._layout.indexOf(page._table) - 1).layout()
@@ -98,6 +122,50 @@ def test_manual_mode_needs_no_master_or_browser_and_reuses_result_table(qapp, xm
     for column in range(5):
         assert not page._table.horizontalHeaderItem(column).icon().isNull()
         assert page._table.frozen.view.isColumnHidden(column) == (column != 0)
+
+
+def test_base_chip_removal_and_reselection_preserve_completed_results(qapp, xml_files):
+    page, dialogs, _, _ = manual_page(xml_files)
+    page._compare()
+    wait_done(page, qapp)
+    page._progress_dialog.close()
+    rows = page._rows
+    page._base_chips.chips[0].remove_button.click()
+    assert page._xml_paths["Base"] == ""
+    assert page._base_chips.isHidden() and not page._xml_labels["Base"].isHidden()
+    assert not page._compare_btn.isEnabled()
+    assert page._rows is rows and page._export_btn.isEnabled()
+    dialogs.files = [str(xml_files[0])]
+    page._xml_buttons["Base"].click()
+    assert page._xml_paths["Base"] == str(xml_files[0])
+    assert len(page._base_chips.chips) == 1 and page._compare_btn.isEnabled()
+    assert page._xml_labels["Base"].isHidden() and page._rows is rows
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_manual_source_chips_wrap_on_workspace_resize_without_empty_list_space(qapp, xml_files, theme):
+    from autohub.ui.theme import apply_theme
+
+    apply_theme(qapp, theme)
+    page, dialogs, _, _ = manual_page(xml_files)
+    dialogs.files = [[f"/exports/WF21821{index}_export.xml" for index in range(5)]]
+    page._xml_buttons["Target"].click()
+    page.resize(1400, 900)
+    page.show()
+    qapp.processEvents()
+    assert page._xml_buttons["Base"].geometry().center().y() == page._xml_buttons["Target"].geometry().center().y()
+    assert page._clear_targets_btn.geometry().center().y() == page._xml_buttons["Target"].geometry().center().y()
+    wide_height = page._target_chips.height()
+    assert wide_height == page._target_chips.chips[0].height()
+    page.resize(800, 900)
+    qapp.processEvents()
+    assert page._target_chips.height() > wide_height
+    assert len({chip.y() for chip in page._target_chips.chips}) > 1
+    assert page._table.geometry().top() - page._compare_btn.geometry().bottom() - 1 == page._layout.spacing()
+    page._clear_targets_btn.click()
+    qapp.processEvents()
+    assert page._target_chips.isHidden()
+    assert page._xml_labels["Target"].text() == "0 files selected"
 
 
 def test_manual_reviews_survive_sort_filter_resize_new_files_and_master_reload(qapp, xml_files):
@@ -306,22 +374,22 @@ def test_target_picker_adds_removes_and_deduplicates_without_losing_results(qapp
     dialogs.files = [[str(first), str(alias), str(second)]]
     page._xml_buttons["Target"].click()
     assert page._target_paths == [str(first), str(second)]
-    assert page._target_list.count() == 2
+    assert len(page._target_chips.chips) == 2
     assert page._xml_labels["Target"].text() == "2 files selected"
     assert not page._clear_targets_btn.isHidden()
     assert page._rows is rows and page._compared_files == (str(base), str(first))
-    container = page._target_list.itemWidget(page._target_list.item(0))
-    labels = container.findChildren(ui.QLabel)
-    assert labels[0].text() == first.name and labels[0].toolTip() == str(first)
-    container.findChild(ui.QPushButton).click()
-    assert page._target_paths == [str(second)] and page._target_list.count() == 1
+    chip = page._target_chips.chips[0]
+    assert chip.label.text() == first.name and chip.label.toolTip() == str(first)
+    chip.remove_button.click()
+    assert page._target_paths == [str(second)] and len(page._target_chips.chips) == 1
+    assert page._xml_labels["Target"].text() == "1 file selected"
     assert page._clear_targets_btn.isHidden() and page._rows is rows
     dialogs.files = [[str(first)]]
     page._xml_buttons["Target"].click()
     page._clear_targets_btn.click()
     assert not page._target_paths and not page._compare_btn.isEnabled()
     assert page._rows is rows and page._export_btn.isEnabled()
-    assert page._target_list.isHidden()
+    assert page._target_chips.isHidden()
 
 
 def test_multi_target_engine_parses_base_once_and_keeps_union_statuses(multiple_xml_files, monkeypatch):
@@ -357,10 +425,11 @@ def test_multi_target_results_reviews_filters_summary_and_export(qapp, multiple_
     dialogs.files = [[str(second)]]
     page._xml_buttons["Target"].click()
     page._compare()
-    assert not page._target_list.isEnabled() and not page._clear_targets_btn.isEnabled()
+    assert not page._target_chips.isEnabled() and not page._clear_targets_btn.isEnabled()
+    assert not page._base_chips.isEnabled()
     wait_done(page, qapp)
     assert not dialogs.errors
-    assert page._target_list.isEnabled()
+    assert page._target_chips.isEnabled() and page._base_chips.isEnabled()
     assert page._table.columnCount() == 6 and page._status_column == 4 and page._comment_column == 5
     headers = [page._table.horizontalHeaderItem(i).text() for i in range(6)]
     assert headers == ["Parameter", "Base", f"Target 1: {first.name}", f"Target 2: {second.name}", "Status", "Comment"]
@@ -370,8 +439,8 @@ def test_multi_target_results_reviews_filters_summary_and_export(qapp, multiple_
     assert f"Target 1 ({first.name}): Match: 1 | Deviation: 4" in page._summary.text()
     assert f"Target 2 ({second.name}): Match: 2 | Deviation: 3" in page._summary.text()
     assert page._summary.isHidden()
-    assert page._xml_labels["Base"].text() == base.name
-    assert page._target_list.count() == 2
+    assert page._base_chips.chips[0].label.text() == base.name
+    assert len(page._target_chips.chips) == 2
     actions = page._layout.itemAt(page._layout.indexOf(page._table) - 1).layout()
     assert actions.indexOf(page._compare_btn) >= 0
     index = next(i for i, (_, _, row) in enumerate(page._rows) if row.parameter == "General/Power")

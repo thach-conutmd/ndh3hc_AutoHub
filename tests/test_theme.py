@@ -395,7 +395,7 @@ def test_settings_controls_are_organized_in_groups(qapp):
 
     page = SettingsWidget(MemorySettings())
     groups = {group.title(): group for group in page.findChildren(QGroupBox)}
-    assert set(groups) == {"Theme", "Logging", "Analysis", "Home", "Creation", "WebFlow Retry"}
+    assert set(groups) == {"Theme", "Logging", "Analysis", "Home", "Creation", "WebFlow Retry", "XML Comparison Exclusions"}
     assert page._theme.parentWidget() is groups["Theme"]
     assert page._logging.parentWidget() is groups["Logging"]
     assert page._record.parentWidget() is groups["Analysis"]
@@ -403,6 +403,46 @@ def test_settings_controls_are_organized_in_groups(qapp):
     assert page._attempts.parentWidget() is groups["WebFlow Retry"]
     assert page._latest.parentWidget() is groups["Home"]
     assert page._show_link.parentWidget() is groups["Home"]
+
+
+def test_xml_exclusion_settings_add_edit_delete_restore_and_save(qapp):
+    from tests.fakes import FakeDialogs
+
+    settings = MemorySettings()
+    dialogs = FakeDialogs()
+    page = SettingsWidget(settings, dialogs)
+    assert page._exclusion_values() == ("Files/", "Notes/")
+    page._add_exclusion_btn.click()
+    assert page._exclusions.rowCount() == 3 and page._apply.isEnabled()
+    page._on_apply()
+    assert dialogs.errors and "xml_comparison_exclusions" not in settings.load()
+    page._exclusions.item(2, 0).setText(" Custom / ")
+    page._on_apply()
+    assert settings.load()["xml_comparison_exclusions"] == ["Files/", "Notes/", "Custom/"]
+    assert not page._apply.isEnabled()
+    restored = SettingsWidget(settings)
+    assert restored._exclusion_values() == ("Files/", "Notes/", "Custom/")
+    restored._exclusions.cellWidget(0, 2).click()
+    restored._exclusions.cellWidget(0, 2).click()
+    restored._exclusions.cellWidget(0, 2).click()
+    restored._on_apply()
+    assert settings.load()["xml_comparison_exclusions"] == []
+    restored._restore_exclusions_btn.click()
+    assert restored._exclusion_values() == ("Files/", "Notes/")
+    restored._on_apply()
+    assert settings.load()["xml_comparison_exclusions"] == ["Files/", "Notes/"]
+
+
+@pytest.mark.parametrize("answer", [True, False, None])
+def test_xml_exclusion_settings_follow_apply_discard_cancel(qapp, answer):
+    from tests.fakes import FakeDialogs
+
+    settings = MemorySettings()
+    page = SettingsWidget(settings, FakeDialogs(table_answer=answer))
+    page._exclusions.item(0, 0).setText("Custom/")
+    assert page.confirm_leave() is (answer is not None)
+    assert settings.load().get("xml_comparison_exclusions") == (["Custom/", "Notes/"] if answer else None)
+    assert page._exclusion_values()[0] == ("Files/" if answer is False else "Custom/")
 
 
 def test_home_settings_apply_to_existing_home_page(qapp):
@@ -491,7 +531,7 @@ def test_creation_settings_are_saved_and_discarded_from_settings_page(qapp):
 def test_settings_tabs_keep_pending_changes_and_shared_footer(qapp):
     page = SettingsWidget(MemorySettings())
     assert [page._tabs.tabText(index) for index in range(page._tabs.count())] == [
-        "General", "Home", "Creation", "Diagnostics",
+        "General", "Home", "Creation", "Diagnostics", "Comparison",
     ]
     assert page._save_status.text() == "All changes saved"
     page._creation._routing.setText("New routing")
