@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from autohub.modules.settings import creation_form
 from tests.fakes import MemorySettings
 
@@ -14,6 +16,27 @@ def test_change_engineer_uses_current_active_directory_profile(monkeypatch):
     config = creation_form.load_config(MemorySettings({"change_engineer": "Previously saved"}))
 
     assert config.change_engineer == "Ngo Huu Dat (MS/EJV5-PS)"
+
+
+@pytest.mark.parametrize(
+    ("full_name", "department", "expected"),
+    [
+        ("Test Engineer (DEV/TEAM)", "DEV/TEAM", "Test Engineer (DEV/TEAM)"),
+        ("Test Engineer (dev/team)", "DEV/TEAM", "Test Engineer (dev/team)"),
+        ("Test Engineer", "", "Test Engineer"),
+        ("Test Engineer (Contractor)", "DEV/TEAM", "Test Engineer (Contractor) (DEV/TEAM)"),
+    ],
+)
+def test_change_engineer_does_not_duplicate_department(monkeypatch, full_name, department, expected):
+    monkeypatch.setenv("USERNAME", "current.user")
+    monkeypatch.setenv("USERDNSDOMAIN", "example.com")
+    monkeypatch.setattr(
+        creation_form, "_query_active_directory", lambda username, domain: (full_name, department)
+    )
+
+    config = creation_form.load_config(MemorySettings())
+
+    assert config.change_engineer == expected
 
 
 def test_change_engineer_falls_back_to_saved_value_when_directory_lookup_fails(monkeypatch):
