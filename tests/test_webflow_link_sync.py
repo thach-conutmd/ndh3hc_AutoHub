@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 
 from autohub.core.variant_schema import VARIANT_FIELD_ORDER
+from autohub.core.settings_keys import WEBFLOW_GENERAL_OPTIONS_KEY
 from autohub.modules.home import variant_table as table_module
 from autohub.modules.creation.ui import CreationWidget
 from autohub.modules.home.ui import HomeWidget
@@ -104,6 +105,43 @@ def test_link_updates_preserve_hidden_column_and_ignore_unknown_parts(qapp):
     assert table.isColumnHidden(table._link_column)
     assert table.item(0, table._link_column).text() == "WF3"
     assert not home._update_btn.isEnabled()
+
+
+def test_general_options_are_cached_and_reach_home(qapp):
+    settings = MemorySettings({WEBFLOW_GENERAL_OPTIONS_KEY: {"market": ["Brazil"]}})
+    home = HomeWidget(Mock(), settings)
+    creation = CreationWidget(
+        Mock(last_elapsed_seconds=0.0, last_general_options={"market": ["Brazil", "Japan"]}),
+        settings,
+    )
+    MainWindow._wire_cross_module_signals([home, creation])
+
+    creation._finish_webflow_jobs([], Mock())
+
+    assert settings.load()[WEBFLOW_GENERAL_OPTIONS_KEY] == {"market": ["Brazil", "Japan"]}
+    column = VARIANT_FIELD_ORDER.index("AJ") + 1
+    assert home._variant_table.itemDelegateForColumn(column)._choices == ("Brazil", "Japan")
+    restarted_home = HomeWidget(Mock(), settings)
+    assert restarted_home._variant_table.itemDelegateForColumn(column)._choices == ("Brazil", "Japan")
+
+
+def test_home_resolves_data_version_to_the_selected_calibration_file(qapp, tmp_path):
+    from autohub.core.settings_keys import CALIBRATION_FOLDER_PATH_KEY
+
+    calibration = tmp_path / "calibration-v3.hex"
+    calibration.write_text(":00000001FF\n", encoding="ascii")
+    home = HomeWidget(Mock(), MemorySettings({CALIBRATION_FOLDER_PATH_KEY: str(tmp_path)}))
+    published = []
+    home.variantsLoaded.connect(published.append)
+    variants = [
+        {"part_number": "P1", "hardware": {"data_version": calibration.name}},
+        {"part_number": "P2", "hardware": {"data_version": "not-a-hex-file"}},
+    ]
+
+    home.publish_variants(variants)
+
+    assert published[0][0]["_calibration_hex_path"] == str(calibration)
+    assert "_calibration_hex_path" not in published[0][1]
 
 
 @pytest.mark.parametrize("frozen", [False, True])

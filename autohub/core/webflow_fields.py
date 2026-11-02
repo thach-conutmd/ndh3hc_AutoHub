@@ -29,3 +29,9 @@ HARDWARE_FIELDS = (
     ("AZ", "data_version", "Data version", "text"),
     ("AW", "ecr_number", "ECR number", "text"),
 )
+
+GENERAL_OPTION_COLUMNS = {
+    column: key
+    for column, key, _, kind in HARDWARE_FIELDS
+    if kind == "multi"
+}

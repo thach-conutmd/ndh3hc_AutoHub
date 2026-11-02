@@ -45,6 +45,16 @@ class WebFlowNumberSink(Protocol):
 
 
 @runtime_checkable
+class WebFlowOptionsSource(Protocol):
+    webflowOptionsUpdated: Any
+
+
+@runtime_checkable
+class WebFlowOptionsSink(Protocol):
+    def set_webflow_options(self, options: dict[str, list[str]]) -> None: ...
+
+
+@runtime_checkable
 class SettingsSource(Protocol):
     settingsChanged: Any
 

@@ -8,7 +8,12 @@ from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSize
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
-from autohub.core.settings_keys import LATEST_COUNT_KEY, SHOW_WEBFLOW_LINK_KEY
+from autohub.core.settings_keys import (
+    CALIBRATION_FOLDER_PATH_KEY,
+    LATEST_COUNT_KEY,
+    SHOW_WEBFLOW_LINK_KEY,
+    WEBFLOW_GENERAL_OPTIONS_KEY,
+)
 from autohub.core.workers import TaskRunner
 from autohub.modules.home.presenter import (
     LOAD_TEXT,
@@ -35,6 +40,7 @@ class HomeWidget(QWidget):
         self._settings = settings
         self._file_name_labels: dict[str, QLabel] = {}
         self._variant_table = VariantTable()
+        self._variant_table.set_webflow_option_choices(settings.load().get(WEBFLOW_GENERAL_OPTIONS_KEY, {}))
 
         title = QLabel("Variant workspace")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
@@ -160,6 +166,9 @@ class HomeWidget(QWidget):
         self._variant_table.set_webflow_numbers(numbers)
         self._presenter.set_webflow_numbers(numbers, persisted)
 
+    def set_webflow_options(self, options: dict[str, list[str]]) -> None:
+        self._variant_table.set_webflow_option_choices(options)
+
     def apply_settings(self, changes: dict) -> None:
         if SHOW_WEBFLOW_LINK_KEY in changes:
             self._variant_table.set_webflow_link_visible(self._show_webflow_link())
@@ -203,4 +212,11 @@ class HomeWidget(QWidget):
         self._variant_table.remove_rows(rows)
 
     def publish_variants(self, variants: list[dict]) -> None:
+        folder_path = str(self._settings.load().get(CALIBRATION_FOLDER_PATH_KEY, "")).strip()
+        if folder_path:
+            folder = Path(folder_path)
+            for variant in variants:
+                filename = str(variant.get("hardware", {}).get("data_version") or "").strip()
+                if Path(filename).suffix.casefold() == ".hex":
+                    variant["_calibration_hex_path"] = str(folder / Path(filename).name)
         self.variantsLoaded.emit(variants)

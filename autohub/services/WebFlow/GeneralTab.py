@@ -78,6 +78,10 @@ class GeneralTab:
     def imported_ecr_number(self) -> str:
         return self._hardware.imported_ecr_number
 
+    @property
+    def general_options(self) -> dict[str, list[str]]:
+        return {key: list(values) for key, values in self._hardware.general_options.items()}
+
     def pick_pst_lib(self, project_version: str) -> bool:
         return self._collapse_after_import(self._hardware.pick_pst_lib(project_version), "Pick PST_Lib")
 

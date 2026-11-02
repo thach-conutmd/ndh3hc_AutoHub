@@ -50,6 +50,7 @@ BODY_INFORMATION_BODY_CSS    = 'div[style^="display:"]'  # CSS selector for the 
 
 
 CUSTOMER_TAB_XPATH = '//a[text()="Customer"]'
+FILES_TAB_XPATH = '//a[text()="Files"]'
 
 CUSTOMER_SPECIFIC_PARAMS_TITLE_XPATH = '//span[text()=" Customer specific parameters "]'     # XPath of the body information title
 CUSTOMER_SPECIFIC_PARAMS_BODY_CSS    = 'div[style^="display:"]'  # CSS selector for the body of the specific parameters section
