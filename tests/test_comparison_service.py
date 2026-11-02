@@ -32,7 +32,7 @@ def test_sequential_batch_uses_one_browser_and_exact_job_links():
     assert len(results) == 2 and all(result.rows and not result.error for result in results)
     for index in range(2):
         assert [args[1] for args, _ in progress.call_args_list if args[0] == index] == [
-            "Pending", "Exporting XML", "Comparing", "Completed",
+            "Pending", "Exporting Target", "Comparing", "Completed",
         ]
 
 
@@ -83,34 +83,52 @@ def test_wrong_selected_pair_is_rejected_even_if_export_matches_another_master_e
     session.quit.assert_called_once()
 
 
-def test_base_is_exported_once_and_reused_for_all_targets():
+@pytest.mark.parametrize("second_base_id", ["99", "100"])
+def test_each_variant_exports_its_own_base_after_its_target(second_base_id):
     variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
-    base = "https://webflow/app/ShowJob/99"
+    variants[0]["base_webflow_link"] = "https://webflow/app/ShowJob/99"
+    variants[1]["base_webflow_link"] = f"https://webflow/app/ShowJob/{second_base_id}"
     session, factory = session_factory([
+        export_xml(target_parameters()),
         export_xml(target_parameters(), job_id="99"),
-        export_xml(target_parameters()), export_xml(target_parameters("P2", "0011"), job_id="13"),
+        export_xml(target_parameters("P2", "0011"), job_id="13"),
+        export_xml({**target_parameters(), "General/Power": "94"}, job_id=second_base_id),
     ])
-    results = ComparisonService(factory).run(variants, variants, base)
+    progress = Mock()
+    results = ComparisonService(factory).run(variants, variants, progress=progress)
     assert session.export_job_xml.call_args_list == [
-        call(base), call(variants[0]["webflow_link"]), call(variants[1]["webflow_link"]),
+        call(variants[0]["webflow_link"]), call(variants[0]["base_webflow_link"]),
+        call(variants[1]["webflow_link"]), call(variants[1]["base_webflow_link"]),
     ]
     assert all(not result.error for result in results)
     power_rows = [next(row for row in result.rows if row.parameter == "General/Power") for result in results]
-    assert all(row.status == Status.MATCHES_BOTH for row in power_rows)
+    assert [row.status for row in power_rows] == [Status.MATCHES_BOTH, Status.MATCHES_MASTER]
+    for index in range(2):
+        assert [args[1] for args, _ in progress.call_args_list if args[0] == index] == [
+            "Pending", "Exporting Target", "Exporting Base", "Comparing", "Completed",
+        ]
 
 
 @pytest.mark.parametrize("base_link,exported", [
     ("invalid", None),
     ("https://webflow/app/ShowJob/99", b"<bad>"),
     ("https://webflow/app/ShowJob/99", export_xml(target_parameters(), job_id="77")),
+    ("https://webflow/app/ShowJob/99", RuntimeError("download timed out")),
 ])
-def test_base_failure_is_explicit_for_all_selected_variants(base_link, exported):
-    session, factory = session_factory([exported])
-    variants = [variant(), variant("P2")]
-    results = ComparisonService(factory).run(variants, variants, base_link)
-    assert len(results) == 2 and all("Base XML:" in result.error for result in results)
-    assert all(result.rows == [] for result in results)
-    assert session.export_job_xml.call_count <= 1
+def test_base_failure_only_fails_its_own_variant(base_link, exported):
+    variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
+    variants[0]["base_webflow_link"] = base_link
+    exports = [export_xml(target_parameters())]
+    if exported is not None:
+        exports.append(exported)
+    exports.append(export_xml(target_parameters("P2", "0011"), job_id="13"))
+    session, factory = session_factory(exports)
+    results = ComparisonService(factory).run(variants, variants)
+    assert "Base XML:" in results[0].error and results[0].rows == []
+    assert not results[1].error and results[1].rows
+    assert all(row.status in (
+        Status.MATCH, Status.VALUE_MISMATCH, Status.MISSING_IN_MASTER, Status.MISSING_IN_WEBFLOW,
+    ) for row in results[1].rows)
 
 
 def test_browser_start_failure_is_isolated_and_next_variant_can_start_a_session():
@@ -122,10 +140,9 @@ def test_browser_start_failure_is_isolated_and_next_variant_can_start_a_session(
     session.quit.assert_called_once()
 
 
-@pytest.mark.parametrize("base_link", ["", "https://webflow/app/ShowJob/99"])
-def test_empty_batch_does_not_start_browser(base_link):
+def test_empty_batch_does_not_start_browser():
     factory = Mock()
-    assert ComparisonService(factory).run([], [], base_link) == []
+    assert ComparisonService(factory).run([], []) == []
     factory.assert_not_called()
 
 

@@ -1,6 +1,6 @@
 """Batch Comparison UI, background exports, filters and existing cross-module wiring."""
 from threading import Event
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent, Qt
@@ -60,8 +60,17 @@ def test_comparison_lists_only_valid_links_and_allows_multiple_selection(qapp):
         variant("no_link", link=""), variant("invalid", link="bad"), variant("wrong_scheme", link="file:///12"),
     ])
     assert page._variants_table.rowCount() == 2
-    assert page._variants_table.item(0, 1).text() == "P1 | 0010"
-    assert page._variants_table.item(1, 1).text() == "P2 | 0011"
+    assert [page._variants_table.horizontalHeaderItem(i).text() for i in range(7)] == list(ui._VARIANT_HEADERS)
+    assert page._variants_table.item(0, 1).text() == "P1"
+    assert page._variants_table.item(0, 2).text() == "0010"
+    assert page._variants_table.item(1, 1).text() == "P2"
+    assert page._variants_table.item(1, 2).text() == "0011"
+    assert page._variants_table.item(0, 3).text() == "https://webflow/app/ShowJob/12"
+    for column in range(1, 7):
+        assert bool(page._variants_table.item(0, column).flags() & Qt.ItemIsEditable) == (column == 4)
+    assert page._variants_table.item(0, 3).toolTip() == page._variants_table.item(0, 3).text()
+    assert page._variants_table.columnWidth(5) < 150
+    assert not page._variants_table.horizontalHeader().stretchLastSection()
     assert not page._compare_btn.isEnabled()
     page._select_all_btn.click()
     assert page._selected_rows() == [0, 1]
@@ -85,7 +94,7 @@ def test_automatic_batch_combines_results_and_supports_all_filters(qapp):
     assert session.export_job_xml.call_count == 2
     assert [page._table.horizontalHeaderItem(i).text() for i in range(6)] == list(ui._TARGET_HEADERS)
     assert page._table.rowCount() == 9
-    assert all(page._variants_table.item(row, 2).text() == "Completed" for row in range(2))
+    assert all(page._variants_table.item(row, 5).text() == "Completed" for row in range(2))
     assert "2 completed; 0 failed" in page._summary.text()
     page._deviations.setChecked(True)
     assert len(visible_rows(page)) == 4
@@ -111,43 +120,76 @@ def test_failed_variant_displays_error_and_does_not_hide_successful_results(qapp
     page._select_all_btn.click()
     page._compare_btn.click()
     wait_done(page, qapp)
-    assert page._variants_table.item(0, 2).text() == "Failed"
-    assert "Invalid WebFlow XML" in page._variants_table.item(0, 3).text()
-    assert page._variants_table.item(1, 2).text() == "Completed"
+    assert page._variants_table.item(0, 5).text() == "Failed"
+    assert "Invalid WebFlow XML" in page._variants_table.item(0, 6).text()
+    assert page._variants_table.item(1, 5).text() == "Completed"
     assert page._table.rowCount() == 4
     assert "1 completed; 1 failed" in page._summary.text()
     assert not dialogs.errors
 
 
-def test_base_exports_automatically_once_and_keeps_variant_identity_in_results(qapp):
+def test_mixed_base_and_no_base_results_keep_correct_values_and_filters(qapp):
     variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
     page, _, session, _ = build_page(variants, [
-        export_xml(target_parameters(), job_id="99"),
-        export_xml(target_parameters()), export_xml(target_parameters("P2", "0011"), job_id="13"),
+        export_xml(target_parameters()), export_xml(target_parameters(), job_id="99"),
+        export_xml(target_parameters("P2", "0011"), job_id="13"),
     ])
-    page._base_link.setText("https://webflow/app/ShowJob/99")
+    page._variants_table.item(0, 4).setText("https://webflow/app/ShowJob/99")
     page._select_all_btn.click()
     page._compare_btn.click()
     wait_done(page, qapp)
     assert session.export_job_xml.call_count == 3
-    assert page._base_status.text() == "Base: Completed"
     assert [page._table.horizontalHeaderItem(i).text() for i in range(7)] == list(ui._BASE_HEADERS)
     assert any(row.status == Status.MATCHES_BOTH for _, _, row in page._rows)
+    assert any(part == "P2" and row.status == Status.MATCH for part, _, row in page._rows)
     assert len({part for part, _, _ in page._rows}) == 2
-    page._base_link.clear()
+    for index, (part, _, _) in enumerate(page._rows):
+        if part == "P2":
+            assert page._table.item(index, 4).text() == ""
+    page._status_filter.setCurrentText(Status.MATCH.value)
+    assert visible_rows(page) and all(page._table.item(i, 0).text() == "P2" for i in visible_rows(page))
+    page._status_filter.setCurrentText(Status.MATCHES_BOTH.value)
+    assert visible_rows(page) and all(page._table.item(i, 0).text() == "P1" for i in visible_rows(page))
+    page._variants_table.item(0, 4).setText("")
     assert not page._rows and page._table.columnCount() == 6
 
 
-def test_invalid_base_link_reports_failed_status_for_each_selected_variant(qapp):
-    page, _, session, _ = build_page()
-    page._base_link.setText("invalid")
+def test_invalid_base_link_only_fails_its_variant(qapp):
+    variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
+    page, _, session, _ = build_page(variants, [
+        export_xml(target_parameters()), export_xml(target_parameters("P2", "0011"), job_id="13"),
+    ])
+    page._variants_table.item(0, 4).setText("invalid")
     page._select_all_btn.click()
     page._compare_btn.click()
     wait_done(page, qapp)
-    session.export_job_xml.assert_not_called()
-    assert page._variants_table.item(0, 2).text() == "Failed"
-    assert "Base XML:" in page._variants_table.item(0, 3).text()
-    assert page._base_status.text().startswith("Base: Failed")
+    assert session.export_job_xml.call_count == 2
+    assert page._variants_table.item(0, 5).text() == "Failed"
+    assert "Base XML:" in page._variants_table.item(0, 6).text()
+    assert page._variants_table.item(1, 5).text() == "Completed"
+    assert page._table.rowCount() == 4
+
+
+def test_distinct_edited_base_links_are_passed_to_their_own_targets(qapp):
+    variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
+    links = ["https://webflow/app/ShowJob/99", "https://webflow/app/ShowJob/100"]
+    page, _, session, _ = build_page(variants, [
+        export_xml(target_parameters()), export_xml(target_parameters(), job_id="99"),
+        export_xml(target_parameters("P2", "0011"), job_id="13"),
+        export_xml({**target_parameters(), "General/Power": "94"}, job_id="100"),
+    ])
+    for row, link in enumerate(links):
+        page._variants_table.item(row, 4).setText(link)
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    wait_done(page, qapp)
+    assert session.export_job_xml.call_args_list == [
+        call(variants[0]["webflow_link"]), call(links[0]),
+        call(variants[1]["webflow_link"]), call(links[1]),
+    ]
+    assert [
+        (part, row.base, row.status) for part, _, row in page._rows if row.parameter == "General/Power"
+    ] == [("P1", "93", Status.MATCHES_BOTH), ("P2", "94", Status.MATCHES_MASTER)]
 
 
 def test_only_checked_variants_are_exported_and_saved_connection_is_used(qapp):
@@ -156,11 +198,53 @@ def test_only_checked_variants_are_exported_and_saved_connection_is_used(qapp):
     page, _, session, factory = build_page(
         variants, [export_xml(target_parameters("P2", "0011"), job_id="13")], settings,
     )
+    page._variants_table.item(0, 4).setText("https://webflow/app/ShowJob/99")
     page._variants_table.item(1, 0).setCheckState(Qt.Checked)
     page._compare_btn.click()
     wait_done(page, qapp)
     session.export_job_xml.assert_called_once_with(variants[1]["webflow_link"])
     factory.assert_called_once_with(driver_path="", base_url="https://webflow/app/dashboard")
+    assert page._table.columnCount() == 6
+
+
+def test_base_links_follow_variant_identity_on_reorder_without_mutating_master(qapp):
+    variants = [variant(), variant("P2", "0011", "https://webflow/app/ShowJob/13")]
+    page, _, _, _ = build_page(variants)
+    page._variants_table.item(0, 4).setText("https://webflow/app/ShowJob/99")
+    page._variants_table.item(0, 0).setCheckState(Qt.Checked)
+    page.set_variants(list(reversed(variants)))
+    assert page._variants_table.item(0, 4).text() == ""
+    assert page._variants_table.item(1, 4).text() == "https://webflow/app/ShowJob/99"
+    assert page._selected_rows() == [1]
+    assert all("base_webflow_link" not in item for item in variants + page._variants)
+
+
+def test_exporting_base_progress_is_shown_on_its_variant_row(qapp):
+    started, release = Event(), Event()
+    page, _, session, _ = build_page()
+    base_link = "https://webflow/app/ShowJob/99"
+
+    def export(link):
+        if link == base_link:
+            started.set()
+            if not release.wait(5):
+                raise RuntimeError("test release timed out")
+            return export_xml(target_parameters(), job_id="99")
+        return export_xml(target_parameters())
+
+    session.export_job_xml.side_effect = export
+    page._variants_table.item(0, 4).setText(base_link)
+    page._select_all_btn.click()
+    page._compare_btn.click()
+    try:
+        assert started.wait(2)
+        qapp.processEvents()
+        assert page._variants_table.item(0, 5).text() == "Exporting Base"
+        assert not page._variants_table.isEnabled()
+    finally:
+        release.set()
+        wait_done(page, qapp)
+    assert page._variants_table.item(0, 5).text() == "Completed"
 
 
 def test_busy_run_disables_source_changes_and_leave_until_finished(qapp):
@@ -178,8 +262,8 @@ def test_busy_run_disables_source_changes_and_leave_until_finished(qapp):
     try:
         assert started.wait(2)
         qapp.processEvents()
-        assert page._variants_table.item(0, 2).text() == "Exporting XML"
-        assert not page._compare_btn.isEnabled() and not page._base_link.isEnabled()
+        assert page._variants_table.item(0, 5).text() == "Exporting Target"
+        assert not page._compare_btn.isEnabled() and not page._variants_table.isEnabled()
         assert not page.confirm_leave()
         assert dialogs.infos
     finally:
@@ -221,7 +305,8 @@ def test_existing_home_creation_signals_feed_comparison_without_shared_mutation(
     creation.webflowLinksUpdated.emit({"P1": "https://webflow/app/ShowJob/12"})
     creation.webflowNumbersUpdated.emit({"P1": {"AX": "0099", "AW": "ECR"}}, True)
     assert page._variants_table.rowCount() == 1
-    assert page._variants_table.item(0, 1).text() == "P1 | 0099"
+    assert page._variants_table.item(0, 1).text() == "P1"
+    assert page._variants_table.item(0, 2).text() == "0099"
     assert page._variants[0]["hardware"]["ecr_number"] == "ECR"
     assert source["hardware"]["software_part_number"] == "0010"
     home.variantsLoaded.emit([variant("other", link="")])
