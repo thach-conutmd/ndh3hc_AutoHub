@@ -650,7 +650,7 @@ class ComparisonWidget(QWidget):
             return
         try:
             exclusions = comparison_exclusions(
-                self._settings.load() if self._settings is not None else {}, manual=self._manual_mode,
+                self._settings.load() if self._settings is not None else {}, master=not self._manual_mode,
             )
         except ValueError as error:
             self._dialogs.error("Comparison", str(error))

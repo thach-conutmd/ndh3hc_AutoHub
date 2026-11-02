@@ -93,7 +93,7 @@ def test_new_manual_comparisons_read_latest_saved_exclusions(qapp, tmp_path, tar
 
 
 @pytest.mark.parametrize("target_count", [1, 2])
-def test_master_only_exclusions_leave_manual_comparison_unfiltered(qapp, tmp_path, target_count):
+def test_master_scope_option_does_not_disable_manual_exclusions(qapp, tmp_path, target_count):
     paths = [tmp_path / f"source{index}.xml" for index in range(target_count + 1)]
     for path in paths:
         path.write_bytes(export_xml({"General/Power": "93", "Files/Attachment": "file"}, job_id=None))
@@ -102,7 +102,7 @@ def test_master_only_exclusions_leave_manual_comparison_unfiltered(qapp, tmp_pat
         dialogs.files = [[str(paths[2])]]
         page._xml_buttons["Target"].click()
     for master_only, expected in (
-        (True, ["Files/Attachment", "General/Power"]),
+        (True, ["General/Power"]),
         (False, ["General/Power"]),
     ):
         page._settings.update(

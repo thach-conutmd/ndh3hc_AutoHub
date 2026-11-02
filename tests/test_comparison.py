@@ -151,11 +151,11 @@ def test_disabled_exclusions_are_saved_but_not_applied():
         "xml_comparison_disabled_exclusions": ["Files/"],
     }
     assert comparison_exclusions(settings) == ("Notes/",)
-    assert comparison_exclusions(settings, manual=True) == ("Notes/",)
+    assert comparison_exclusions(settings, master=True) == ()
     assert comparison_exclusions(settings, enabled_only=False) == ("Files/", "Notes/")
     settings["xml_comparison_exclusions_master_only"] = True
     assert comparison_exclusions(settings) == ("Notes/",)
-    assert comparison_exclusions(settings, manual=True) == ()
+    assert comparison_exclusions(settings, master=True) == ("Notes/",)
 
 
 @pytest.mark.parametrize("data", [
