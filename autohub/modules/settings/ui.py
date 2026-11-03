@@ -233,11 +233,10 @@ class SettingsWidget(QWidget):
                               "Changes apply to new comparisons after Apply changes.",
         }
         for tab_name, groups in (
-            ("General", (theme_group,)),
+            ("General", (theme_group, logging_group, analysis_group)),
             ("Home", (home_group,)),
             ("Creation", (creation_group, new_variants_group, retry_group)),
             ("Form B", (form_b_group,)),
-            ("Diagnostics", (logging_group, analysis_group)),
             ("Comparison", (exclusions_group,)),
         ):
             content = QWidget()

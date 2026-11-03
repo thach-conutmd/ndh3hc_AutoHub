@@ -599,7 +599,7 @@ def test_creation_settings_are_saved_and_discarded_from_settings_page(qapp):
 def test_settings_tabs_keep_pending_changes_and_shared_footer(qapp):
     page = SettingsWidget(MemorySettings())
     assert [page._tabs.tabText(index) for index in range(page._tabs.count())] == [
-        "General", "Home", "Creation", "Form B", "Diagnostics", "Comparison",
+        "General", "Home", "Creation", "Form B", "Comparison",
     ]
     assert page._save_status.text() == "All changes saved"
     page._creation._routing.setText("New routing")
