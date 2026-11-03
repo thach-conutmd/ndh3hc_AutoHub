@@ -1,0 +1,193 @@
+﻿/*@import url('//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css');*/
+
+html,body
+{
+    height:100%;
+	/* prod */
+    background: #fff url(../Images/bg-header.png) repeat-x;
+	/*config*/
+	/* background: #d5dbf8; */
+	/*int*/
+	/* background: #e4fdef; */
+	/*test*/
+	/* background: #eafcff; */
+}
+
+input[readonly] {
+     cursor: pointer;
+}
+
+
+.IEClear::-ms-clear {
+    display: none;
+}
+
+/*info-alert, .success-alert, .warning-alert, .danger-alert {
+margin: 10px 0px;
+padding:12px;
+position: absolute;
+bottom: 0; 
+right: 0; 
+width: 600px; 
+height: 80px; 
+z-index: 20000;
+display: none;
+}
+info-alert {
+    color: #00529B;
+    background-color: #BDE5F8;
+}
+.success-alert {
+    color: #4F8A10;
+    background-color: #DFF2BF;
+}
+.warning-alert {
+    color: #9F6000;
+    background-color: #FEEFB3;
+}
+.danger-alert {
+    color: #D8000C;
+    background-color: #FFBABA;
+}
+info-alert i, .success-alert i, .warning-alert i, .danger-alert i {
+    margin:10px 22px;
+    font-size:2em;
+    vertical-align:middle;
+}*/
+
+.MandatoryFieldStar {
+    margin-left:3px; 
+    color:red;
+}
+
+
+.footer {
+  position:fixed;
+  bottom: 0;
+  width: 100%;
+  height: 30px;
+  background-color: #2b5797;
+}
+
+
+
+
+.bootstrap .tags {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.075);
+  transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
+}
+
+tags-input .tags .tag-item .remove-button {
+    color : #fff;
+}
+
+tags-input[disabled] .tags .input-sm{
+    background-color:transparent;
+    cursor: default;
+    color : #fff;
+}
+
+tags-input[disabled] .tags .tag-item {
+    background-color: transparent;
+    cursor: default;
+    color : #fff;
+    background: #2b5797;
+}
+
+
+.bootstrap .tags.focused {
+  border-color: #66afe9;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.075), 0 0 8px rgba(102,175,233,0.6);
+}
+
+.bootstrap .tags .tag-item {
+  background: #428bca;
+  border: 1px solid #357ebd;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.bootstrap .tags .tag-item.selected {
+  background: #d9534f;
+  border: 1px solid #d43f3a;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.bootstrap .tags .tag-item button {
+  background: transparent;
+  color: #000;
+  opacity: .4;
+}
+
+.bootstrap .autocomplete {
+  border-radius: 4px;
+}
+
+.bootstrap .autocomplete .suggestion-item.selected {
+  color: #262626;
+  background-color: #e9e9e9;
+}
+
+.bootstrap .autocomplete .suggestion-item em {
+  font-weight: normal;
+  background-color: #ffff00;
+}
+
+.bootstrap .autocomplete .suggestion-item.selected em {
+  color: #262626;
+  background-color: #ffff00;
+}
+
+.tooltip-inner {
+            max-width: none;
+            white-space: nowrap;
+        }
+
+
+.green {
+  background-color: #2dff07;
+}
+
+.red {
+  background-color: #ff0000;
+}
+
+.yellow {
+   background-color: #FFFF00;
+}
+
+.violet {
+   background-color: #EE82EE;
+}
+
+.blue {
+    background-color: #00008B;
+}
+
+.aqua {
+   background-color: #00ffff;
+}
+
+.brown  {
+    background-color: #A52A2A;
+}
+
+.gray {
+     background-color: #808080;
+}
+
+.orange {
+     background-color: #FFA500;
+}
+
+.skyblue {
+     background-color: #87CEEB;
+}
+
+.transparent {
+    background-color:transparent;
+}
