@@ -41,7 +41,7 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
     return [
         HomeModule(build_variant_service, settings),
         CreationModule(lambda: WebFlowJobService(WebFlow, open_master_sheet, com_session, journal=JsonBatchJournal()), settings),
-        FormBModule(lambda: FormBService(WebFlow)),
+        FormBModule(lambda: FormBService(WebFlow), settings),
         ComparisonModule(
             lambda: ComparisonService(WebFlow), settings, lambda: MasterImplUpdater(open_master_sheet, com_session)
         ),

@@ -14,8 +14,16 @@ from autohub.services.WebFlow import WebFlow as webflow_module
 from autohub.services.WebFlow.FilesTab import FilesTab
 from autohub.services.WebFlow.WebFlow import WebFlow
 from autohub.modules.form_b.ui import FormBWidget
+from autohub.modules.form_b import ui as form_b_ui
+from autohub.core.settings import JsonSettingsStore
+from tests.fakes import MemorySettings
 
 TEMPLATE = Path("datas/FormB/62XS_MP2_FORMB_MG1CS022_20260511.xlsx")
+
+
+@pytest.fixture(autouse=True)
+def isolate_form_b_settings(monkeypatch):
+    monkeypatch.setattr(form_b_ui, "JsonSettingsStore", MemorySettings)
 
 
 def variant(index: int, checksum=""):
@@ -150,7 +158,8 @@ def test_form_b_filename_uses_master_fields_and_generation_date(tmp_path):
     assert output.name == "62XS_MP1_FORMB_MG1CS022_20260326.xlsx"
 
 
-def test_form_b_information_overwrites_template_header_without_changing_formatting(tmp_path):
+@pytest.mark.parametrize("count,receipt_row", [(1, 43), (7, 57), (13, 71)])
+def test_form_b_information_overwrites_template_header_without_changing_formatting(tmp_path, count, receipt_row):
     form_information = {
         "department_organization": "Engineering",
         "name": "Alex Example",
@@ -161,16 +170,25 @@ def test_form_b_information_overwrites_template_header_without_changing_formatti
         "production_project": "Production Beta",
         "bosch_project_number": "BOSCH-123",
         "ecu_type": "ECU-ABC",
+        "expected_receipt_date": date(2027, 2, 8),
     }
+    variants = [variant(index) for index in range(1, count + 1)]
     output = export_form_b(
-        [variant(1)],
-        {"PART-1": "00000001"},
+        variants,
+        {item["part_number"]: "00000001" for item in variants},
         tmp_path / "selected-name.xlsx",
         today=date(2026, 3, 26),
         form_information=form_information,
     )
+    baseline_output = export_form_b(
+        variants,
+        {item["part_number"]: "00000001" for item in variants},
+        tmp_path / "baseline" / "selected-name.xlsx",
+        today=date(2026, 3, 26),
+    )
     workbook = openpyxl.load_workbook(output, data_only=True)
     template = openpyxl.load_workbook(decrypt_workbook(str(TEMPLATE)), data_only=True)
+    baseline = openpyxl.load_workbook(baseline_output, data_only=True)
     try:
         sheet = workbook["FormB"]
         template_sheet = template["FormB"]
@@ -183,11 +201,13 @@ def test_form_b_information_overwrites_template_header_without_changing_formatti
         assert sheet["A22"].value == "For Production Beta production"
         assert sheet["B23"].value == "BOSCH-123"
         assert sheet["B24"].value == "ECU-ABC"
+        assert sheet[f"A{receipt_row}"].value == "We appreciate the receipt by 8 February 2027"
+        assert sheet[f"A{receipt_row}"]._style == template_sheet["A43"]._style
         for cell in ("C3", "C4", "C5", "C13", "A18", "A21", "A22", "B23", "B24"):
             assert sheet[cell]._style == template_sheet[cell]._style
         assert sheet.merged_cells.ranges == template_sheet.merged_cells.ranges
         assert [sheet.row_dimensions[row].height for row in range(1, sheet.max_row + 1)] == [
-            template_sheet.row_dimensions[row].height for row in range(1, template_sheet.max_row + 1)
+            baseline["FormB"].row_dimensions[row].height for row in range(1, sheet.max_row + 1)
         ]
         assert {
             column: sheet.column_dimensions[column].width
@@ -199,6 +219,26 @@ def test_form_b_information_overwrites_template_header_without_changing_formatti
     finally:
         workbook.close()
         template.close()
+        baseline.close()
+
+
+def test_form_b_information_defaults_to_today_with_placeholder_only_examples(qapp):
+    widget = FormBWidget(Mock(), Mock())
+    date_field = widget._form_fields["date"]
+    assert date_field.text() == date.today().isoformat()
+    assert date_field.placeholderText() == "YYYY-MM-DD"
+    assert not date_field.isReadOnly()
+    for key, field in widget._form_fields.items():
+        if key != "date":
+            assert field.text() == ""
+            assert field.placeholderText().startswith("e.g. ")
+
+    values, invalid_fields = widget._collect_form_information()
+    assert values == {"date": date.today()}
+    assert len(invalid_fields) == 9
+    date_field.setText("2027-01-15")
+    values, _ = widget._collect_form_information()
+    assert values["date"] == date(2027, 1, 15)
 
 
 def test_form_b_information_requires_every_field_and_valid_date(qapp):
@@ -207,6 +247,8 @@ def test_form_b_information_requires_every_field_and_valid_date(qapp):
     item = variant(1)
     widget.set_variants([item])
     widget._checklist._checkboxes[item["part_number"]].setChecked(True)
+    for field in widget._form_fields.values():
+        field.clear()
     values, invalid_fields = widget._collect_form_information()
     assert values == {}
     assert invalid_fields == [
@@ -219,13 +261,17 @@ def test_form_b_information_requires_every_field_and_valid_date(qapp):
         "Production Project",
         "Bosch Project Number",
         "ECU-Type",
+        "Expected Receipt Date",
     ]
     widget._export()
     assert all(field in dialogs.error.call_args.args[1] for field in invalid_fields)
     dialogs.save_file.assert_not_called()
 
     for key, field in widget._form_fields.items():
-        field.setText("2026-02-30" if key == "date" else f"value-{key}")
+        field.setText(
+            "2026-02-30" if key == "date" else
+            "8 February 2027" if key == "expected_receipt_date" else f"value-{key}"
+        )
     values, invalid_fields = widget._collect_form_information()
     assert "Date (use YYYY-MM-DD)" in invalid_fields
     assert len(invalid_fields) == 1
@@ -237,6 +283,11 @@ def test_form_b_information_requires_every_field_and_valid_date(qapp):
     values, invalid_fields = widget._collect_form_information()
     assert not invalid_fields
     assert values["date"] == date(2026, 11, 3)
+    assert values["expected_receipt_date"] == date(2027, 2, 8)
+    widget._form_fields["expected_receipt_date"].setText("31 February 2027")
+    _, invalid_fields = widget._collect_form_information()
+    assert len(invalid_fields) == 1
+    assert invalid_fields[0].startswith("Expected Receipt Date (use DD Month YYYY")
 
 
 def test_form_b_export_passes_form_information_to_generator(qapp):
@@ -248,7 +299,10 @@ def test_form_b_export_passes_form_information_to_generator(qapp):
     widget.set_variants([item])
     widget._checklist._checkboxes[item["part_number"]].setChecked(True)
     for key, field in widget._form_fields.items():
-        field.setText("2026-11-03" if key == "date" else f"value-{key}")
+        field.setText(
+            "2026-11-03" if key == "date" else
+            "8 February 2027" if key == "expected_receipt_date" else f"value-{key}"
+        )
 
     widget._tasks.start = Mock()
     widget._export()
@@ -269,8 +323,91 @@ def test_form_b_export_passes_form_information_to_generator(qapp):
             "production_project": "value-production_project",
             "bosch_project_number": "value-bosch_project_number",
             "ecu_type": "value-ecu_type",
+            "expected_receipt_date": date(2027, 2, 8),
         },
     )
+
+
+def test_form_b_master_information_uses_loaded_and_selected_values_without_overwriting_edits(qapp):
+    widget = FormBWidget(Mock(), Mock())
+    first, second = variant(1), variant(2)
+    widget.set_variants([first, second])
+    assert widget._form_fields["project_release"].text() == "62XS"
+    assert widget._form_fields["production_project"].text() == "62XS MP1"
+    assert widget._form_fields["ecu_type"].text() == "MG1CS022"
+    for key in ("department_organization", "name", "phone_number", "return_to", "bosch_project_number"):
+        assert widget._form_fields[key].text() == ""
+        assert widget._form_fields[key].placeholderText()
+    for field in widget._form_fields.values():
+        assert not field.isReadOnly()
+
+    widget._form_fields["project_release"].setText("User release project")
+    widget._form_fields["date"].setText("2027-01-15")
+    second.update(project="OTHER", event_name="CERT_MP2")
+    second["form_b"]["AP"] = "OTHER-ECU"
+    widget.set_variants([first, second])
+    assert widget._form_fields["project_release"].text() == "User release project"
+    assert widget._form_fields["production_project"].text() == ""
+    assert widget._form_fields["ecu_type"].text() == ""
+    widget._checklist._checkboxes[second["part_number"]].setChecked(True)
+    assert widget._form_fields["production_project"].text() == "OTHER MP2"
+    assert widget._form_fields["ecu_type"].text() == "OTHER-ECU"
+    assert widget._form_fields["project_release"].text() == "OTHER"
+    assert widget._form_fields["date"].text() == "2027-01-15"
+    widget.set_variants([])
+    assert widget._form_fields["production_project"].text() == ""
+    assert widget._form_fields["ecu_type"].text() == ""
+    assert widget._form_fields["project_release"].text() == ""
+
+
+def test_form_b_restores_non_date_inputs_and_saves_changes(qapp, tmp_path):
+    settings = JsonSettingsStore(tmp_path / "settings.json")
+    widget = FormBWidget(Mock(), Mock(), settings)
+    for key, field in widget._form_fields.items():
+        field.setText(
+            "2027-01-15" if key == "date" else
+            "8 February 2027" if key == "expected_receipt_date" else f"saved-{key}"
+        )
+    saved = settings.load()[form_b_ui.FORM_B_INPUTS_KEY]
+    assert set(saved) == set(widget._form_fields) - {"date", "expected_receipt_date"}
+    reopened = FormBWidget(Mock(), Mock(), JsonSettingsStore(tmp_path / "settings.json"))
+    assert reopened._form_fields["date"].text() == date.today().isoformat()
+    assert reopened._form_fields["expected_receipt_date"].text() == ""
+    for key, value in saved.items():
+        assert reopened._form_fields[key].text() == value
+    reopened.set_variants([variant(1)])
+    assert reopened._form_fields["project_release"].text() == "62XS"
+    assert reopened._form_fields["production_project"].text() == "62XS MP1"
+    assert reopened._form_fields["ecu_type"].text() == "MG1CS022"
+    assert reopened._form_fields["name"].text() == "saved-name"
+    reopened._form_fields["project_release"].setText("edited project")
+    reopened.set_variants([variant(1)])
+    assert reopened._form_fields["project_release"].text() == "62XS"
+    reopened._form_fields["name"].clear()
+    assert settings.load()[form_b_ui.FORM_B_INPUTS_KEY]["name"] == ""
+
+
+def test_form_b_ignores_previously_saved_date_fields(qapp):
+    settings = MemorySettings({form_b_ui.FORM_B_INPUTS_KEY: {
+        "date": "2000-01-01",
+        "expected_receipt_date": "1 January 2000",
+        "name": "Saved name",
+    }})
+    widget = FormBWidget(Mock(), Mock(), settings)
+    assert widget._form_fields["date"].text() == date.today().isoformat()
+    assert widget._form_fields["expected_receipt_date"].text() == ""
+    widget._export()
+    assert settings.load()[form_b_ui.FORM_B_INPUTS_KEY]["name"] == "Saved name"
+    assert "date" not in settings.load()[form_b_ui.FORM_B_INPUTS_KEY]
+    assert "expected_receipt_date" not in settings.load()[form_b_ui.FORM_B_INPUTS_KEY]
+
+
+def test_form_b_missing_master_information_keeps_placeholders(qapp):
+    widget = FormBWidget(Mock(), Mock())
+    widget.set_variants([{"part_number": "PART-1", "ecu_type": "", "form_b": {}}])
+    for key in ("project_release", "production_project", "ecu_type"):
+        assert widget._form_fields[key].text() == ""
+        assert widget._form_fields[key].placeholderText()
 
 
 def test_form_b_filename_sanitizes_invalid_path_characters(tmp_path):

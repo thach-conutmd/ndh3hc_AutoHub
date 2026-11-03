@@ -132,6 +132,9 @@ automation. Each feature is a module plugged into the main window sidebar.
 
 - Receives selected variants from Home and uses Master Sheet values to fill the supplied Form B workbook template.
 - Requires Department / Organization, Name, Phone Number, Date, Return To, Project / Production Release Project, Production Project, Bosch Project Number and ECU-Type in the Form B Information section.
+- Date starts with today's date in `YYYY-MM-DD` format and remains editable. Empty fields show example placeholders only; these examples are not exported as values.
+- Project, production project/phase and ECU-Type auto-fill when the loaded or selected Master Sheet variants agree. These values remain editable; other fields retain their placeholders. Expected Receipt Date is required in `DD Month YYYY` format (for example, `19 May 2026`) and fills the template's "We appreciate the receipt by" text, including when extra variant blocks move the footer.
+- Non-date Form B inputs are saved automatically in app settings and restored next time. Available Master Sheet values override restored inputs. Date defaults to today; Expected Receipt Date is never saved or restored.
 - Fills up to six variants per block; additional variants get another formatted block below. The exported workbook preserves the template styling and never overwrites the template.
 - Uses the Master Sheet checksum in column BA when present. If it is blank, Form B opens the linked WebFlow job, reads the Container `.cnt` CRC32 from Files > Execution Files, and downloads the `.cnt` to calculate an uppercase CRC32 only when WebFlow has no checksum.
 

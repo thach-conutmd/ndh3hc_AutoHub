@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime
 
 from PySide6.QtWidgets import (
@@ -10,11 +11,14 @@ from PySide6.QtWidgets import (
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.ports import FormBGenerator
+from autohub.core.settings import JsonSettingsStore, SettingsStore
 from autohub.core.workers import TaskRunner
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.ui.theme import set_muted
 
 _logger = logging.getLogger(__name__)
+FORM_B_INPUTS_KEY = "form_b_inputs"
+_DATE_FIELDS = ("date", "expected_receipt_date")
 
 _FORM_FIELDS = (
     ("department_organization", "Department / Organization"),
@@ -26,16 +30,36 @@ _FORM_FIELDS = (
     ("production_project", "Production Project"),
     ("bosch_project_number", "Bosch Project Number"),
     ("ecu_type", "ECU-Type"),
+    ("expected_receipt_date", "Expected Receipt Date"),
 )
+_FORM_PLACEHOLDERS = {
+    "department_organization": "e.g. Powertrain Engineering / Release Team",
+    "name": "e.g. Alex Nguyen",
+    "phone_number": "e.g. +84 28 1234 5678",
+    "date": "YYYY-MM-DD",
+    "return_to": "e.g. Powertrain Engineering / Alex Nguyen",
+    "project_release": "e.g. 6WZX Honda Project",
+    "production_project": "e.g. 6WZX MP1",
+    "bosch_project_number": "e.g. 328205",
+    "ecu_type": "e.g. MG1CS022",
+    "expected_receipt_date": "e.g. 19 May 2026",
+}
 
 
 class FormBWidget(QWidget):
-    def __init__(self, service: FormBGenerator, dialogs: Dialogs | None = None):
+    def __init__(
+        self, service: FormBGenerator, dialogs: Dialogs | None = None,
+        settings: SettingsStore | None = None,
+    ):
         super().__init__()
         self._service = service
         self._dialogs = dialogs or QtDialogs(self)
+        self._settings = settings if settings is not None else JsonSettingsStore()
         self._tasks = TaskRunner()
         self._running = False
+        self._variants: list[dict] = []
+        self._master_defaults: dict[str, str] = {}
+        self._master_reload = False
 
         title = QLabel("Form B")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
@@ -45,6 +69,9 @@ class FormBWidget(QWidget):
 
         self._checklist = VariantChecklist()
         self._form_fields: dict[str, QLineEdit] = {}
+        saved = self._settings.load().get(FORM_B_INPUTS_KEY, {})
+        if not isinstance(saved, dict):
+            saved = {}
         information_group = QGroupBox("Form B Information")
         information_grid = QGridLayout(information_group)
         information_grid.setContentsMargins(12, 10, 12, 10)
@@ -57,8 +84,11 @@ class FormBWidget(QWidget):
             field = QLineEdit()
             field.setObjectName(key)
             field.setAccessibleName(label_text)
+            field.setPlaceholderText(_FORM_PLACEHOLDERS[key])
             if key == "date":
-                field.setPlaceholderText("YYYY-MM-DD")
+                field.setText(date.today().isoformat())
+            elif key not in _DATE_FIELDS and isinstance(saved.get(key), str):
+                field.setText(saved[key])
             self._form_fields[key] = field
             field_layout.addWidget(label)
             field_layout.addWidget(field)
@@ -105,11 +135,27 @@ class FormBWidget(QWidget):
         layout.addLayout(footer)
 
         self._checklist.selectionChanged.connect(self._update_selection)
+        for key, field in self._form_fields.items():
+            if key not in _DATE_FIELDS:
+                field.textChanged.connect(self._save_inputs)
+
+    def _save_inputs(self) -> None:
+        self._settings.update(**{
+            FORM_B_INPUTS_KEY: {
+                key: field.text().strip()
+                for key, field in self._form_fields.items()
+                if key not in _DATE_FIELDS
+            }
+        })
 
     def set_variants(self, variants: list[dict]) -> None:
+        self._variants = variants
+        self._master_reload = True
         self._checklist.set_variants(variants)
+        self._master_reload = False
 
     def _update_selection(self, selected: int, total: int) -> None:
+        self._fill_master_information()
         self._selection_summary.setText(f"{selected} selected · {total} available")
         self._footer_hint.setText(
             "Ready to export Form B." if selected else
@@ -118,7 +164,37 @@ class FormBWidget(QWidget):
         )
         self._export_btn.setEnabled(selected > 0 and not self._running)
 
+    def _fill_master_information(self) -> None:
+        variants = self._checklist.selected_variants() or self._variants
+        candidates: dict[str, set[str]] = {
+            "project_release": set(),
+            "production_project": set(),
+            "ecu_type": set(),
+        }
+        for variant in variants:
+            project = str(variant.get("project") or "").strip()
+            phase = re.search(r"(?:_|/)\s*(MP\d+)\s*$", str(variant.get("event_name") or ""), re.IGNORECASE)
+            ecu_type = str(
+                variant.get("form_b", {}).get("AP") or variant.get("ecu_type") or ""
+            ).strip()
+            candidates["project_release"].add(project)
+            candidates["production_project"].add(
+                f"{project} {phase.group(1).upper()}" if project and phase else ""
+            )
+            candidates["ecu_type"].add(ecu_type)
+        for key, options in candidates.items():
+            value = next(iter(options)) if len(options) == 1 else ""
+            field = self._form_fields[key]
+            if (
+                value and (self._master_reload or value != self._master_defaults.get(key))
+                or not field.text().strip()
+                or field.text() == self._master_defaults.get(key)
+            ):
+                field.setText(value)
+            self._master_defaults[key] = value
+
     def _export(self) -> None:
+        self._save_inputs()
         variants = self._checklist.selected_variants()
         if not variants:
             self._dialogs.error("Form B", "Select at least one variant.")
@@ -151,11 +227,13 @@ class FormBWidget(QWidget):
             value = " ".join(self._form_fields[key].text().split())
             if not value:
                 invalid_fields.append(label)
-            elif key == "date":
+            elif key in ("date", "expected_receipt_date"):
+                date_format = "%Y-%m-%d" if key == "date" else "%d %B %Y"
                 try:
-                    parsed = datetime.strptime(value, "%Y-%m-%d").date()
+                    parsed = datetime.strptime(value, date_format).date()
                 except ValueError:
-                    invalid_fields.append(f"{label} (use YYYY-MM-DD)")
+                    example = "YYYY-MM-DD" if key == "date" else "DD Month YYYY, e.g. 19 May 2026"
+                    invalid_fields.append(f"{label} (use {example})")
                 else:
                     values[key] = parsed
             else:

@@ -185,6 +185,11 @@ def export_form_b(
             sheet["A22"] = f"For {production_project} production"
             sheet["B23"] = form_information["bosch_project_number"]
             sheet["B24"] = form_information["ecu_type"]
+            receipt_date = form_information.get("expected_receipt_date")
+            if receipt_date is not None:
+                if not isinstance(receipt_date, date):
+                    raise ValueError("Expected Receipt Date must be a valid date.")
+                sheet["A43"] = f"We appreciate the receipt by {receipt_date.day} {receipt_date:%B %Y}"
 
         footer_row = FOOTER_ROW
         for start in range(0, len(variants), len(VARIANT_COLUMNS)):
