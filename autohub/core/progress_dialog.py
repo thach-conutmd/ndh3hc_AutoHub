@@ -57,6 +57,9 @@ class ProgressDialog(QDialog):
 
     def _show_step(self, text: str) -> None:
         self._status.setText(text.partition("\n")[0])
+        self._status.setStyleSheet(
+            "color: #b9770e; font-weight: bold;" if text.startswith("Warning:") else ""
+        )
         self._log.appendPlainText(text)
 
     def _show_result(self, text: str, ok: bool) -> None:
