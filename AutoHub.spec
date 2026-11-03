@@ -1,6 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_submodules
+
 ROOT = Path(SPECPATH)
 VERSION_FILE = ROOT / "build" / "version_info.txt"
 ICON_FILE = ROOT / "autohub" / "resources" / "AutoHub.ico"
@@ -24,6 +26,8 @@ a = Analysis(
         "pythoncom",
         "pywintypes",
         "win32com.client",
+        # selenium.webdriver resolves Edge/Chrome/etc. lazily (webdriver.Edge in WebFlow.py), so collect every submodule.
+        *collect_submodules("selenium"),
     ],
     hookspath=[],
     hooksconfig={},
