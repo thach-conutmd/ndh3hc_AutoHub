@@ -12,9 +12,11 @@ from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.form_b import form_b_phase, manual_phase, master_phase
 from autohub.core.ports import FormBGenerator
 from autohub.core.settings import JsonSettingsStore, SettingsStore
-from autohub.core.settings_keys import FORM_B_FIELD_VISIBILITY
+from autohub.core.settings_keys import (
+    DEFAULT_FORM_B_PROJECT_SUFFIX, FORM_B_FIELD_VISIBILITY, FORM_B_PROJECT_SUFFIX_KEY,
+)
 from autohub.core.workers import TaskRunner
-from autohub.modules.creation.variant_checklist import VariantChecklist
+from autohub.modules.form_b.variant_checklist import FormBVariantChecklist
 from autohub.ui.theme import set_muted
 
 _logger = logging.getLogger(__name__)
@@ -69,7 +71,7 @@ class FormBWidget(QWidget):
         subtitle.setWordWrap(True)
         set_muted(subtitle, True)
 
-        self._checklist = VariantChecklist()
+        self._checklist = FormBVariantChecklist()
         self._form_fields: dict[str, QLineEdit] = {}
         self._field_containers: dict[str, QWidget] = {}
         saved = self._settings.load().get(FORM_B_INPUTS_KEY, {})
@@ -156,6 +158,12 @@ class FormBWidget(QWidget):
 
     def apply_settings(self, settings: dict) -> None:
         applied = {**self._settings.load(), **settings}
+        suffix = " ".join(str(applied.get(FORM_B_PROJECT_SUFFIX_KEY, DEFAULT_FORM_B_PROJECT_SUFFIX)).split())
+        suffix_changed = hasattr(self, "_project_suffix") and suffix != self._project_suffix
+        self._project_suffix = suffix
+        if suffix_changed:
+            self._master_defaults.pop("project_release", None)
+            self._fill_master_information()
         for container in self._field_containers.values():
             self._information_grid.removeWidget(container)
         index = 0
@@ -221,7 +229,9 @@ class FormBWidget(QWidget):
             ecu_type = str(
                 variant.get("form_b", {}).get("AP") or variant.get("ecu_type") or ""
             ).strip()
-            candidates["project_release"].add(f"{project} Honda Project" if project else "")
+            candidates["project_release"].add(
+                " ".join(part for part in (project, self._project_suffix) if part) if project else ""
+            )
             if selected:
                 candidates["production_project"].add(
                     f"{project} {phase}" if project and phase else ""
@@ -336,6 +346,7 @@ class FormBWidget(QWidget):
         return values, invalid_fields
 
     def _finish(self, path, window) -> None:
+        self._checklist.refresh_checksums()
         self._running = False
         self._checklist.setEnabled(True)
         self._export_btn.setText("Export Form B")
@@ -344,6 +355,7 @@ class FormBWidget(QWidget):
         window.succeed(f"Form B workbook saved to {path}.")
 
     def _fail(self, error: str, window) -> None:
+        self._checklist.refresh_checksums()
         self._running = False
         self._checklist.setEnabled(True)
         self._export_btn.setText("Export Form B")

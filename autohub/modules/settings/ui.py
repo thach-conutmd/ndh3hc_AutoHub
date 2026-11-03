@@ -26,6 +26,8 @@ from autohub.core.settings_keys import (
     RECORD_PAGES_KEY,
     SHOW_WEBFLOW_LINK_KEY,
     FORM_B_FIELD_VISIBILITY,
+    FORM_B_PROJECT_SUFFIX_KEY,
+    DEFAULT_FORM_B_PROJECT_SUFFIX,
     WEBFLOW_ATTEMPTS_LIMIT,
     WEBFLOW_MAX_ATTEMPTS_KEY,
     WEBFLOW_RETRY_ENABLED_KEY,
@@ -115,6 +117,13 @@ class SettingsWidget(QWidget):
             checkbox.setChecked(bool(settings.load().get(key, False)))
             self._form_b_visibility[key] = checkbox
             form_b_layout.addWidget(checkbox)
+        self._form_b_project_suffix = QLineEdit(str(settings.load().get(
+            FORM_B_PROJECT_SUFFIX_KEY, DEFAULT_FORM_B_PROJECT_SUFFIX
+        )))
+        self._form_b_project_suffix.setAccessibleName("Production Release Project Suffix")
+        suffix_form = QFormLayout()
+        suffix_form.addRow("Production Release Project Suffix:", self._form_b_project_suffix)
+        form_b_layout.addLayout(suffix_form)
 
         logging_group = QGroupBox("Logging")
         logging_layout = QVBoxLayout(logging_group)
@@ -272,6 +281,7 @@ class SettingsWidget(QWidget):
         self._log_location.textChanged.connect(self._refresh_apply)
         for checkbox in self._form_b_visibility.values():
             checkbox.toggled.connect(self._refresh_apply)
+        self._form_b_project_suffix.textChanged.connect(self._refresh_apply)
         self._record.toggled.connect(self._refresh_apply)
         self._attempts.valueChanged.connect(self._refresh_apply)
         self._retry.toggled.connect(self._refresh_apply)
@@ -377,6 +387,7 @@ class SettingsWidget(QWidget):
             self._disabled_exclusion_values(),
             self._exclusion_values(),
             *(checkbox.isChecked() for checkbox in self._form_b_visibility.values()),
+            " ".join(self._form_b_project_suffix.text().split()),
             self._log_location.text().strip(),
         )
 
@@ -425,6 +436,7 @@ class SettingsWidget(QWidget):
             )
             for index, checkbox in enumerate(self._form_b_visibility.values(), visibility_start):
                 checkbox.setChecked(self._applied[index])
+            self._form_b_project_suffix.setText(self._applied[-2])
             self._log_location.setText(self._applied[-1])
         return True
 
@@ -456,6 +468,7 @@ class SettingsWidget(QWidget):
             XML_COMPARISON_DISABLED_EXCLUSIONS_KEY: list(disabled),
             XML_COMPARISON_EXCLUSIONS_KEY: list(exclusions),
             **{key: checkbox.isChecked() for key, checkbox in self._form_b_visibility.items()},
+            FORM_B_PROJECT_SUFFIX_KEY: " ".join(self._form_b_project_suffix.text().split()),
             LOG_LOCATION_KEY: self._log_location.text().strip(),
         }
         changes = {}
