@@ -12,6 +12,7 @@ import openpyxl
 
 from autohub.config import BASE_DIR
 from autohub.core.checksums import normalize_crc32
+from autohub.core.form_b import form_b_phase, master_phase
 from autohub.core.progress import ProgressCallback, no_progress
 from autohub.services.common.encrypted_workbook import decrypt_workbook
 
@@ -78,16 +79,15 @@ def _safe_filename_part(value: str, label: str) -> str:
 def _output_filename(variants: list[dict], generated_on: date) -> str:
     names = set()
     for variant in variants:
-        event_name = str(variant.get("event_name") or "").strip()
-        match = re.search(r"(?:_|/)\s*(MP\d+)\s*$", event_name, re.IGNORECASE)
-        if not match:
+        phase = form_b_phase(variant)
+        if not phase:
             raise ValueError(
                 f"{variant.get('part_number', 'Variant')}: Master Sheet Project Purpose "
-                "does not contain a phase (MP number)."
+                "does not contain a phase (MP number). Enter a manual phase such as MP1."
             )
         names.add((
             _safe_filename_part(str(variant.get("project") or ""), "Project"),
-            _safe_filename_part(match.group(1).upper(), "Phase"),
+            _safe_filename_part(phase, "Phase"),
             _safe_filename_part(str(variant.get("ecu_type") or ""), "ECU Type"),
         ))
     if len(names) != 1:
@@ -240,6 +240,13 @@ class FormBService:
         missing = []
         for variant in variants:
             part_number = str(variant.get("part_number") or "Variant")
+            if not master_phase(variant) and form_b_phase(variant):
+                message = (
+                    f"Warning: {part_number}: Master Sheet Project Purpose has no valid phase; "
+                    f"using manually entered {form_b_phase(variant)}."
+                )
+                _logger.warning(message)
+                progress(message)
             values = _master_values(variant)
             checksum = normalize_crc32(values.get("BA"))
             if checksum:

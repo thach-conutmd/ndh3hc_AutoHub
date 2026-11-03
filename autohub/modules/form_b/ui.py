@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 import logging
-import re
 from datetime import date, datetime
 
 from PySide6.QtWidgets import (
-    QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QGridLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
+from autohub.core.form_b import form_b_phase, manual_phase, master_phase
 from autohub.core.ports import FormBGenerator
 from autohub.core.settings import JsonSettingsStore, SettingsStore
 from autohub.core.workers import TaskRunner
@@ -60,6 +60,7 @@ class FormBWidget(QWidget):
         self._variants: list[dict] = []
         self._master_defaults: dict[str, str] = {}
         self._master_reload = False
+        self._production_selection: tuple = ()
 
         title = QLabel("Form B")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
@@ -93,6 +94,12 @@ class FormBWidget(QWidget):
             field_layout.addWidget(label)
             field_layout.addWidget(field)
             information_grid.addLayout(field_layout, index // 3, index % 3)
+        self._production_warning = QLabel(
+            "Selected variants have different Production Project values. Enter Production Project manually."
+        )
+        self._production_warning.setWordWrap(True)
+        self._production_warning.hide()
+        information_grid.addWidget(self._production_warning, 4, 0, 1, 3)
 
         selection_title = QLabel("Select variants")
         selection_title.setStyleSheet("font-size: 16px; font-weight: 600;")
@@ -135,9 +142,18 @@ class FormBWidget(QWidget):
         layout.addLayout(footer)
 
         self._checklist.selectionChanged.connect(self._update_selection)
+        for key in ("department_organization", "name"):
+            self._form_fields[key].textChanged.connect(self._update_return_to)
+        self._update_return_to()
         for key, field in self._form_fields.items():
             if key not in _DATE_FIELDS:
                 field.textChanged.connect(self._save_inputs)
+
+    def _update_return_to(self) -> None:
+        self._form_fields["return_to"].setText(" ".join(
+            value for key in ("department_organization", "name")
+            if (value := self._form_fields[key].text().strip())
+        ))
 
     def _save_inputs(self) -> None:
         self._settings.update(**{
@@ -165,7 +181,14 @@ class FormBWidget(QWidget):
         self._export_btn.setEnabled(selected > 0 and not self._running)
 
     def _fill_master_information(self) -> None:
-        variants = self._checklist.selected_variants() or self._variants
+        selected = self._checklist.selected_variants()
+        variants = selected or self._variants
+        production_selection = tuple(
+            (variant["part_number"], variant.get("project"), variant.get("event_name"))
+            for variant in selected
+        )
+        refresh_production = self._master_reload or production_selection != self._production_selection
+        self._production_selection = production_selection
         candidates: dict[str, set[str]] = {
             "project_release": set(),
             "production_project": set(),
@@ -173,18 +196,25 @@ class FormBWidget(QWidget):
         }
         for variant in variants:
             project = str(variant.get("project") or "").strip()
-            phase = re.search(r"(?:_|/)\s*(MP\d+)\s*$", str(variant.get("event_name") or ""), re.IGNORECASE)
+            phase = master_phase(variant)
             ecu_type = str(
                 variant.get("form_b", {}).get("AP") or variant.get("ecu_type") or ""
             ).strip()
             candidates["project_release"].add(project)
-            candidates["production_project"].add(
-                f"{project} {phase.group(1).upper()}" if project and phase else ""
-            )
+            if selected:
+                candidates["production_project"].add(
+                    f"{project} {phase}" if project and phase else ""
+                )
             candidates["ecu_type"].add(ecu_type)
+        self._production_warning.setVisible(len(candidates["production_project"]) > 1)
         for key, options in candidates.items():
             value = next(iter(options)) if len(options) == 1 else ""
             field = self._form_fields[key]
+            if key == "production_project":
+                if refresh_production:
+                    field.setText(value)
+                self._master_defaults[key] = value
+                continue
             if (
                 value and (self._master_reload or value != self._master_defaults.get(key))
                 or not field.text().strip()
@@ -199,6 +229,21 @@ class FormBWidget(QWidget):
         if not variants:
             self._dialogs.error("Form B", "Select at least one variant.")
             return
+        resolved = self._resolve_phases(variants)
+        if resolved is None:
+            return
+        variants = resolved
+        if (
+            any(not master_phase(variant) for variant in variants)
+            and not self._form_fields["production_project"].text().strip()
+        ):
+            projects = {
+                f"{str(variant.get('project') or '').strip()} {form_b_phase(variant)}"
+                for variant in variants
+                if str(variant.get("project") or "").strip()
+            }
+            if len(projects) == 1 and all(variant.get("project") for variant in variants):
+                self._form_fields["production_project"].setText(projects.pop())
         form_information, invalid_fields = self._collect_form_information()
         if invalid_fields:
             self._dialogs.error(
@@ -219,6 +264,29 @@ class FormBWidget(QWidget):
             lambda result: self._finish(result, window),
             lambda error: self._fail(error, window),
         )
+
+    def _resolve_phases(self, variants: list[dict]) -> list[dict] | None:
+        resolved = []
+        for variant in variants:
+            if master_phase(variant):
+                resolved.append(variant)
+                continue
+            label = (
+                f"Warning: {variant.get('part_number', 'Variant')}: Master Sheet Project Purpose "
+                "does not contain a valid phase/MP number.\n"
+                "Enter the phase for this export (e.g. MP1). Cancel to return to Form B."
+            )
+            prompt = label
+            while True:
+                value, accepted = QInputDialog.getText(self, "Form B phase warning", prompt)
+                if not accepted:
+                    return None
+                phase = manual_phase(value)
+                if phase:
+                    resolved.append({**variant, "form_b_phase": phase})
+                    break
+                prompt = "Warning: Invalid phase. Use MP followed by digits (e.g. MP1).\n" + label
+        return resolved
 
     def _collect_form_information(self) -> tuple[dict[str, str | date], list[str]]:
         values: dict[str, str | date] = {}

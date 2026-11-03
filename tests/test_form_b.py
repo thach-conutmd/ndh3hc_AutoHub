@@ -16,6 +16,8 @@ from autohub.services.WebFlow.WebFlow import WebFlow
 from autohub.modules.form_b.ui import FormBWidget
 from autohub.modules.form_b import ui as form_b_ui
 from autohub.core.settings import JsonSettingsStore
+from autohub.core.form_b import form_b_phase
+from autohub.core.progress_dialog import ProgressDialog
 from tests.fakes import MemorySettings
 
 TEMPLATE = Path("datas/FormB/62XS_MP2_FORMB_MG1CS022_20260511.xlsx")
@@ -290,12 +292,17 @@ def test_form_b_information_requires_every_field_and_valid_date(qapp):
     assert invalid_fields[0].startswith("Expected Receipt Date (use DD Month YYYY")
 
 
-def test_form_b_export_passes_form_information_to_generator(qapp):
+@pytest.mark.parametrize("missing_phase", [False, True])
+def test_form_b_export_passes_form_information_to_generator(qapp, monkeypatch, missing_phase):
     service = Mock()
     dialogs = Mock()
     dialogs.save_file.return_value = "selected.xlsx"
     widget = FormBWidget(service, dialogs)
     item = variant(1)
+    if missing_phase:
+        item["event_name"] = "CERT"
+    prompt = Mock(return_value=("MP1", True))
+    monkeypatch.setattr(form_b_ui.QInputDialog, "getText", prompt)
     widget.set_variants([item])
     widget._checklist._checkboxes[item["part_number"]].setChecked(True)
     for key, field in widget._form_fields.items():
@@ -310,7 +317,7 @@ def test_form_b_export_passes_form_information_to_generator(qapp):
     work()
 
     service.generate.assert_called_once_with(
-        [item],
+        [{**item, "form_b_phase": "MP1"}] if missing_phase else [item],
         "selected.xlsx",
         dialogs.open_progress.return_value.step,
         {
@@ -326,6 +333,8 @@ def test_form_b_export_passes_form_information_to_generator(qapp):
             "expected_receipt_date": date(2027, 2, 8),
         },
     )
+    assert prompt.called is missing_phase
+    assert "form_b_phase" not in item
 
 
 def test_form_b_master_information_uses_loaded_and_selected_values_without_overwriting_edits(qapp):
@@ -333,6 +342,8 @@ def test_form_b_master_information_uses_loaded_and_selected_values_without_overw
     first, second = variant(1), variant(2)
     widget.set_variants([first, second])
     assert widget._form_fields["project_release"].text() == "62XS"
+    assert widget._form_fields["production_project"].text() == ""
+    widget._checklist._checkboxes[first["part_number"]].setChecked(True)
     assert widget._form_fields["production_project"].text() == "62XS MP1"
     assert widget._form_fields["ecu_type"].text() == "MG1CS022"
     for key in ("department_organization", "name", "phone_number", "return_to", "bosch_project_number"):
@@ -374,8 +385,11 @@ def test_form_b_restores_non_date_inputs_and_saves_changes(qapp, tmp_path):
     assert reopened._form_fields["date"].text() == date.today().isoformat()
     assert reopened._form_fields["expected_receipt_date"].text() == ""
     for key, value in saved.items():
-        assert reopened._form_fields[key].text() == value
+        assert reopened._form_fields[key].text() == (
+            "saved-department_organization saved-name" if key == "return_to" else value
+        )
     reopened.set_variants([variant(1)])
+    reopened._checklist._checkboxes["PART-1"].setChecked(True)
     assert reopened._form_fields["project_release"].text() == "62XS"
     assert reopened._form_fields["production_project"].text() == "62XS MP1"
     assert reopened._form_fields["ecu_type"].text() == "MG1CS022"
@@ -410,6 +424,58 @@ def test_form_b_missing_master_information_keeps_placeholders(qapp):
         assert widget._form_fields[key].placeholderText()
 
 
+def test_return_to_tracks_department_and_name_and_remains_editable(qapp):
+    settings = MemorySettings()
+    widget = FormBWidget(Mock(), Mock(), settings)
+    fields = widget._form_fields
+    fields["department_organization"].setText("  Engineering  ")
+    fields["name"].setText("Alex Nguyen")
+    assert fields["return_to"].text() == "Engineering Alex Nguyen"
+    assert settings.load()[form_b_ui.FORM_B_INPUTS_KEY]["return_to"] == "Engineering Alex Nguyen"
+    fields["return_to"].setText("Release desk")
+    assert fields["return_to"].text() == "Release desk"
+    fields["name"].setText("Sam Nguyen")
+    assert fields["return_to"].text() == "Engineering Sam Nguyen"
+    fields["department_organization"].clear()
+    assert fields["return_to"].text() == "Sam Nguyen"
+    fields["name"].clear()
+    assert fields["return_to"].text() == ""
+
+
+def test_production_project_refreshes_selection_and_warns_on_conflicts(qapp):
+    widget = FormBWidget(Mock(), Mock())
+    first, second = variant(1), variant(2)
+    second["event_name"] = "CERT_MP2"
+    widget.set_variants([first, second])
+    field = widget._form_fields["production_project"]
+    assert field.text() == ""
+    widget._checklist._checkboxes["PART-1"].setChecked(True)
+    assert field.text() == "62XS MP1"
+    field.setText("Manual override")
+    widget._update_selection(1, 2)
+    assert field.text() == "Manual override"
+    widget._checklist._checkboxes["PART-2"].setChecked(True)
+    assert field.text() == ""
+    assert not widget._production_warning.isHidden()
+    assert "Production Project" in widget._collect_form_information()[1]
+    field.setText("Manually confirmed production")
+    assert "Production Project" not in widget._collect_form_information()[1]
+    widget._checklist._checkboxes["PART-1"].setChecked(False)
+    assert field.text() == "62XS MP2"
+    assert widget._production_warning.isHidden()
+    widget._checklist.clear_selection()
+    assert field.text() == ""
+
+
+def test_production_project_autofills_for_matching_selected_variants(qapp):
+    widget = FormBWidget(Mock(), Mock())
+    widget.set_variants([variant(1), variant(2)])
+    for checkbox in widget._checklist._checkboxes.values():
+        checkbox.setChecked(True)
+    assert widget._form_fields["production_project"].text() == "62XS MP1"
+    assert widget._production_warning.isHidden()
+
+
 def test_form_b_filename_sanitizes_invalid_path_characters(tmp_path):
     item = variant(1)
     item.update(project="62XS:Test", ecu_type="MG1/CS022")
@@ -430,6 +496,77 @@ def test_form_b_rejects_variants_with_different_filename_fields(tmp_path):
             tmp_path / "selected-name.xlsx",
             today=date(2026, 3, 26),
         )
+
+
+def test_missing_phase_uses_manual_value_only_for_affected_variants(tmp_path):
+    first, second = variant(1, "12345678"), variant(2, "12345678")
+    first["form_b_phase"] = "MP9"
+    second.update(event_name="CERT", form_b_phase=" mp1 ")
+    progress = Mock()
+    output = FormBService(Mock()).generate(
+        [first, second], tmp_path / "form.xlsx", progress
+    )
+    assert "_MP1_FORMB_" in output.name
+    assert form_b_phase(first) == "MP1"
+    assert second["event_name"] == "CERT"
+    warnings = [call.args[0] for call in progress.call_args_list if call.args[0].startswith("Warning:")]
+    assert len(warnings) == 1
+    assert "PART-2" in warnings[0] and "MP1" in warnings[0]
+    assert "PART-1" not in warnings[0]
+
+
+@pytest.mark.parametrize("event_name", ["", "CERT", "CERT_MPX", "CERT_MP"])
+def test_phase_prompt_accepts_manual_phase_without_changing_master_data(qapp, monkeypatch, event_name):
+    widget = FormBWidget(Mock(), Mock())
+    valid, affected = variant(1), variant(2)
+    affected["event_name"] = event_name
+    prompt = Mock(side_effect=[("invalid", True), (" mp1 ", True)])
+    monkeypatch.setattr(form_b_ui.QInputDialog, "getText", prompt)
+    resolved = widget._resolve_phases([valid, affected])
+    assert prompt.call_count == 2
+    assert "PART-2" in prompt.call_args_list[0].args[2]
+    assert resolved[0] is valid
+    assert resolved[1]["form_b_phase"] == "MP1"
+    assert "form_b_phase" not in affected
+
+
+def test_cancel_manual_phase_returns_without_export(qapp, monkeypatch):
+    service, dialogs = Mock(), Mock()
+    widget = FormBWidget(service, dialogs)
+    item = variant(1)
+    item["event_name"] = "CERT"
+    widget.set_variants([item])
+    widget._checklist._checkboxes["PART-1"].setChecked(True)
+    monkeypatch.setattr(form_b_ui.QInputDialog, "getText", Mock(return_value=("", False)))
+    widget._export()
+    service.generate.assert_not_called()
+    dialogs.save_file.assert_not_called()
+    dialogs.open_progress.assert_not_called()
+    dialogs.error.assert_not_called()
+
+
+def test_missing_phase_without_valid_manual_input_reports_actionable_validation(tmp_path):
+    item = variant(1)
+    item.update(event_name="CERT", form_b_phase="invalid")
+    with pytest.raises(ValueError, match="Enter a manual phase"):
+        export_form_b([item], {}, tmp_path / "form.xlsx")
+
+
+def test_progress_missing_phase_warning_is_not_an_error(qapp):
+    window = ProgressDialog("Export Form B")
+    try:
+        window.step("Warning: PART-2 uses manually entered MP1.")
+        qapp.processEvents()
+        assert window._status.text().startswith("Warning:")
+        assert "Warning:" in window._log.toPlainText()
+        assert "Error:" not in window._log.toPlainText()
+        window.step("Creating the Form B workbook...")
+        qapp.processEvents()
+        assert window._status.styleSheet() == ""
+        window.succeed("Form B workbook saved.")
+    finally:
+        qapp.processEvents()
+        window.close()
 
 
 class FastWait:
