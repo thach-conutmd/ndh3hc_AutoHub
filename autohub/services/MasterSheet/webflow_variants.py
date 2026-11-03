@@ -76,7 +76,11 @@ def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
         "ecu": {key: _text(row.get(column)) for key, column in _ECU_COLUMNS.items()},
         "customer": {key: _text(row.get(column)) for key, column in _CUSTOMER_COLUMNS.items()},
         "form_b": {
-            column: row.get(column) if column == "BA" else _text(row.get(column))
+            column: (
+                row.get(column) if column == "BA" else
+                str(row[column]) if column == "AR" and row.get(column) is not None else
+                _text(row.get(column))
+            )
             for column in _FORM_B_COLUMNS
         },
         "unmapped_fields": {

@@ -45,11 +45,9 @@ def _text(values: dict, column: str) -> str:
     return " ".join(str(value).split())
 
 
-def _variant_label(customer_hw_number: str, part_number: str) -> str:
-    pieces = [piece.strip() for piece in customer_hw_number.split("-")]
-    if len(pieces) >= 4:
-        return f"{pieces[-3]} -{pieces[-2]}"
-    return customer_hw_number or part_number
+def _variant_label(customer_hw_number: str) -> str:
+    label = customer_hw_number.strip().removeprefix("37820-")
+    return label.rsplit("-", 1)[0] if label.count("-") >= 2 else label
 
 
 def _container_filename(values: dict, part_number: str) -> str:
@@ -99,9 +97,9 @@ def _output_filename(variants: list[dict], generated_on: date) -> str:
 def _variant_values(variant: dict, checksum: str) -> tuple[str, ...]:
     values = _master_values(variant)
     part_number = str(variant.get("part_number") or "Variant")
-    customer_hw_number = _text(values, "AR")
+    customer_hw_number = str(values["AR"]) if values.get("AR") is not None else ""
     return (
-        _variant_label(customer_hw_number, part_number),
+        _variant_label(customer_hw_number),
         customer_hw_number,
         _text(values, "AN"),
         _text(values, "AX"),
@@ -180,6 +178,7 @@ def export_form_b(
             sheet["C4"] = name
             sheet["C5"] = f"Phone No.: {phone_number}"
             sheet["C13"] = form_information["date"]
+            sheet["A59"] = f"Date: {form_information['date']:%Y-%m-%d} {name}"
             sheet["A18"] = f"After confirmation, please return this paper (FORM B) to {return_to}"
             sheet["A21"] = f"(Production release for project) : {project_release}"
             sheet["A22"] = f"For {production_project} production"
