@@ -60,6 +60,54 @@ def test_master_sheet_variant_keeps_form_b_source_values():
     }
 
 
+def test_form_b_customer_hardware_mapping_keeps_selected_rows_together(tmp_path):
+    variants = []
+    for index, hardware in enumerate((
+        "37820-62X-MD20-M6",
+        "37820-62X-ME20-M6",
+        "37820-62X-MF20-M7",
+        "37820-62X-MG20-M6",
+        "37820-62X-MH20-M6",
+        "37820-62X-MJ20-M6",
+        " 37820-62X-MK20-M6 ",
+    )):
+        variants.append(webflow_variant_from_row(f"UNRELATED-SW-{index}", {
+            "H": "62XS - CERT_MP1",
+            "S": "MG1CS022",
+            "AR": hardware,
+            "AN": f"RB-HW-{index}",
+            "AX": f"RB-SW-{index}",
+            "AS": f"CUSTOMER-SW-{index}",
+        }))
+        assert variants[-1]["form_b"]["AR"] == hardware
+    selected = [variants[index] for index in (1, 0, 4, 3, 5, 2, 6)]
+    output = export_form_b(selected, {}, tmp_path / "form.xlsx")
+    workbook = openpyxl.load_workbook(output)
+    try:
+        sheet = workbook["FormB"]
+        for index, item in enumerate(selected):
+            column, row = index % 6 + 2, 26 if index < 6 else 42
+            hardware = item["form_b"]["AR"]
+            assert sheet.cell(row, column).value == hardware.strip()[6:].rsplit("-", 1)[0]
+            assert sheet.cell(row + 1, column).value == hardware
+            assert sheet.cell(row + 2, column).value == item["form_b"]["AN"]
+            assert sheet.cell(row + 3, column).value == item["form_b"]["AX"]
+    finally:
+        workbook.close()
+
+
+def test_form_b_missing_customer_hardware_does_not_use_sw_part_number(tmp_path):
+    item = variant(1)
+    item["form_b"]["AR"] = ""
+    output = export_form_b([item], {}, tmp_path / "form.xlsx")
+    workbook = openpyxl.load_workbook(output)
+    try:
+        assert workbook["FormB"]["B26"].value is None
+        assert workbook["FormB"]["B27"].value is None
+    finally:
+        workbook.close()
+
+
 @pytest.mark.parametrize(("value", "expected"), [
     ("689d1972", "689D1972"),
     (232761, "00038D39"),
@@ -84,7 +132,7 @@ def test_form_b_uses_master_checksum_without_opening_webflow(tmp_path):
     workbook = openpyxl.load_workbook(output, data_only=True)
     try:
         sheet = workbook["FormB"]
-        assert sheet["B26"].value == "62X -MD1"
+        assert sheet["B26"].value == "62X-MD1"
         assert sheet["B35"].value == "ABCD1234"
         assert sheet["B37"].value == "IMMO6"
         assert sheet["B38"].value == "TPROT=3"
@@ -135,11 +183,11 @@ def test_form_b_variants_fill_six_column_blocks_and_keep_template_formatting(
     try:
         sheet = workbook["FormB"]
         template_sheet = template["FormB"]
-        assert sheet["B26"].value == "62X -MD1"
-        assert sheet["G26"].value == ("62X -MD6" if count >= 6 else None)
+        assert sheet["B26"].value == "62X-MD1"
+        assert sheet["G26"].value == ("62X-MD6" if count >= 6 else None)
         if count > 6:
-            assert sheet["B42"].value == "62X -MD7"
-            assert sheet["G42"].value == ("62X -MD12" if count >= 12 else None)
+            assert sheet["B42"].value == "62X-MD7"
+            assert sheet["G42"].value == ("62X-MD12" if count >= 12 else None)
         assert sheet[f"A{footer_row}"].value.startswith("Please review")
         assert sheet["B26"]._style == template_sheet["B26"]._style
         if count > 6:
@@ -205,6 +253,14 @@ def test_form_b_information_overwrites_template_header_without_changing_formatti
         assert sheet["B24"].value == "ECU-ABC"
         assert sheet[f"A{receipt_row}"].value == "We appreciate the receipt by 8 February 2027"
         assert sheet[f"A{receipt_row}"]._style == template_sheet["A43"]._style
+        footer_cell = sheet[f"A{receipt_row + 16}"]
+        assert footer_cell.value == "Date: 2026-11-03 Alex Example"
+        assert footer_cell._style == template_sheet["A59"]._style
+        assert sheet.max_row == baseline["FormB"].max_row
+        assert sum(
+            isinstance(cell.value, str) and cell.value.startswith("Date: ")
+            for row in sheet for cell in row
+        ) == 1
         for cell in ("C3", "C4", "C5", "C13", "A18", "A21", "A22", "B23", "B24"):
             assert sheet[cell]._style == template_sheet[cell]._style
         assert sheet.merged_cells.ranges == template_sheet.merged_cells.ranges
@@ -233,7 +289,10 @@ def test_form_b_information_defaults_to_today_with_placeholder_only_examples(qap
     for key, field in widget._form_fields.items():
         if key != "date":
             assert field.text() == ""
-            assert field.placeholderText().startswith("e.g. ")
+            if key == "expected_receipt_date":
+                assert field.placeholderText() == "YYYY-MM-DD"
+            else:
+                assert field.placeholderText().startswith("e.g. ")
 
     values, invalid_fields = widget._collect_form_information()
     assert values == {"date": date.today()}
@@ -272,7 +331,7 @@ def test_form_b_information_requires_every_field_and_valid_date(qapp):
     for key, field in widget._form_fields.items():
         field.setText(
             "2026-02-30" if key == "date" else
-            "8 February 2027" if key == "expected_receipt_date" else f"value-{key}"
+            "2027-02-08" if key == "expected_receipt_date" else f"value-{key}"
         )
     values, invalid_fields = widget._collect_form_information()
     assert "Date (use YYYY-MM-DD)" in invalid_fields
@@ -286,10 +345,27 @@ def test_form_b_information_requires_every_field_and_valid_date(qapp):
     assert not invalid_fields
     assert values["date"] == date(2026, 11, 3)
     assert values["expected_receipt_date"] == date(2027, 2, 8)
-    widget._form_fields["expected_receipt_date"].setText("31 February 2027")
+    widget._form_fields["expected_receipt_date"].setText("2027-02-31")
     _, invalid_fields = widget._collect_form_information()
     assert len(invalid_fields) == 1
-    assert invalid_fields[0].startswith("Expected Receipt Date (use DD Month YYYY")
+    assert invalid_fields == ["Expected Receipt Date (use YYYY-MM-DD)"]
+
+
+def test_iso_receipt_date_exports_as_long_date(qapp, tmp_path):
+    widget = FormBWidget(Mock(), Mock())
+    for key, field in widget._form_fields.items():
+        field.setText("2026-05-19" if key in ("date", "expected_receipt_date") else f"value-{key}")
+    information, invalid_fields = widget._collect_form_information()
+    assert invalid_fields == []
+    output = FormBService(Mock()).generate(
+        [variant(1, "12345678")], tmp_path / "form.xlsx",
+        form_information=information,
+    )
+    workbook = openpyxl.load_workbook(output)
+    try:
+        assert workbook["FormB"]["A43"].value == "We appreciate the receipt by 19 May 2026"
+    finally:
+        workbook.close()
 
 
 @pytest.mark.parametrize("missing_phase", [False, True])
@@ -308,7 +384,7 @@ def test_form_b_export_passes_form_information_to_generator(qapp, monkeypatch, m
     for key, field in widget._form_fields.items():
         field.setText(
             "2026-11-03" if key == "date" else
-            "8 February 2027" if key == "expected_receipt_date" else f"value-{key}"
+            "2027-02-08" if key == "expected_receipt_date" else f"value-{key}"
         )
 
     widget._tasks.start = Mock()
@@ -377,7 +453,7 @@ def test_form_b_restores_non_date_inputs_and_saves_changes(qapp, tmp_path):
     for key, field in widget._form_fields.items():
         field.setText(
             "2027-01-15" if key == "date" else
-            "8 February 2027" if key == "expected_receipt_date" else f"saved-{key}"
+            "2027-02-08" if key == "expected_receipt_date" else f"saved-{key}"
         )
     saved = settings.load()[form_b_ui.FORM_B_INPUTS_KEY]
     assert set(saved) == set(widget._form_fields) - {"date", "expected_receipt_date"}

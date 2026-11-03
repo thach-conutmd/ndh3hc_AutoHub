@@ -42,7 +42,7 @@ _FORM_PLACEHOLDERS = {
     "production_project": "e.g. 6WZX MP1",
     "bosch_project_number": "e.g. 328205",
     "ecu_type": "e.g. MG1CS022",
-    "expected_receipt_date": "e.g. 19 May 2026",
+    "expected_receipt_date": "YYYY-MM-DD",
 }
 
 
@@ -295,13 +295,11 @@ class FormBWidget(QWidget):
             value = " ".join(self._form_fields[key].text().split())
             if not value:
                 invalid_fields.append(label)
-            elif key in ("date", "expected_receipt_date"):
-                date_format = "%Y-%m-%d" if key == "date" else "%d %B %Y"
+            elif key in _DATE_FIELDS:
                 try:
-                    parsed = datetime.strptime(value, date_format).date()
+                    parsed = datetime.strptime(value, "%Y-%m-%d").date()
                 except ValueError:
-                    example = "YYYY-MM-DD" if key == "date" else "DD Month YYYY, e.g. 19 May 2026"
-                    invalid_fields.append(f"{label} (use {example})")
+                    invalid_fields.append(f"{label} (use YYYY-MM-DD)")
                 else:
                     values[key] = parsed
             else:
