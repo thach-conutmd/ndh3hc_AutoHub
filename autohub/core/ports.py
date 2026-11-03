@@ -4,6 +4,7 @@ Each protocol lists only what one client needs, so a fake can stand in for Excel
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Callable, Protocol, runtime_checkable
 
 from autohub.core.records import DocumentReader, EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
@@ -19,7 +20,13 @@ class SheetSession(Protocol):
 
 
 class FormBGenerator(Protocol):
-    def generate(self, variants: list[dict], output_path: str, progress: Callable[[str], None]) -> object: ...
+    def generate(
+        self,
+        variants: list[dict],
+        output_path: str,
+        progress: Callable[[str], None],
+        form_information: dict[str, str | date] | None = None,
+    ) -> object: ...
 
     def shutdown(self) -> None: ...
 

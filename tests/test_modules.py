@@ -28,7 +28,7 @@ def test_module_icons_match_their_sidebar_labels():
     expected = {
         "Home": "home.svg",
         "Creation": "creation.svg",
-        "Form B": "creation.svg",
+        "Form B": "form_b.svg",
         "Comparison": "comparison.svg",
         "Settings": "settings.svg",
     }

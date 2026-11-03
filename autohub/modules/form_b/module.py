@@ -9,7 +9,7 @@ from autohub.modules.form_b.ui import FormBWidget
 
 class FormBModule(AutoHubModule):
     display_name = "Form B"
-    icon_file = "creation.svg"
+    icon_file = "form_b.svg"
 
     def __init__(self, service_factory: Callable[[], FormBGenerator]):
         self._service_factory = service_factory

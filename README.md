@@ -131,6 +131,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 ### Form B module
 
 - Receives selected variants from Home and uses Master Sheet values to fill the supplied Form B workbook template.
+- Requires Department / Organization, Name, Phone Number, Date, Return To, Project / Production Release Project, Production Project, Bosch Project Number and ECU-Type in the Form B Information section.
 - Fills up to six variants per block; additional variants get another formatted block below. The exported workbook preserves the template styling and never overwrites the template.
 - Uses the Master Sheet checksum in column BA when present. If it is blank, Form B opens the linked WebFlow job, reads the Container `.cnt` CRC32 from Files > Execution Files, and downloads the `.cnt` to calculate an uppercase CRC32 only when WebFlow has no checksum.
 
