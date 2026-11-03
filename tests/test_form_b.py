@@ -421,6 +421,8 @@ def test_form_b_information_defaults_to_today_with_placeholder_only_examples(qap
             assert field.text() == ""
             if key == "expected_receipt_date":
                 assert field.placeholderText() == "YYYY-MM-DD"
+            elif key == "department_organization":
+                assert field.placeholderText() == "MS/EJV1-PS"
             else:
                 assert field.placeholderText().startswith("e.g. ")
 

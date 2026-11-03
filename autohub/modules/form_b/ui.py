@@ -36,7 +36,7 @@ _FORM_FIELDS = (
     ("expected_receipt_date", "Expected Receipt Date"),
 )
 _FORM_PLACEHOLDERS = {
-    "department_organization": "e.g. Powertrain Engineering / Release Team",
+    "department_organization": "MS/EJV1-PS",
     "name": "e.g. Alex Nguyen",
     "phone_number": "e.g. +84 28 1234 5678",
     "date": "YYYY-MM-DD",
