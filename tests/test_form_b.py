@@ -15,8 +15,9 @@ from autohub.services.WebFlow.FilesTab import FilesTab
 from autohub.services.WebFlow.WebFlow import WebFlow
 from autohub.modules.form_b.ui import FormBWidget
 from autohub.modules.form_b import ui as form_b_ui
+from autohub.modules.form_b.variant_checklist import FormBVariantChecklist
 from autohub.core.settings import JsonSettingsStore
-from autohub.core.settings_keys import FORM_B_FIELD_VISIBILITY
+from autohub.core.settings_keys import FORM_B_FIELD_VISIBILITY, FORM_B_PROJECT_SUFFIX_KEY
 from autohub.core.form_b import form_b_phase, master_phase
 from autohub.core.progress_dialog import ProgressDialog
 from tests.fakes import MemorySettings
@@ -60,6 +61,47 @@ def test_master_sheet_variant_keeps_form_b_source_values():
         "AP": "MG1CS022", "AN": "HW-1", "AR": "", "CS": "", "AX": "", "AZ": "",
         "BA": 232761, "AW": "", "AD": "", "BG": "", "CX": "", "CY": "", "CZ": "",
     }
+
+
+def test_form_b_table_columns_and_crc_refresh_preserve_variant_data(qapp):
+    checklist = FormBVariantChecklist()
+    first, second = variant(1, "000abc12"), variant(2, "*****")
+    first["ecu"] = {"family_name": "Family", "project_version": "Project", "program_version": "V123"}
+    first["hardware"] = {"software_part_number": "SW1", "ecr_number": "ECR1"}
+    checklist.set_variants([first, second])
+    table = checklist._table
+    assert [table.horizontalHeaderItem(i).text() for i in range(8)] == [
+        "Select", "Part Number", "Family Name", "FSWID Project Version",
+        "WebFlow Link", "SW Part Number", "CRC", "ECR Number",
+    ]
+    assert [table.item(0, i).text() for i in (1, 2, 3, 5, 6, 7)] == [
+        "PART-1", "Family", "Project", "SW1", "000ABC12", "ECR1",
+    ]
+    assert table.cellWidget(0, 4).text() == "WF1"
+    assert table.cellWidget(0, 5) is None
+    assert table.item(1, 6).text() == "-"
+    checklist._checkboxes["PART-2"].setChecked(True)
+    second["form_b"]["BA"] = "12345678"
+    checklist.refresh_checksums()
+    assert table.item(1, 6).text() == "12345678"
+    assert checklist._checkboxes["PART-2"].isChecked()
+    checklist._apply_filter()
+    qapp.processEvents()
+    assert table.cellWidget(0, 4).text() == "WF1"
+    assert table.item(1, 6).text() == "12345678"
+    assert first["ecu"]["program_version"] == "V123"
+
+
+@pytest.mark.parametrize("callback", ["_finish", "_fail"])
+def test_form_b_completion_refreshes_successful_checksum_writebacks(qapp, callback):
+    widget = FormBWidget(Mock(), Mock())
+    item = variant(1, "*****")
+    widget.set_variants([item])
+    widget._checklist._checkboxes["PART-1"].setChecked(True)
+    item["form_b"]["BA"] = "ABCDEF12"
+    getattr(widget, callback)("result", Mock())
+    assert widget._checklist._table.item(0, 6).text() == "ABCDEF12"
+    assert widget._checklist._checkboxes["PART-1"].isChecked()
 
 
 def test_form_b_customer_hardware_mapping_keeps_selected_rows_together(tmp_path):
@@ -529,6 +571,67 @@ def test_iso_receipt_date_exports_as_long_date(qapp, tmp_path, release_project):
         assert workbook["FormB"]["A21"].value == f"(Production release for project) : {expected}"
     finally:
         workbook.close()
+
+
+@pytest.mark.parametrize("suffix,expected", [
+    ("Honda Project", "6SAY Honda Project"),
+    ("  Customer   Release  ", "6SAY Customer Release"),
+    ("", "6SAY"),
+    ("   ", "6SAY"),
+])
+def test_configured_project_suffix_persists_autofills_and_exports(qapp, tmp_path, suffix, expected):
+    from autohub.modules.settings.ui import SettingsWidget
+    from autohub.ui.main_window import MainWindow
+
+    settings = JsonSettingsStore(tmp_path / "settings.json")
+    page = SettingsWidget(settings, Mock())
+    assert page._form_b_project_suffix.text() == "Honda Project"
+    widget = FormBWidget(Mock(), Mock(), settings)
+    item = variant(1, "12345678")
+    item["project"] = "6SAY"
+    widget.set_variants([item])
+    widget._checklist._checkboxes["PART-1"].setChecked(True)
+    MainWindow._wire_cross_module_signals([page, widget])
+    page._form_b_project_suffix.setText(suffix)
+    page._on_apply()
+    normalized = " ".join(suffix.split())
+    assert settings.load()[FORM_B_PROJECT_SUFFIX_KEY] == normalized
+    assert not page._apply.isEnabled()
+    assert widget._form_fields["project_release"].text() == expected
+    restored_settings = JsonSettingsStore(tmp_path / "settings.json")
+    restored_page = SettingsWidget(restored_settings, Mock())
+    assert restored_page._form_b_project_suffix.text() == normalized
+    restored = FormBWidget(Mock(), Mock(), restored_settings)
+    restored.set_variants([item])
+    assert restored._form_fields["project_release"].text() == expected
+    for key, field in widget._form_fields.items():
+        if key in ("date", "expected_receipt_date"):
+            field.setText("2026-05-19")
+        elif not field.text():
+            field.setText(f"value-{key}")
+    information, invalid = widget._collect_form_information()
+    assert invalid == []
+    output = export_form_b([item], {"PART-1": "12345678"}, tmp_path / "form.xlsx",
+                           form_information=information)
+    workbook = openpyxl.load_workbook(output)
+    try:
+        assert workbook["FormB"]["A21"].value == f"(Production release for project) : {expected}"
+    finally:
+        workbook.close()
+
+
+def test_project_suffix_discard_restores_applied_setting(qapp):
+    from autohub.modules.settings.ui import SettingsWidget
+
+    dialogs = Mock()
+    dialogs.ask_yes_no_cancel.return_value = False
+    settings = MemorySettings()
+    page = SettingsWidget(settings, dialogs)
+    page._form_b_project_suffix.setText("Unapplied suffix")
+    assert page.confirm_leave()
+    assert page._form_b_project_suffix.text() == "Honda Project"
+    assert not page._apply.isEnabled()
+    assert FORM_B_PROJECT_SUFFIX_KEY not in settings.load()
 
 
 @pytest.mark.parametrize("missing_phase", [False, True])

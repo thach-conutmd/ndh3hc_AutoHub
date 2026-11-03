@@ -174,10 +174,10 @@ def export_form_b(
             name = form_information["name"]
             phone_number = form_information["phone_number"]
             return_to = form_information["return_to"]
-            project = str(variants[0].get("project") or "").strip()
-            project_release = str(form_information["project_release"]).strip()
+            project = " ".join(str(variants[0].get("project") or "").split())
+            project_release = " ".join(str(form_information["project_release"]).split())
             if not re.search(rf"(?<!\w){re.escape(project)}(?!\w)", project_release, re.IGNORECASE):
-                project_release = f"{project} {project_release}"
+                project_release = f"{project} {project_release}".strip()
             production_project = form_information["production_project"]
             sheet["C3"] = department
             sheet["C4"] = name

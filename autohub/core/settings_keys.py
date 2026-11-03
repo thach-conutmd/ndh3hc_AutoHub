@@ -18,6 +18,8 @@ FORM_B_FIELD_VISIBILITY = {
     "production_project": ("show_form_b_production_project", "Show Production Project"),
     "ecu_type": ("show_form_b_ecu_type", "Show ECU-Type"),
 }
+FORM_B_PROJECT_SUFFIX_KEY = "form_b_production_release_project_suffix"
+DEFAULT_FORM_B_PROJECT_SUFFIX = "Honda Project"
 XML_COMPARISON_EXCLUSIONS_KEY = "xml_comparison_exclusions"
 XML_COMPARISON_DISABLED_EXCLUSIONS_KEY = "xml_comparison_disabled_exclusions"
 XML_COMPARISON_EXCLUSIONS_MASTER_ONLY_KEY = "xml_comparison_exclusions_master_only"
