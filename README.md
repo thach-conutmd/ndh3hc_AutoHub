@@ -249,6 +249,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Build
+
+```powershell
+build.bat
+```
+
+`build.bat` removes old `build` and `dist` folders, writes the Windows version resource from `APP_VERSION` in `autohub/config.py` (via `build_version_info.py`), and runs `pyinstaller --clean --noconfirm AutoHub.spec`. The result is `dist\AutoHub.exe`, with FileVersion/ProductVersion, ProductName, FileDescription, InternalName, OriginalFilename and company/copyright metadata. Change the version only in `APP_VERSION`.
+
 ## Test
 
 ```powershell
