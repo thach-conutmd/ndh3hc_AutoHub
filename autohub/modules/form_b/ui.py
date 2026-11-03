@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime
 
-from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+)
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.ports import FormBGenerator
@@ -12,6 +15,18 @@ from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.ui.theme import set_muted
 
 _logger = logging.getLogger(__name__)
+
+_FORM_FIELDS = (
+    ("department_organization", "Department / Organization"),
+    ("name", "Name"),
+    ("phone_number", "Phone Number"),
+    ("date", "Date"),
+    ("return_to", "Return To"),
+    ("project_release", "Project / Production Release Project"),
+    ("production_project", "Production Project"),
+    ("bosch_project_number", "Bosch Project Number"),
+    ("ecu_type", "ECU-Type"),
+)
 
 
 class FormBWidget(QWidget):
@@ -29,6 +44,26 @@ class FormBWidget(QWidget):
         set_muted(subtitle, True)
 
         self._checklist = VariantChecklist()
+        self._form_fields: dict[str, QLineEdit] = {}
+        information_group = QGroupBox("Form B Information")
+        information_grid = QGridLayout(information_group)
+        information_grid.setContentsMargins(12, 10, 12, 10)
+        information_grid.setHorizontalSpacing(12)
+        information_grid.setVerticalSpacing(6)
+        for index, (key, label_text) in enumerate(_FORM_FIELDS):
+            field_layout = QVBoxLayout()
+            field_layout.setSpacing(3)
+            label = QLabel(label_text)
+            field = QLineEdit()
+            field.setObjectName(key)
+            field.setAccessibleName(label_text)
+            if key == "date":
+                field.setPlaceholderText("YYYY-MM-DD")
+            self._form_fields[key] = field
+            field_layout.addWidget(label)
+            field_layout.addWidget(field)
+            information_grid.addLayout(field_layout, index // 3, index % 3)
+
         selection_title = QLabel("Select variants")
         selection_title.setStyleSheet("font-size: 16px; font-weight: 600;")
         self._selection_summary = QLabel("0 selected · 0 available")
@@ -65,6 +100,7 @@ class FormBWidget(QWidget):
         layout.setSpacing(12)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        layout.addWidget(information_group)
         layout.addWidget(selection_group, stretch=1)
         layout.addLayout(footer)
 
@@ -87,6 +123,13 @@ class FormBWidget(QWidget):
         if not variants:
             self._dialogs.error("Form B", "Select at least one variant.")
             return
+        form_information, invalid_fields = self._collect_form_information()
+        if invalid_fields:
+            self._dialogs.error(
+                "Form B",
+                "Complete the following Form B Information fields:\n" + "\n".join(invalid_fields),
+            )
+            return
         path = self._dialogs.save_file("Export Form B", "Form_B.xlsx", "Excel workbook (*.xlsx)")
         if not path:
             return
@@ -96,10 +139,28 @@ class FormBWidget(QWidget):
         self._export_btn.setEnabled(False)
         self._export_btn.setText("Exporting...")
         self._tasks.start(
-            lambda: self._service.generate(variants, path, window.step),
+            lambda: self._service.generate(variants, path, window.step, form_information),
             lambda result: self._finish(result, window),
             lambda error: self._fail(error, window),
         )
+
+    def _collect_form_information(self) -> tuple[dict[str, str | date], list[str]]:
+        values: dict[str, str | date] = {}
+        invalid_fields = []
+        for key, label in _FORM_FIELDS:
+            value = " ".join(self._form_fields[key].text().split())
+            if not value:
+                invalid_fields.append(label)
+            elif key == "date":
+                try:
+                    parsed = datetime.strptime(value, "%Y-%m-%d").date()
+                except ValueError:
+                    invalid_fields.append(f"{label} (use YYYY-MM-DD)")
+                else:
+                    values[key] = parsed
+            else:
+                values[key] = value
+        return values, invalid_fields
 
     def _finish(self, path, window) -> None:
         self._running = False

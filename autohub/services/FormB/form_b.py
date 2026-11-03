@@ -146,6 +146,7 @@ def export_form_b(
     output_path: str | Path,
     template_path: str | Path = TEMPLATE_PATH,
     today: date | None = None,
+    form_information: dict[str, str | date] | None = None,
 ) -> Path:
     if not variants:
         raise ValueError("Select at least one variant to create Form B.")
@@ -168,6 +169,22 @@ def export_form_b(
         if ecu_types:
             sheet["B24"] = next(iter(ecu_types))
         sheet["C13"] = generated_on
+        if form_information:
+            department = form_information["department_organization"]
+            name = form_information["name"]
+            phone_number = form_information["phone_number"]
+            return_to = form_information["return_to"]
+            project_release = form_information["project_release"]
+            production_project = form_information["production_project"]
+            sheet["C3"] = department
+            sheet["C4"] = name
+            sheet["C5"] = f"Phone No.: {phone_number}"
+            sheet["C13"] = form_information["date"]
+            sheet["A18"] = f"After confirmation, please return this paper (FORM B) to {return_to}"
+            sheet["A21"] = f"(Production release for project) : {project_release}"
+            sheet["A22"] = f"For {production_project} production"
+            sheet["B23"] = form_information["bosch_project_number"]
+            sheet["B24"] = form_information["ecu_type"]
 
         footer_row = FOOTER_ROW
         for start in range(0, len(variants), len(VARIANT_COLUMNS)):
@@ -210,6 +227,7 @@ class FormBService:
         variants: list[dict],
         output_path: str | Path,
         progress: ProgressCallback = no_progress,
+        form_information: dict[str, str | date] | None = None,
     ) -> Path:
         if not variants:
             raise ValueError("Select at least one variant to create Form B.")
@@ -249,7 +267,9 @@ class FormBService:
             finally:
                 self.shutdown()
         progress("Creating the Form B workbook...")
-        return export_form_b(variants, checksums, output_path, self._template_path)
+        return export_form_b(
+            variants, checksums, output_path, self._template_path, form_information=form_information
+        )
 
     def shutdown(self) -> None:
         if self._webflow is None:

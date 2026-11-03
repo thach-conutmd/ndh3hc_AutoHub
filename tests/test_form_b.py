@@ -13,6 +13,7 @@ from autohub.services.common.encrypted_workbook import decrypt_workbook
 from autohub.services.WebFlow import WebFlow as webflow_module
 from autohub.services.WebFlow.FilesTab import FilesTab
 from autohub.services.WebFlow.WebFlow import WebFlow
+from autohub.modules.form_b.ui import FormBWidget
 
 TEMPLATE = Path("datas/FormB/62XS_MP2_FORMB_MG1CS022_20260511.xlsx")
 
@@ -147,6 +148,129 @@ def test_form_b_filename_uses_master_fields_and_generation_date(tmp_path):
         today=date(2026, 3, 26),
     )
     assert output.name == "62XS_MP1_FORMB_MG1CS022_20260326.xlsx"
+
+
+def test_form_b_information_overwrites_template_header_without_changing_formatting(tmp_path):
+    form_information = {
+        "department_organization": "Engineering",
+        "name": "Alex Example",
+        "phone_number": "+1 555 0100",
+        "date": date(2026, 11, 3),
+        "return_to": "Release Team",
+        "project_release": "Project Alpha",
+        "production_project": "Production Beta",
+        "bosch_project_number": "BOSCH-123",
+        "ecu_type": "ECU-ABC",
+    }
+    output = export_form_b(
+        [variant(1)],
+        {"PART-1": "00000001"},
+        tmp_path / "selected-name.xlsx",
+        today=date(2026, 3, 26),
+        form_information=form_information,
+    )
+    workbook = openpyxl.load_workbook(output, data_only=True)
+    template = openpyxl.load_workbook(decrypt_workbook(str(TEMPLATE)), data_only=True)
+    try:
+        sheet = workbook["FormB"]
+        template_sheet = template["FormB"]
+        assert sheet["C3"].value == "Engineering"
+        assert sheet["C4"].value == "Alex Example"
+        assert sheet["C5"].value == "Phone No.: +1 555 0100"
+        assert sheet["C13"].value.date() == date(2026, 11, 3)
+        assert sheet["A18"].value.endswith("to Release Team")
+        assert sheet["A21"].value == "(Production release for project) : Project Alpha"
+        assert sheet["A22"].value == "For Production Beta production"
+        assert sheet["B23"].value == "BOSCH-123"
+        assert sheet["B24"].value == "ECU-ABC"
+        for cell in ("C3", "C4", "C5", "C13", "A18", "A21", "A22", "B23", "B24"):
+            assert sheet[cell]._style == template_sheet[cell]._style
+        assert sheet.merged_cells.ranges == template_sheet.merged_cells.ranges
+        assert [sheet.row_dimensions[row].height for row in range(1, sheet.max_row + 1)] == [
+            template_sheet.row_dimensions[row].height for row in range(1, template_sheet.max_row + 1)
+        ]
+        assert {
+            column: sheet.column_dimensions[column].width
+            for column in sheet.column_dimensions
+        } == {
+            column: template_sheet.column_dimensions[column].width
+            for column in template_sheet.column_dimensions
+        }
+    finally:
+        workbook.close()
+        template.close()
+
+
+def test_form_b_information_requires_every_field_and_valid_date(qapp):
+    dialogs = Mock()
+    widget = FormBWidget(Mock(), dialogs)
+    item = variant(1)
+    widget.set_variants([item])
+    widget._checklist._checkboxes[item["part_number"]].setChecked(True)
+    values, invalid_fields = widget._collect_form_information()
+    assert values == {}
+    assert invalid_fields == [
+        "Department / Organization",
+        "Name",
+        "Phone Number",
+        "Date",
+        "Return To",
+        "Project / Production Release Project",
+        "Production Project",
+        "Bosch Project Number",
+        "ECU-Type",
+    ]
+    widget._export()
+    assert all(field in dialogs.error.call_args.args[1] for field in invalid_fields)
+    dialogs.save_file.assert_not_called()
+
+    for key, field in widget._form_fields.items():
+        field.setText("2026-02-30" if key == "date" else f"value-{key}")
+    values, invalid_fields = widget._collect_form_information()
+    assert "Date (use YYYY-MM-DD)" in invalid_fields
+    assert len(invalid_fields) == 1
+    widget._export()
+    assert "Date (use YYYY-MM-DD)" in dialogs.error.call_args.args[1]
+    dialogs.save_file.assert_not_called()
+
+    widget._form_fields["date"].setText("2026-11-03")
+    values, invalid_fields = widget._collect_form_information()
+    assert not invalid_fields
+    assert values["date"] == date(2026, 11, 3)
+
+
+def test_form_b_export_passes_form_information_to_generator(qapp):
+    service = Mock()
+    dialogs = Mock()
+    dialogs.save_file.return_value = "selected.xlsx"
+    widget = FormBWidget(service, dialogs)
+    item = variant(1)
+    widget.set_variants([item])
+    widget._checklist._checkboxes[item["part_number"]].setChecked(True)
+    for key, field in widget._form_fields.items():
+        field.setText("2026-11-03" if key == "date" else f"value-{key}")
+
+    widget._tasks.start = Mock()
+    widget._export()
+    work = widget._tasks.start.call_args.args[0]
+    work()
+
+    service.generate.assert_called_once_with(
+        [item],
+        "selected.xlsx",
+        dialogs.open_progress.return_value.step,
+        {
+            "department_organization": "value-department_organization",
+            "name": "value-name",
+            "phone_number": "value-phone_number",
+            "date": date(2026, 11, 3),
+            "return_to": "value-return_to",
+            "project_release": "value-project_release",
+            "production_project": "value-production_project",
+            "bosch_project_number": "value-bosch_project_number",
+            "ecu_type": "value-ecu_type",
+        },
+    )
 
 
 def test_form_b_filename_sanitizes_invalid_path_characters(tmp_path):
