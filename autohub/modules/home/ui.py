@@ -11,6 +11,7 @@ from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
 from autohub.core.settings_keys import (
     CALIBRATION_FOLDER_PATH_KEY,
+    DEFAULT_MASTER_SHEET_TEMPLATE_KEY,
     LATEST_COUNT_KEY,
     SHOW_WEBFLOW_LINK_KEY,
     WEBFLOW_GENERAL_OPTIONS_KEY,
@@ -221,6 +222,8 @@ class HomeWidget(QWidget):
             self._variant_table.set_webflow_link_visible(self._show_webflow_link())
         if LATEST_COUNT_KEY in changes:
             self._presenter.refresh_latest_rows()
+        if DEFAULT_MASTER_SHEET_TEMPLATE_KEY in changes:
+            self._presenter.refresh_new_variant_state()
 
     def _show_webflow_link(self) -> bool:
         return bool(self._settings.load().get(SHOW_WEBFLOW_LINK_KEY, False))

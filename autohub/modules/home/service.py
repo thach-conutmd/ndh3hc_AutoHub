@@ -1,8 +1,11 @@
 """Variant workflows over the Master Sheet / ECU Info Sheet / System Matrix (no Qt, no concrete I/O types)."""
 from __future__ import annotations
 
+import re
+import shutil
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Sequence
 
 from autohub.core.a2l_hex import component_id_matches, load_calibration_folder
@@ -25,6 +28,37 @@ SessionFactory = Callable[[], AbstractContextManager]
 class NewVariantResult:
     variants: list[dict]
     warnings: list[str]
+    created_master_sheet: str = ""  # the copy made from the default template, when one was made
+
+
+def _project_name(ecu_info: dict) -> str:
+    items = ecu_info.get("GeneralInfo") or []
+    return str((items[0] if items else {}).get("Project") or "")
+
+
+def master_sheet_copy_name(project: str) -> str:
+    cleaned = re.sub(r'[\\/:*?"<>|]+', "_", " ".join(str(project or "").split()))
+    if not cleaned:
+        raise ValueError("The ECU Info Sheet has no Project name, so the Master Sheet copy cannot be named.")
+    return f"Honda_{cleaned}_Container_MasterSheet_r00.xlsx"
+
+
+def copy_master_sheet_template(template_path: str, project: str) -> str:
+    """Copies the template next to itself under the project's name; never overwrites an existing file."""
+    source = Path(template_path)
+    destination = source.parent / master_sheet_copy_name(project)
+    try:
+        with source.open("rb") as reader, destination.open("xb") as writer:
+            shutil.copyfileobj(reader, writer)
+    except FileExistsError:
+        raise ValueError(
+            f"{destination.name} already exists in {destination.parent}. Move or rename it, "
+            "or load it with Load Master Sheet, then try again."
+        ) from None
+    except OSError:
+        destination.unlink(missing_ok=True)
+        raise
+    return str(destination)
 
 
 class VariantService:
@@ -73,13 +107,16 @@ class VariantService:
         hex_folder_path: str = "",
         a2l_symbol_name: str = "I14229_numCompID_CA",
         variant_defaults: WebFlowDefaults | None = None,
+        copy_template: bool = False,
     ) -> NewVariantResult:
         self._require_master_sheet(master_sheet_path)
         with self._session():
             progress("Opening the source files...")
             system_matrix = self._system_matrix_factory(system_matrix_path)
             ecu_info_sheet = self._ecu_info_factory(ecu_info_path)
-            master_sheet = self._master_sheet_factory(master_sheet_path)
+            master_sheet = None if copy_template else self._master_sheet_factory(master_sheet_path)
+            created_path = ""
+            completed = False
             try:
                 hw_info = None
                 if hw_info_path:
@@ -103,6 +140,12 @@ class VariantService:
                 self._load(ecu_info_sheet, "ECU Info Sheet data")
 
                 progress("Opening the Master Sheet...")
+                if copy_template:
+                    progress("Creating the Master Sheet from the template...")
+                    created_path = copy_master_sheet_template(
+                        master_sheet_path, _project_name(ecu_info_sheet.ecu_info)
+                    )
+                    master_sheet = self._master_sheet_factory(created_path)
                 master_sheet.open()
                 progress("Building the new variants...")
                 variants = master_sheet.compute_new_variants(
@@ -134,11 +177,15 @@ class VariantService:
                             )
                         else:
                             variant["AZ"] = matching_calibration.hex_filename
-                return NewVariantResult(variants, warnings)
+                completed = True
+                return NewVariantResult(variants, warnings, created_path)
             finally:
-                master_sheet.close()
+                if master_sheet is not None:
+                    master_sheet.close()
                 ecu_info_sheet.close()
                 system_matrix.close()
+                if created_path and not completed:
+                    Path(created_path).unlink(missing_ok=True)
 
     def save_variants(
         self,

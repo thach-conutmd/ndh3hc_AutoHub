@@ -14,6 +14,7 @@ from autohub.core.webflow_defaults import new_variant_defaults
 from autohub.core.settings_keys import (
     A2L_COMP_ID_SYMBOL_KEY,
     CALIBRATION_FOLDER_PATH_KEY,
+    DEFAULT_MASTER_SHEET_TEMPLATE_KEY,
     LATEST_COUNT_CHOICES,
     LATEST_COUNT_KEY,
     normalize_latest_count,
@@ -25,6 +26,7 @@ _logger = logging.getLogger(__name__)
 
 MASTER_SHEET = "Master Sheet"
 NEW_VARIANT_TEXT = "New variants"
+DEFAULT_TEMPLATE_MISSING_TEXT = "Default Master Sheet template not found. Please select a valid template."
 UPDATE_TEXT = "Update Master Sheet"
 LOAD_TEXT = "Load variants"
 NEW_VARIANT_TIP = (
@@ -130,8 +132,10 @@ class HomePresenter:
 
     def _refresh_actions(self) -> None:
         ready = self._master_valid and not self._busy
+        # Without a loaded Master Sheet, New variant still works when a default template is configured.
+        can_create = (self._master_valid or bool(self._configured_template())) and not self._busy
         self._view.set_new_variant_state(
-            ready, "Creating..." if self._busy and self._operation == NEW_VARIANT_TEXT else NEW_VARIANT_TEXT,
+            can_create, "Creating..." if self._busy and self._operation == NEW_VARIANT_TEXT else NEW_VARIANT_TEXT,
         )
         self._view.set_load_state(ready, "Loading..." if self._busy and self._operation == LOAD_TEXT else LOAD_TEXT)
         self._view.set_update_state(
@@ -182,13 +186,21 @@ class HomePresenter:
             return False
         return self._valid_master_sheet(title) is not None
 
-    def _run_task(self, func, on_ok, on_error, window: ProgressWindow, operation: str) -> None:
-        """Only the still-valid workspace may consume a background operation's result."""
-        problem = self._active_master_problem()
-        if problem:
-            self._invalidate_master()
-            window.fail(problem)
-            return
+    def _run_task(self, func, on_ok, on_error, window: ProgressWindow, operation: str, check=None) -> None:
+        """Only the still-valid workspace may consume a background operation's result.
+
+        `check` replaces the active Master Sheet check (used when the work starts from the default template)."""
+        if check is None:
+            problem = self._active_master_problem()
+            if problem:
+                self._invalidate_master()
+                window.fail(problem)
+                return
+        else:
+            problem = check()
+            if problem:
+                window.fail(problem)
+                return
         revision = self._revision
         self._busy = True
         self._operation = operation
@@ -200,7 +212,7 @@ class HomePresenter:
                 self._refresh_actions()
                 window.fail("The active Master Sheet changed. Load and validate it again.")
                 return
-            problem = self._active_master_problem()
+            problem = self._active_master_problem() if check is None else ""
             if problem:
                 self._invalidate_master()
                 error = problem
@@ -222,6 +234,10 @@ class HomePresenter:
         self._settings.update(**{LATEST_COUNT_KEY: count})
         if changed:
             self.refresh_latest_rows()
+
+    def refresh_new_variant_state(self) -> None:
+        """Called when the default template setting changes."""
+        self._refresh_actions()
 
     def refresh_latest_rows(self) -> None:
         """Applies the saved display limit without silently discarding table edits."""
@@ -418,9 +434,15 @@ class HomePresenter:
     def new_variant(self) -> None:
         if self._busy:
             return
-        master_sheet_path = self._valid_master_sheet("AutoHub")
-        if master_sheet_path is None:
-            return
+        if self._master_valid:
+            master_sheet_path = self._valid_master_sheet("AutoHub")
+            if master_sheet_path is None:
+                return
+            template_check = None
+        else:
+            # A loaded Master Sheet always wins; without one, the configured template is copied.
+            master_sheet_path = self._configured_template()
+            template_check = lambda: self._template_problem(master_sheet_path)  # noqa: E731
         keep_rows = self._ask_keep_rows(NEW_VARIANT_TEXT)
         if keep_rows is None:
             return
@@ -449,11 +471,21 @@ class HomePresenter:
                 hex_folder_path=hex_folder_path,
                 a2l_symbol_name=a2l_symbol_name,
                 variant_defaults=variant_defaults,
+                copy_template=template_check is not None,
             ),
             lambda result: self._finish_new_variant(result, window, keep_rows),
             lambda error: self._fail_new_variant(error, window),
-            window, NEW_VARIANT_TEXT,
+            window, NEW_VARIANT_TEXT, check=template_check,
         )
+
+    def _template_problem(self, path: str) -> str:
+        """Empty when the configured default template is a readable Master Sheet."""
+        if not path or self._master_problem(path):
+            return DEFAULT_TEMPLATE_MISSING_TEXT
+        return ""
+
+    def _configured_template(self) -> str:
+        return str(self._settings.load().get(DEFAULT_MASTER_SHEET_TEMPLATE_KEY, "") or "").strip()
 
     def _ask_sources(self) -> dict[str, str] | None:
         """The source file paths from one dialog (always empty at first, nothing is remembered), or None when cancelled."""
@@ -470,6 +502,8 @@ class HomePresenter:
 
     def _finish_new_variant(self, result: NewVariantResult, window: ProgressWindow, keep_rows: bool) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
+        if result.created_master_sheet:
+            self._activate_master(result.created_master_sheet)
         count = self._show_added_rows(result.variants, keep_rows)
         if count > 0:
             self._view.set_update_state(True, UPDATE_TEXT)  # new rows can be written as they are
@@ -484,6 +518,8 @@ class HomePresenter:
             )
         if result.warnings:
             message += "\n\nCalibration ID warning(s):\n- " + "\n- ".join(result.warnings)
+        if result.created_master_sheet:
+            message = f"Created {Path(result.created_master_sheet).name} from the default template.\n\n" + message
         window.succeed(message)
 
     def _fail_new_variant(self, error: str, window: ProgressWindow) -> None:
