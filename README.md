@@ -137,6 +137,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 - Non-date Form B inputs are saved automatically in app settings and restored next time. Available Master Sheet values override restored inputs. Date defaults to today; Expected Receipt Date is never saved or restored.
 - Return To updates from Department / Organization and Name and remains editable. Production Project refreshes from selected variants; conflicting values clear the field and show a warning requiring manual input.
 - If a selected variant's Master Sheet Project Purpose has no valid MP phase, export asks for a manual phase such as `MP1`. The override applies only to that variant for the current export and is reported as a warning in progress; valid Master Sheet phases remain unchanged.
+- MP phases are recognized regardless of separators or prefix text in Project Purpose: `6SAY - MP1` fills `6SAY MP1`, and `6WZX - CERT_MP0` uses `MP0`.
 - Fills up to six variants per block; additional variants get another formatted block below. The exported workbook preserves the template styling and never overwrites the template.
 - Uses the Master Sheet checksum in column BA when present. If it is blank, Form B opens the linked WebFlow job, reads the Container `.cnt` CRC32 from Files > Execution Files, and downloads the `.cnt` to calculate an uppercase CRC32 only when WebFlow has no checksum.
 

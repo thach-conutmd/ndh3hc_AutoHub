@@ -16,7 +16,7 @@ from autohub.services.WebFlow.WebFlow import WebFlow
 from autohub.modules.form_b.ui import FormBWidget
 from autohub.modules.form_b import ui as form_b_ui
 from autohub.core.settings import JsonSettingsStore
-from autohub.core.form_b import form_b_phase
+from autohub.core.form_b import form_b_phase, master_phase
 from autohub.core.progress_dialog import ProgressDialog
 from tests.fakes import MemorySettings
 
@@ -474,6 +474,38 @@ def test_production_project_autofills_for_matching_selected_variants(qapp):
         checkbox.setChecked(True)
     assert widget._form_fields["production_project"].text() == "62XS MP1"
     assert widget._production_warning.isHidden()
+
+
+@pytest.mark.parametrize(("purpose", "project", "phase"), [
+    ("6SAY - MP1", "6SAY", "MP1"),
+    ("6WZX - CERT_MP0", "6WZX", "MP0"),
+    ("6SAY - CERT-MP12", "6SAY", "MP12"),
+    ("6SAY - CERT MP2", "6SAY", "MP2"),
+    ("6SAY - CERT/MP3", "6SAY", "MP3"),
+    ("6SAY - MP4 production release", "6SAY", "MP4"),
+    ("6SAY - cert_mp10_release", "6SAY", "MP10"),
+])
+def test_project_purpose_mp_parsing_drives_selected_production_project_and_export(
+    qapp, tmp_path, monkeypatch, purpose, project, phase
+):
+    item = webflow_variant_from_row("PART-1", {
+        "H": purpose, "S": "MG1CS022", "AP": "MG1CS022",
+        "AX": "container", "BA": "12345678",
+    })
+    assert master_phase(item) == phase
+    widget = FormBWidget(Mock(), Mock())
+    widget.set_variants([item])
+    widget._checklist._checkboxes["PART-1"].setChecked(True)
+    assert widget._form_fields["production_project"].text() == f"{project} {phase}"
+    prompt = Mock()
+    monkeypatch.setattr(form_b_ui.QInputDialog, "getText", prompt)
+    assert widget._resolve_phases([item]) == [item]
+    prompt.assert_not_called()
+    output = export_form_b(
+        [item], {"PART-1": "12345678"}, tmp_path / "form.xlsx",
+        today=date(2026, 11, 3),
+    )
+    assert output.name == f"{project}_{phase}_FORMB_MG1CS022_20261103.xlsx"
 
 
 def test_form_b_filename_sanitizes_invalid_path_characters(tmp_path):
