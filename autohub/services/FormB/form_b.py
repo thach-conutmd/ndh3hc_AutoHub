@@ -21,7 +21,7 @@ from autohub.core.templates import FORM_B_TEMPLATE, TemplateManager
 from autohub.services.common.encrypted_workbook import decrypt_workbook
 
 _logger = logging.getLogger(__name__)
-TEMPLATE_PATH = BASE_DIR / "datas" / "FormB" / "62XS_MP2_FORMB_MG1CS022_20260511.xlsx"
+TEMPLATE_PATH = BASE_DIR / "datas" / "templates" / "Form_B_Default_Template.xlsx"
 FIRST_BLOCK_ROW = 26
 BLOCK_ROWS = 13
 BLOCK_SPACING = 1

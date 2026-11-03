@@ -32,7 +32,7 @@ FORM_B_TEMPLATE = TemplateSpec(
     name="form_b",
     settings_key=FORM_B_TEMPLATE_KEY,
     label="Default Form B Template",
-    missing_message="Form B template is not available. Please select a valid Form B template in Settings.",
+    missing_message="Form B template is not available. Please select a valid template in Settings.",
 )
 
 
@@ -63,9 +63,21 @@ class TemplateManager:
         """The configured path, else the bundled default (empty when neither exists)."""
         return self.configured(spec) or self._defaults.get(spec.name, "")
 
+    def resolve(self, spec: TemplateSpec) -> str:
+        """The first usable path: the configured template, then the built-in default. Empty when neither works."""
+        candidates = dict.fromkeys(p for p in (self.configured(spec), self._defaults.get(spec.name, "")) if p)
+        for candidate in candidates:
+            if not self._check(spec, candidate):
+                return candidate
+        return ""
+
     def problem(self, spec: TemplateSpec, path: str | None = None) -> str:
-        """Empty when the template is usable; otherwise the spec's missing/invalid message."""
-        checked = (self.path(spec) if path is None else str(path).strip())
+        """Empty when ``path`` (or the resolved template when omitted) is usable; otherwise the spec's message."""
+        if path is None:
+            return "" if self.resolve(spec) else spec.missing_message
+        return self._check(spec, str(path).strip())
+
+    def _check(self, spec: TemplateSpec, checked: str) -> str:
         if not checked or Path(checked).suffix.lower() != ".xlsx" or not Path(checked).is_file():
             _logger.warning("%s template is missing or not an .xlsx file: %r", spec.label, checked)
             return spec.missing_message
@@ -84,10 +96,18 @@ class TemplateManager:
 
     def require(self, spec: TemplateSpec) -> str:
         """The usable template path; raises ValueError with the spec's message otherwise."""
-        problem = self.problem(spec)
-        if problem:
-            raise ValueError(problem)
-        return self.path(spec)
+        resolved = self.resolve(spec)
+        if not resolved:
+            raise ValueError(spec.missing_message)
+        return resolved
+
+    def seed_default(self, spec: TemplateSpec) -> None:
+        """First run: configure the built-in default as the active template when nothing was configured yet."""
+        if self._settings is None or spec.settings_key in self._settings.load():
+            return
+        default = self._defaults.get(spec.name, "")
+        if default and not self._check(spec, default):
+            self.save(spec, default)
 
     def save(self, spec: TemplateSpec, path: str) -> None:
         if self._settings is None:
