@@ -639,6 +639,7 @@ def test_project_suffix_discard_restores_applied_setting(qapp):
 @pytest.mark.parametrize("missing_phase", [False, True])
 def test_form_b_export_passes_form_information_to_generator(qapp, monkeypatch, missing_phase):
     service = Mock()
+    service.template_problem.return_value = ""
     dialogs = Mock()
     dialogs.save_file.return_value = "selected.xlsx"
     widget = FormBWidget(service, dialogs, MemorySettings({"master_sheet_path": "master.xlsx"}))

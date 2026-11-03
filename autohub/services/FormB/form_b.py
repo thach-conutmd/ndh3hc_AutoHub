@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import os
 import re
 from contextlib import AbstractContextManager, nullcontext
 from datetime import date
@@ -16,6 +17,7 @@ from autohub.core.checksums import normalize_crc32
 from autohub.core.form_b import form_b_phase, master_phase
 from autohub.core.ports import ContainerChecksumSheet
 from autohub.core.progress import ProgressCallback, no_progress
+from autohub.core.templates import FORM_B_TEMPLATE, TemplateManager
 from autohub.services.common.encrypted_workbook import decrypt_workbook
 
 _logger = logging.getLogger(__name__)
@@ -215,23 +217,47 @@ def export_form_b(
             if start:
                 footer_row += BLOCK_ROWS + BLOCK_SPACING
         destination.parent.mkdir(parents=True, exist_ok=True)
-        workbook.save(destination)
+        # Write to a partial file first so a failed save never leaves a truncated workbook at the destination.
+        partial = destination.with_name(f"{destination.name}.partial")
+        try:
+            workbook.save(partial)
+            os.replace(partial, destination)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
         _logger.info("Created Form B workbook with %d variants: %s", len(variants), destination)
     finally:
         workbook.close()
     return destination
 
 
+def form_b_template_problem(path: str) -> str:
+    """Empty when the Form B template opens as a workbook."""
+    try:
+        workbook = openpyxl.load_workbook(decrypt_workbook(str(path)))
+    except Exception as error:
+        return f"Could not open the Form B template: {error}"
+    workbook.close()
+    return ""
+
+
+def default_form_b_templates() -> TemplateManager:
+    return TemplateManager(
+        defaults={FORM_B_TEMPLATE.name: str(TEMPLATE_PATH)},
+        load_checks={FORM_B_TEMPLATE.name: form_b_template_problem},
+    )
+
+
 class FormBService:
     def __init__(
         self,
         webflow_factory: Callable[[], FormBWebFlow],
-        template_path: str | Path = TEMPLATE_PATH,
+        templates: TemplateManager | None = None,
         master_sheet_factory: Callable[[str], ContainerChecksumSheet] | None = None,
         session_factory: Callable[[], AbstractContextManager] = nullcontext,
     ):
         self._webflow_factory = webflow_factory
-        self._template_path = Path(template_path)
+        self._templates = templates if templates is not None else default_form_b_templates()
         self._webflow: FormBWebFlow | None = None
         self._master_sheet_factory = master_sheet_factory
         self._session_factory = session_factory
@@ -246,6 +272,7 @@ class FormBService:
     ) -> Path:
         if not variants:
             raise ValueError("Select at least one variant to create Form B.")
+        template_path = self._templates.require(FORM_B_TEMPLATE)
         checksums: dict[str, str] = {}
         missing = []
         for variant in variants:
@@ -300,8 +327,11 @@ class FormBService:
                 self.shutdown()
         progress("Creating the Form B workbook...")
         return export_form_b(
-            variants, checksums, output_path, self._template_path, form_information=form_information
+            variants, checksums, output_path, template_path, form_information=form_information
         )
+
+    def template_problem(self) -> str:
+        return self._templates.problem(FORM_B_TEMPLATE)
 
     def _write_checksum(self, path: str, part_number: str, checksum: str) -> None:
         if self._master_sheet_factory is None:

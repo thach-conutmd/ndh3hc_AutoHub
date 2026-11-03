@@ -9,8 +9,10 @@ from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSize
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
+from autohub.core.templates import TemplateManager
 from autohub.core.settings_keys import (
     CALIBRATION_FOLDER_PATH_KEY,
+    DEFAULT_MASTER_SHEET_TEMPLATE_KEY,
     LATEST_COUNT_KEY,
     SHOW_WEBFLOW_LINK_KEY,
     WEBFLOW_GENERAL_OPTIONS_KEY,
@@ -35,7 +37,13 @@ class HomeWidget(QWidget):
     #: emitted with the list of WebFlow-ready variant dicts once created/loaded.
     variantsLoaded = Signal(list)
 
-    def __init__(self, service: VariantService, settings: SettingsStore, dialogs: Dialogs | None = None):
+    def __init__(
+        self,
+        service: VariantService,
+        settings: SettingsStore,
+        dialogs: Dialogs | None = None,
+        templates: TemplateManager | None = None,
+    ):
         super().__init__()
 
         self._settings = settings
@@ -136,7 +144,7 @@ class HomeWidget(QWidget):
         self._master_check_timer.timeout.connect(self._revalidate_master)
         self._master_watcher.fileChanged.connect(lambda _: self._master_check_timer.start())
         self._master_watcher.directoryChanged.connect(lambda _: self._master_check_timer.start())
-        self._presenter = HomePresenter(self, service, settings, self._dialogs, self._tasks.start)
+        self._presenter = HomePresenter(self, service, settings, self._dialogs, self._tasks.start, templates)
         browse_btn.clicked.connect(lambda _checked: self._presenter.browse_master_sheet())
         self._open_master_btn.clicked.connect(self._on_open_master_sheet)
         self._create_btn.clicked.connect(self._presenter.new_variant)
@@ -221,6 +229,8 @@ class HomeWidget(QWidget):
             self._variant_table.set_webflow_link_visible(self._show_webflow_link())
         if LATEST_COUNT_KEY in changes:
             self._presenter.refresh_latest_rows()
+        if DEFAULT_MASTER_SHEET_TEMPLATE_KEY in changes:
+            self._presenter.refresh_new_variant_state()
 
     def _show_webflow_link(self) -> bool:
         return bool(self._settings.load().get(SHOW_WEBFLOW_LINK_KEY, False))
