@@ -121,6 +121,7 @@ class Mx17MasterSheet(MasterSheet):
     def _home_values(values: dict, info: dict) -> dict:
         """The Home table values of one main sheet row, overlaid with its Info sheet row."""
         home = layout.home_from_main(values)
+        home["BA"] = values.get(layout.CONTAINER_CHECKSUM_COLUMN)
         part_number = home["J"] = normalize_part_number(home["J"])
         if part_number.upper() in info:
             home.update(layout.home_overlay_from_info(info[part_number.upper()][2]))
@@ -178,6 +179,19 @@ class Mx17MasterSheet(MasterSheet):
 
     def write_impl_values(self, updates, save: bool = True):
         raise ValueError("This Master Sheet layout has no IMPL rows to update.")
+
+    def write_container_checksums(self, checksums: dict[str, str], save: bool = True) -> int:
+        self._require_writable()
+        rows = {
+            normalize_part_number(values.get(layout.PART_NUMBER_COLUMN)).upper(): row
+            for row, values in self._main_rows()
+        }
+        written = VariantRowWriter(self._worksheet(), self.excel_app).write_container_checksums(
+            rows, checksums, layout.CONTAINER_CHECKSUM_COLUMN
+        )
+        if save and written:
+            self.save()
+        return written
 
     def save_variant_rows(self, variants: list[dict], save: bool = True) -> list[dict]:
         """A "_row" entry updates that main sheet row (and its Info row); otherwise a row is appended to both."""

@@ -12,6 +12,7 @@ from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.form_b import form_b_phase, manual_phase, master_phase
 from autohub.core.ports import FormBGenerator
 from autohub.core.settings import JsonSettingsStore, SettingsStore
+from autohub.core.settings_keys import SHOW_FORM_B_ADVANCED_FIELDS_KEY
 from autohub.core.workers import TaskRunner
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.ui.theme import set_muted
@@ -19,6 +20,7 @@ from autohub.ui.theme import set_muted
 _logger = logging.getLogger(__name__)
 FORM_B_INPUTS_KEY = "form_b_inputs"
 _DATE_FIELDS = ("date", "expected_receipt_date")
+_ADVANCED_FIELDS = ("return_to", "project_release", "production_project", "ecu_type")
 
 _FORM_FIELDS = (
     ("department_organization", "Department / Organization"),
@@ -70,16 +72,19 @@ class FormBWidget(QWidget):
 
         self._checklist = VariantChecklist()
         self._form_fields: dict[str, QLineEdit] = {}
+        self._field_containers: dict[str, QWidget] = {}
         saved = self._settings.load().get(FORM_B_INPUTS_KEY, {})
         if not isinstance(saved, dict):
             saved = {}
         information_group = QGroupBox("Form B Information")
-        information_grid = QGridLayout(information_group)
+        information_grid = self._information_grid = QGridLayout(information_group)
         information_grid.setContentsMargins(12, 10, 12, 10)
         information_grid.setHorizontalSpacing(12)
         information_grid.setVerticalSpacing(6)
-        for index, (key, label_text) in enumerate(_FORM_FIELDS):
-            field_layout = QVBoxLayout()
+        for key, label_text in _FORM_FIELDS:
+            container = QWidget()
+            field_layout = QVBoxLayout(container)
+            field_layout.setContentsMargins(0, 0, 0, 0)
             field_layout.setSpacing(3)
             label = QLabel(label_text)
             field = QLineEdit()
@@ -93,13 +98,14 @@ class FormBWidget(QWidget):
             self._form_fields[key] = field
             field_layout.addWidget(label)
             field_layout.addWidget(field)
-            information_grid.addLayout(field_layout, index // 3, index % 3)
+            self._field_containers[key] = container
         self._production_warning = QLabel(
             "Selected variants have different Production Project values. Enter Production Project manually."
         )
         self._production_warning.setWordWrap(True)
         self._production_warning.hide()
         information_grid.addWidget(self._production_warning, 4, 0, 1, 3)
+        self.apply_settings(self._settings.load())
 
         selection_title = QLabel("Select variants")
         selection_title.setStyleSheet("font-size: 16px; font-weight: 600;")
@@ -148,6 +154,23 @@ class FormBWidget(QWidget):
         for key, field in self._form_fields.items():
             if key not in _DATE_FIELDS:
                 field.textChanged.connect(self._save_inputs)
+
+    def apply_settings(self, settings: dict) -> None:
+        if SHOW_FORM_B_ADVANCED_FIELDS_KEY not in settings:
+            show_advanced = bool(self._settings.load().get(SHOW_FORM_B_ADVANCED_FIELDS_KEY, False))
+        else:
+            show_advanced = bool(settings[SHOW_FORM_B_ADVANCED_FIELDS_KEY])
+        for container in self._field_containers.values():
+            self._information_grid.removeWidget(container)
+        index = 0
+        for key, container in self._field_containers.items():
+            visible = show_advanced or key not in _ADVANCED_FIELDS
+            container.setVisible(visible)
+            if visible:
+                self._information_grid.addWidget(container, index // 3, index % 3)
+                index += 1
+        self._information_grid.removeWidget(self._production_warning)
+        self._information_grid.addWidget(self._production_warning, (index + 2) // 3, 0, 1, 3)
 
     def _update_return_to(self) -> None:
         self._form_fields["return_to"].setText(" ".join(
@@ -248,7 +271,12 @@ class FormBWidget(QWidget):
         if invalid_fields:
             self._dialogs.error(
                 "Form B",
-                "Complete the following Form B Information fields:\n" + "\n".join(invalid_fields),
+                "Complete the following Form B Information fields:\n" + "\n".join(invalid_fields)
+                + (
+                    "\n\nEnable Show advanced Form B fields in Settings > Form B to edit hidden fields."
+                    if any(self._field_containers[key].isHidden() and label in invalid_fields
+                           for key, label in _FORM_FIELDS) else ""
+                ),
             )
             return
         path = self._dialogs.save_file("Export Form B", "Form_B.xlsx", "Excel workbook (*.xlsx)")
@@ -259,8 +287,11 @@ class FormBWidget(QWidget):
         self._checklist.setEnabled(False)
         self._export_btn.setEnabled(False)
         self._export_btn.setText("Exporting...")
+        master_sheet_path = self._settings.load().get("master_sheet_path", "")
         self._tasks.start(
-            lambda: self._service.generate(variants, path, window.step, form_information),
+            lambda: self._service.generate(
+                variants, path, window.step, form_information, master_sheet_path=master_sheet_path
+            ),
             lambda result: self._finish(result, window),
             lambda error: self._fail(error, window),
         )

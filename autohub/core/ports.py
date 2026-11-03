@@ -26,6 +26,7 @@ class FormBGenerator(Protocol):
         output_path: str,
         progress: Callable[[str], None],
         form_information: dict[str, str | date] | None = None,
+        master_sheet_path: str = "",
     ) -> object: ...
 
     def shutdown(self) -> None: ...
@@ -35,6 +36,10 @@ class VariantReader(Protocol):
     def load_variant_rows(self) -> list[dict]: ...
 
     def load_webflow_variants(self) -> list[dict]: ...
+
+
+class ContainerChecksumSheet(SheetSession, Protocol):
+    def write_container_checksums(self, checksums: dict[str, str], save: bool = True) -> int: ...
 
 
 class VariantWriter(Protocol):

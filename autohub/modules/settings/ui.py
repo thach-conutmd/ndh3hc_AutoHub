@@ -25,6 +25,7 @@ from autohub.core.settings_keys import (
     LATEST_COUNT_KEY,
     RECORD_PAGES_KEY,
     SHOW_WEBFLOW_LINK_KEY,
+    SHOW_FORM_B_ADVANCED_FIELDS_KEY,
     WEBFLOW_ATTEMPTS_LIMIT,
     WEBFLOW_MAX_ATTEMPTS_KEY,
     WEBFLOW_RETRY_ENABLED_KEY,
@@ -105,6 +106,13 @@ class SettingsWidget(QWidget):
 
         theme_group = QGroupBox("Theme")
         QFormLayout(theme_group).addRow("Mode:", self._theme)
+
+        form_b_group = QGroupBox("Form B")
+        self._show_form_b_advanced = QCheckBox("Show advanced Form B fields")
+        self._show_form_b_advanced.setChecked(
+            bool(settings.load().get(SHOW_FORM_B_ADVANCED_FIELDS_KEY, False))
+        )
+        QVBoxLayout(form_b_group).addWidget(self._show_form_b_advanced)
 
         logging_group = QGroupBox("Logging")
         logging_layout = QVBoxLayout(logging_group)
@@ -196,6 +204,8 @@ class SettingsWidget(QWidget):
             analysis_group: "Save HTML, screenshots and element details in logs/webflow_trace. "
                             "Detailed recording uses additional disk space.",
             home_group: "Control Home's variant list and configure the A2L component-ID symbol.",
+            form_b_group: "Show Return To, Project / Production Release Project, Production Project "
+                          "and ECU-Type for review and editing. Hidden fields still auto-fill and export.",
             creation_group: "Configure the WebFlow connection and ECR details. Leave all four ECR "
                             "fields empty to skip ECR import, or complete all four to enable it.",
             new_variants_group: "Set the default values used when New variants builds Master Sheet rows. "
@@ -215,6 +225,7 @@ class SettingsWidget(QWidget):
             ("General", (theme_group,)),
             ("Home", (home_group,)),
             ("Creation", (creation_group, new_variants_group, retry_group)),
+            ("Form B", (form_b_group,)),
             ("Diagnostics", (logging_group, analysis_group)),
             ("Comparison", (exclusions_group,)),
         ):
@@ -257,6 +268,7 @@ class SettingsWidget(QWidget):
         self._theme.currentIndexChanged.connect(self._refresh_apply)
         self._logging.toggled.connect(self._refresh_apply)
         self._log_location.textChanged.connect(self._refresh_apply)
+        self._show_form_b_advanced.toggled.connect(self._refresh_apply)
         self._record.toggled.connect(self._refresh_apply)
         self._attempts.valueChanged.connect(self._refresh_apply)
         self._retry.toggled.connect(self._refresh_apply)
@@ -361,6 +373,7 @@ class SettingsWidget(QWidget):
             self._a2l_comp_id_symbol.text().strip(),
             self._disabled_exclusion_values(),
             self._exclusion_values(),
+            self._show_form_b_advanced.isChecked(),
             self._log_location.text().strip(),
         )
 
@@ -403,7 +416,8 @@ class SettingsWidget(QWidget):
             )))
             self._exclusions_master_only.setChecked(self._applied[exclusions_start])
             self._a2l_comp_id_symbol.setText(self._applied[exclusions_start + 1])
-            self._restore_exclusions(self._applied[-2], self._applied[-3])
+            self._restore_exclusions(self._applied[-3], self._applied[-4])
+            self._show_form_b_advanced.setChecked(self._applied[-2])
             self._log_location.setText(self._applied[-1])
         return True
 
@@ -434,6 +448,7 @@ class SettingsWidget(QWidget):
             A2L_COMP_ID_SYMBOL_KEY: self._a2l_comp_id_symbol.text().strip(),
             XML_COMPARISON_DISABLED_EXCLUSIONS_KEY: list(disabled),
             XML_COMPARISON_EXCLUSIONS_KEY: list(exclusions),
+            SHOW_FORM_B_ADVANCED_FIELDS_KEY: self._show_form_b_advanced.isChecked(),
             LOG_LOCATION_KEY: self._log_location.text().strip(),
         }
         changes = {}

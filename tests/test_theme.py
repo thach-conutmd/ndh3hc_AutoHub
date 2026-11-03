@@ -397,7 +397,7 @@ def test_settings_controls_are_organized_in_groups(qapp):
     groups = {group.title(): group for group in page.findChildren(QGroupBox)}
     assert set(groups) == {
         "Theme", "Logging", "Analysis", "Home", "Creation", "New variants", "WebFlow Retry", "Exclude Compare Data",
-        "General", "Hardware/Plant", "ECU", "Customer",
+        "General", "Hardware/Plant", "ECU", "Customer", "Form B",
     }
     assert page._theme.parentWidget() is groups["Theme"]
     assert page._logging.parentWidget() is groups["Logging"]
@@ -406,6 +406,7 @@ def test_settings_controls_are_organized_in_groups(qapp):
     assert page._attempts.parentWidget() is groups["WebFlow Retry"]
     assert page._latest.parentWidget() is groups["Home"]
     assert page._show_link.parentWidget() is groups["Home"]
+    assert page._show_form_b_advanced.parentWidget() is groups["Form B"]
 
 
 def test_xml_exclusion_settings_add_edit_delete_restore_and_save(qapp):
@@ -598,7 +599,7 @@ def test_creation_settings_are_saved_and_discarded_from_settings_page(qapp):
 def test_settings_tabs_keep_pending_changes_and_shared_footer(qapp):
     page = SettingsWidget(MemorySettings())
     assert [page._tabs.tabText(index) for index in range(page._tabs.count())] == [
-        "General", "Home", "Creation", "Diagnostics", "Comparison",
+        "General", "Home", "Creation", "Form B", "Diagnostics", "Comparison",
     ]
     assert page._save_status.text() == "All changes saved"
     page._creation._routing.setText("New routing")

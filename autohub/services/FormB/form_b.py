@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import logging
 import re
+from contextlib import AbstractContextManager, nullcontext
 from datetime import date
 from pathlib import Path
 from typing import Callable, Protocol
@@ -13,6 +14,7 @@ import openpyxl
 from autohub.config import BASE_DIR
 from autohub.core.checksums import normalize_crc32
 from autohub.core.form_b import form_b_phase, master_phase
+from autohub.core.ports import ContainerChecksumSheet
 from autohub.core.progress import ProgressCallback, no_progress
 from autohub.services.common.encrypted_workbook import decrypt_workbook
 
@@ -97,7 +99,7 @@ def _output_filename(variants: list[dict], generated_on: date) -> str:
 def _variant_values(variant: dict, checksum: str) -> tuple[str, ...]:
     values = _master_values(variant)
     part_number = str(variant.get("part_number") or "Variant")
-    customer_hw_number = str(values["AR"]) if values.get("AR") is not None else ""
+    customer_hw_number = str(values["CS"]) if values.get("CS") is not None else ""
     return (
         _variant_label(customer_hw_number),
         customer_hw_number,
@@ -221,10 +223,14 @@ class FormBService:
         self,
         webflow_factory: Callable[[], FormBWebFlow],
         template_path: str | Path = TEMPLATE_PATH,
+        master_sheet_factory: Callable[[str], ContainerChecksumSheet] | None = None,
+        session_factory: Callable[[], AbstractContextManager] = nullcontext,
     ):
         self._webflow_factory = webflow_factory
         self._template_path = Path(template_path)
         self._webflow: FormBWebFlow | None = None
+        self._master_sheet_factory = master_sheet_factory
+        self._session_factory = session_factory
 
     def generate(
         self,
@@ -232,6 +238,7 @@ class FormBService:
         output_path: str | Path,
         progress: ProgressCallback = no_progress,
         form_information: dict[str, str | date] | None = None,
+        master_sheet_path: str = "",
     ) -> Path:
         if not variants:
             raise ValueError("Select at least one variant to create Form B.")
@@ -247,7 +254,11 @@ class FormBService:
                 _logger.warning(message)
                 progress(message)
             values = _master_values(variant)
-            checksum = normalize_crc32(values.get("BA"))
+            raw_checksum = values.get("BA")
+            checksum = (
+                "" if isinstance(raw_checksum, str) and re.fullmatch(r"\*+", raw_checksum.strip())
+                else normalize_crc32(raw_checksum)
+            )
             if checksum:
                 checksums[part_number] = checksum
             else:
@@ -265,6 +276,8 @@ class FormBService:
             )
 
         if missing:
+            if self._master_sheet_factory is not None and not master_sheet_path:
+                raise ValueError("Load a Master Sheet on Home before retrieving Form B checksums.")
             self._webflow = self._webflow_factory()
             try:
                 for variant, filename in missing:
@@ -274,6 +287,10 @@ class FormBService:
                     checksum = normalize_crc32(self._webflow.get_container_crc32(link, filename))
                     if not checksum:
                         raise RuntimeError(f"{part_number}: WebFlow did not provide a CRC32 for {filename}.")
+                    if self._master_sheet_factory is not None:
+                        progress(f"Saving {part_number} Container Checksum from Flow5 to the Master Sheet...")
+                        self._write_checksum(master_sheet_path, part_number, checksum)
+                        _master_values(variant)["BA"] = checksum
                     checksums[part_number] = checksum
             finally:
                 self.shutdown()
@@ -281,6 +298,18 @@ class FormBService:
         return export_form_b(
             variants, checksums, output_path, self._template_path, form_information=form_information
         )
+
+    def _write_checksum(self, path: str, part_number: str, checksum: str) -> None:
+        if self._master_sheet_factory is None:
+            raise RuntimeError("Master Sheet checksum writer is not configured.")
+        with self._session_factory():
+            sheet = self._master_sheet_factory(path)
+            try:
+                sheet.open()
+                if sheet.write_container_checksums({part_number: checksum}) != 1:
+                    raise RuntimeError(f"{part_number}: Container Checksum from Flow5 was not saved.")
+            finally:
+                sheet.close()
 
     def shutdown(self) -> None:
         if self._webflow is None:

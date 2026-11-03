@@ -117,6 +117,14 @@ class MasterSheet(ExcelDocument):
             self.save()
         return outcomes
 
+    def write_container_checksums(self, checksums: dict[str, str], save: bool = True) -> int:
+        written = VariantRowWriter(self._worksheet(), self.excel_app).write_container_checksums(
+            VariantRowReader(self._worksheet()).latest_request_rows(), checksums
+        )
+        if save and written:
+            self.save()
+        return written
+
     def load_variant_rows(self) -> list[dict]:
         return VariantRowReader(self._worksheet()).load_variant_rows()
 

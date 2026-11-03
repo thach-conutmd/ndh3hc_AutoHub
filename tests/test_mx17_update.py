@@ -91,6 +91,23 @@ def test_editing_one_of_two_keys_sharing_a_column_is_written():
     assert sheets[0].cells["E7"] == "NEWHW"
 
 
+def test_checksum_writeback_uses_matching_latest_main_row_and_saves():
+    from unittest.mock import Mock
+
+    master, sheets = _sheet({
+        **_main_row(), "Z7": "*****",
+        "W8": "OTHER", "Z8": "=SOMETHING",
+        "W9": "37820-5BF-G26", "E9": "MED17.9.3", "Z9": "*****",
+    })
+    master.save = Mock()
+    before = dict(sheets[0].cells)
+    assert master.write_container_checksums({"37820-5BF-G26": "000abc12"}) == 1
+    assert sheets[0].cells == {**before, "Z9": "000ABC12"}
+    master.save.assert_called_once()
+    loaded = master.load_webflow_variants()
+    assert next(item for item in loaded if item["part_number"] == "37820-5BF-G26")["form_b"]["BA"] == "000ABC12"
+
+
 def test_editing_the_part_number_is_written():
     master, sheets = _sheet(_main_row())
     row = master.load_variant_rows()[0]

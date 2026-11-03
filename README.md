@@ -130,8 +130,9 @@ automation. Each feature is a module plugged into the main window sidebar.
 
 ### Form B module
 
+- Return To, Project / Production Release Project, Production Project and ECU-Type are hidden by default while retaining their data, auto-fill and export mappings. Enable **Settings > Form B > Show advanced Form B fields** and apply changes to review/edit them; the setting is saved between sessions.
 - Receives selected variants from Home and uses Master Sheet values to fill the supplied Form B workbook template.
-- Each column keeps its selected row's exact Customer HW Part No.; Variants removes the `37820-` prefix and final suffix (for example, `37820-62X-MD20-M6` becomes `62X-MD20`). RB ECU No. and RB Software No. continue to use Master Sheet columns AN and AX.
+- Each Form B column uses its selected row's exact **DWG NO.** (Master Sheet CS) as Customer HW Part No. Variants removes the `37820-` prefix and an additional trailing suffix when present: `37820-65A-T31` becomes `65A-T31`, and `37820-62X-MD20-M6` becomes `62X-MD20`. RB ECU No. and RB Software No. continue to use Master Sheet columns AN and AX.
 - The existing template footer uses the entered Form B Date and Name as `Date: YYYY-MM-DD <Name>`, retaining its styling and moving with the footer when variant blocks are added.
 - Requires Department / Organization, Name, Phone Number, Date, Return To, Project / Production Release Project, Production Project, Bosch Project Number and ECU-Type in the Form B Information section.
 - Date starts with today's date in `YYYY-MM-DD` format and remains editable. Empty fields show example placeholders only; these examples are not exported as values.
@@ -142,6 +143,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 - MP phases are recognized regardless of separators or prefix text in Project Purpose: `6SAY - MP1` fills `6SAY MP1`, and `6WZX - CERT_MP0` uses `MP0`.
 - Fills up to six variants per block; additional variants get another formatted block below. The exported workbook preserves the template styling and never overwrites the template.
 - Uses the Master Sheet checksum in column BA when present. If it is blank, Form B opens the linked WebFlow job, reads the Container `.cnt` CRC32 from Files > Execution Files, and downloads the `.cnt` to calculate an uppercase CRC32 only when WebFlow has no checksum.
+- Each CRC32 successfully retrieved from WebFlow is saved to that selected part number's latest matching Master Sheet row in **Container Checksum from Flow5** (MG1 BA; Mx17 Z), replacing placeholders such as `*****`. Failed retrievals leave the cell untouched. The existing workbook save path preserves formatting and unrelated cells; locked workbooks, missing rows, formula targets and save failures are reported explicitly.
 
 ### Comparison module
 
