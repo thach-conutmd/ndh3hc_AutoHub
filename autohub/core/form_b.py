@@ -4,8 +4,8 @@ import re
 
 def master_phase(variant: dict) -> str:
     event_name = str(variant.get("event_name") or "").strip()
-    match = re.search(r"(?:_|/)\s*(MP\d+)\s*$", event_name, re.IGNORECASE)
-    return match.group(1).upper() if match else ""
+    match = re.search(r"MP\d+", event_name, re.IGNORECASE)
+    return match.group().upper() if match else ""
 
 
 def manual_phase(value: str) -> str:
