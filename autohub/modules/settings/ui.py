@@ -4,14 +4,15 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+    QApplication, QCheckBox, QComboBox, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QPushButton,
     QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QHeaderView,
 )
 
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.logger import (
-    LOG_FILE_PATH, LOGGING_ENABLED_KEY, clear_log_file, logging_enabled, set_logging_enabled,
+    LOGGING_ENABLED_KEY, LOG_LOCATION_KEY, clear_log_file, log_file_path, log_location,
+    logging_enabled, set_log_location, set_logging_enabled,
 )
 from autohub.core.a2l_hex import DEFAULT_COMP_ID_SYMBOL
 from autohub.core.settings import SettingsStore
@@ -108,6 +109,16 @@ class SettingsWidget(QWidget):
         logging_group = QGroupBox("Logging")
         logging_layout = QVBoxLayout(logging_group)
         logging_layout.addWidget(self._logging)
+        self._log_location = QLineEdit(str(log_location(settings.load())))
+        self._log_location.setAccessibleName("Log location")
+        self._log_location.setToolTip("Folder for autohub.log. Apply changes to start logging there.")
+        self._browse_log_location = QPushButton("Browse...")
+        self._browse_log_location.clicked.connect(self._on_browse_log_location)
+        log_location_row = QHBoxLayout()
+        log_location_row.addWidget(QLabel("Log location:"))
+        log_location_row.addWidget(self._log_location, 1)
+        log_location_row.addWidget(self._browse_log_location)
+        logging_layout.addLayout(log_location_row)
         self._open_log = QPushButton("Open log file")
         self._open_log.clicked.connect(self._on_open_log)
         self._clear_log = QPushButton("Clear log content")
@@ -180,7 +191,8 @@ class SettingsWidget(QWidget):
         self._tabs.setDocumentMode(True)
         descriptions = {
             theme_group: "Choose a comfortable appearance. System follows your Windows theme.",
-            logging_group: "Write application activity to logs/autohub.log and the console.",
+            logging_group: "Write application activity to autohub.log in the selected folder and the console. "
+                           "The default folder is logs. Apply changes to use a new location.",
             analysis_group: "Save HTML, screenshots and element details in logs/webflow_trace. "
                             "Detailed recording uses additional disk space.",
             home_group: "Control Home's variant list and configure the A2L component-ID symbol.",
@@ -244,6 +256,7 @@ class SettingsWidget(QWidget):
         self._applied = self._current()
         self._theme.currentIndexChanged.connect(self._refresh_apply)
         self._logging.toggled.connect(self._refresh_apply)
+        self._log_location.textChanged.connect(self._refresh_apply)
         self._record.toggled.connect(self._refresh_apply)
         self._attempts.valueChanged.connect(self._refresh_apply)
         self._retry.toggled.connect(self._refresh_apply)
@@ -315,11 +328,17 @@ class SettingsWidget(QWidget):
         if hasattr(self, "_applied"):
             self._refresh_apply()
 
+    def _on_browse_log_location(self) -> None:
+        folder = QFileDialog.getExistingDirectory(self, "Log location", self._log_location.text())
+        if folder:
+            self._log_location.setText(folder)
+
     def _on_open_log(self) -> None:
-        if not LOG_FILE_PATH.is_file():
-            self._dialogs.error("Open log file", f"Log file does not exist:\n{LOG_FILE_PATH}")
-        elif not QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE_PATH.resolve()))):
-            self._dialogs.error("Open log file", f"Could not open the log file:\n{LOG_FILE_PATH}")
+        path = log_file_path()
+        if not path.is_file():
+            self._dialogs.error("Open log file", f"Log file does not exist:\n{path}")
+        elif not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.resolve()))):
+            self._dialogs.error("Open log file", f"Could not open the log file:\n{path}")
 
     def _on_clear_log(self) -> None:
         if not self._dialogs.confirm("Clear log content", "Permanently clear all application log content?"):
@@ -342,6 +361,7 @@ class SettingsWidget(QWidget):
             self._a2l_comp_id_symbol.text().strip(),
             self._disabled_exclusion_values(),
             self._exclusion_values(),
+            self._log_location.text().strip(),
         )
 
     def _refresh_apply(self, *_args) -> None:
@@ -383,7 +403,8 @@ class SettingsWidget(QWidget):
             )))
             self._exclusions_master_only.setChecked(self._applied[exclusions_start])
             self._a2l_comp_id_symbol.setText(self._applied[exclusions_start + 1])
-            self._restore_exclusions(self._applied[-1], self._applied[-2])
+            self._restore_exclusions(self._applied[-2], self._applied[-3])
+            self._log_location.setText(self._applied[-1])
         return True
 
     def _on_apply(self) -> None:
@@ -393,6 +414,13 @@ class SettingsWidget(QWidget):
         except ValueError as error:
             self._dialogs.error("XML Comparison Exclusions", str(error))
             return
+        if self._log_location.text().strip() != self._applied[-1]:
+            try:
+                folder = set_log_location(self._log_location.text().strip())
+            except (OSError, ValueError) as error:
+                self._dialogs.error("Log location", f"Could not use the log folder:\n{error}")
+                return
+            self._log_location.setText(str(folder))
         self._restore_exclusions(exclusions, disabled)
         mode, enabled, record, attempts, retry, latest, show_link = self._current()[:7]
         values = {
@@ -406,6 +434,7 @@ class SettingsWidget(QWidget):
             A2L_COMP_ID_SYMBOL_KEY: self._a2l_comp_id_symbol.text().strip(),
             XML_COMPARISON_DISABLED_EXCLUSIONS_KEY: list(disabled),
             XML_COMPARISON_EXCLUSIONS_KEY: list(exclusions),
+            LOG_LOCATION_KEY: self._log_location.text().strip(),
         }
         changes = {}
         position = 0

@@ -7,7 +7,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from autohub.config import APP_NAME, LOGO_PATH
-from autohub.core.logger import logging_enabled, set_logging_enabled, setup_logging
+from autohub.core.logger import log_location, logging_enabled, set_logging_enabled, setup_logging
 from autohub.core.settings import JsonSettingsStore
 from autohub.ui.startup_dialog import StartupDialog
 from autohub.ui.theme import apply_theme, set_dark_titlebar
@@ -23,7 +23,9 @@ def startup_steps(app: QApplication, settings: JsonSettingsStore, state: dict, r
     report = report or (lambda _text: None)
 
     def apply_settings():
-        set_logging_enabled(logging_enabled(settings.load()))
+        saved = settings.load()
+        set_logging_enabled(logging_enabled(saved))
+        setup_logging(location=log_location(saved))
 
     def prepare_interface():
         from autohub.ui.button_cursor import install_button_cursor
@@ -64,8 +66,6 @@ def run_startup(steps: list, dialog: StartupDialog) -> None:
 
 
 def main() -> int:
-    setup_logging()
-
     app = QApplication(sys.argv)
     if LOGO_PATH.exists():
         app.setWindowIcon(QIcon(str(LOGO_PATH)))
