@@ -16,6 +16,7 @@ from autohub.services.WebFlow.WebFlow import WebFlow
 from autohub.modules.form_b.ui import FormBWidget
 from autohub.modules.form_b import ui as form_b_ui
 from autohub.core.settings import JsonSettingsStore
+from autohub.core.settings_keys import SHOW_FORM_B_ADVANCED_FIELDS_KEY
 from autohub.core.form_b import form_b_phase, master_phase
 from autohub.core.progress_dialog import ProgressDialog
 from tests.fakes import MemorySettings
@@ -39,6 +40,7 @@ def variant(index: int, checksum=""):
             "AP": "MG1CS022",
             "AN": f"0261S10BC{index}",
             "AR": f"37820-62X-MD{index}-M6",
+            "CS": f"37820-62X-MD{index}-M6",
             "AX": f"10SW1334{index:02}",
             "AZ": f"base-{index}.hex",
             "BA": checksum,
@@ -55,31 +57,34 @@ def variant(index: int, checksum=""):
 def test_master_sheet_variant_keeps_form_b_source_values():
     converted = webflow_variant_from_row("PART-1", {"AP": "MG1CS022", "BA": 232761, "AN": "HW-1"})
     assert converted["form_b"] == {
-        "AP": "MG1CS022", "AN": "HW-1", "AR": "", "AX": "", "AZ": "",
+        "AP": "MG1CS022", "AN": "HW-1", "AR": "", "CS": "", "AX": "", "AZ": "",
         "BA": 232761, "AW": "", "AD": "", "BG": "", "CX": "", "CY": "", "CZ": "",
     }
 
 
 def test_form_b_customer_hardware_mapping_keeps_selected_rows_together(tmp_path):
     variants = []
-    for index, hardware in enumerate((
-        "37820-62X-MD20-M6",
-        "37820-62X-ME20-M6",
-        "37820-62X-MF20-M7",
-        "37820-62X-MG20-M6",
-        "37820-62X-MH20-M6",
-        "37820-62X-MJ20-M6",
-        " 37820-62X-MK20-M6 ",
+    for index, (hardware, label) in enumerate((
+        ("37820-62X-MD20-M6", "62X-MD20"),
+        ("37820-62X-ME20-M6", "62X-ME20"),
+        ("37820-65A-T31", "65A-T31"),
+        ("37820-62X-MG20-M6", "62X-MG20"),
+        ("37820-62X-MH20-M6", "62X-MH20"),
+        ("37820-62X-MJ20-M6", "62X-MJ20"),
+        (" 37820-62X-MK20-M6 ", "62X-MK20"),
     )):
         variants.append(webflow_variant_from_row(f"UNRELATED-SW-{index}", {
             "H": "62XS - CERT_MP1",
             "S": "MG1CS022",
-            "AR": hardware,
+            "AR": f"UNRELATED-CUSTOMER-HW-{index}",
+            "CS": hardware,
             "AN": f"RB-HW-{index}",
             "AX": f"RB-SW-{index}",
             "AS": f"CUSTOMER-SW-{index}",
         }))
-        assert variants[-1]["form_b"]["AR"] == hardware
+        assert variants[-1]["form_b"]["CS"] == hardware
+        assert variants[-1]["unmapped_fields"]["CS (DWG NO.)"] == hardware.strip()
+        variants[-1]["expected_label"] = label
     selected = [variants[index] for index in (1, 0, 4, 3, 5, 2, 6)]
     output = export_form_b(selected, {}, tmp_path / "form.xlsx")
     workbook = openpyxl.load_workbook(output)
@@ -87,8 +92,8 @@ def test_form_b_customer_hardware_mapping_keeps_selected_rows_together(tmp_path)
         sheet = workbook["FormB"]
         for index, item in enumerate(selected):
             column, row = index % 6 + 2, 26 if index < 6 else 42
-            hardware = item["form_b"]["AR"]
-            assert sheet.cell(row, column).value == hardware.strip()[6:].rsplit("-", 1)[0]
+            hardware = item["form_b"]["CS"]
+            assert sheet.cell(row, column).value == item["expected_label"]
             assert sheet.cell(row + 1, column).value == hardware
             assert sheet.cell(row + 2, column).value == item["form_b"]["AN"]
             assert sheet.cell(row + 3, column).value == item["form_b"]["AX"]
@@ -98,7 +103,7 @@ def test_form_b_customer_hardware_mapping_keeps_selected_rows_together(tmp_path)
 
 def test_form_b_missing_customer_hardware_does_not_use_sw_part_number(tmp_path):
     item = variant(1)
-    item["form_b"]["AR"] = ""
+    item["form_b"]["CS"] = ""
     output = export_form_b([item], {}, tmp_path / "form.xlsx")
     workbook = openpyxl.load_workbook(output)
     try:
@@ -156,6 +161,82 @@ def test_missing_master_checksum_uses_webflow_crc(tmp_path):
         "https://webflow/app/ShowJob/1", "10SW133401.cnt"
     )
     webflow.quit.assert_called_once()
+
+
+def test_retrieved_crc_is_saved_only_for_the_matching_variant(tmp_path):
+    browser, sheet = Mock(), Mock()
+    browser.get_container_crc32.return_value = "000abc12"
+    sheet.write_container_checksums.return_value = 1
+    factory = Mock(return_value=sheet)
+    session = Mock()
+    session.__enter__ = Mock()
+    session.__exit__ = Mock(return_value=False)
+    existing, missing = variant(1, "12345678"), variant(2, "*****")
+    output = FormBService(
+        lambda: browser, master_sheet_factory=factory, session_factory=lambda: session,
+    ).generate([existing, missing], tmp_path / "form.xlsx", master_sheet_path="master.xlsx")
+    factory.assert_called_once_with("master.xlsx")
+    sheet.write_container_checksums.assert_called_once_with({"PART-2": "000ABC12"})
+    sheet.open.assert_called_once()
+    sheet.close.assert_called_once()
+    session.__enter__.assert_called_once()
+    session.__exit__.assert_called_once()
+    assert existing["form_b"]["BA"] == "12345678"
+    assert missing["form_b"]["BA"] == "000ABC12"
+    workbook = openpyxl.load_workbook(output)
+    try:
+        assert workbook["FormB"]["B35"].value == "12345678"
+        assert workbook["FormB"]["C35"].value == "000ABC12"
+    finally:
+        workbook.close()
+
+
+@pytest.mark.parametrize("failure", ["", RuntimeError("CRC retrieval failed")])
+def test_crc_failure_keeps_failed_variant_untouched_and_previous_success_saved(tmp_path, failure):
+    browser, sheet = Mock(), Mock()
+    browser.get_container_crc32.side_effect = ["ABCDEF12", failure]
+    sheet.write_container_checksums.return_value = 1
+    first, second = variant(1, "*****"), variant(2, "*****")
+    service = FormBService(lambda: browser, master_sheet_factory=lambda _: sheet)
+    with pytest.raises(RuntimeError):
+        service.generate([first, second], tmp_path / "form.xlsx", master_sheet_path="master.xlsx")
+    sheet.write_container_checksums.assert_called_once_with({"PART-1": "ABCDEF12"})
+    assert first["form_b"]["BA"] == "ABCDEF12"
+    assert second["form_b"]["BA"] == "*****"
+    browser.quit.assert_called_once()
+
+
+@pytest.mark.parametrize("error", [
+    PermissionError("Workbook locked"),
+    ValueError("No Master Sheet row found"),
+    OSError("Save failed"),
+])
+def test_crc_writeback_failure_is_reported_without_marking_variant_as_saved(tmp_path, error):
+    browser, sheet = Mock(), Mock()
+    browser.get_container_crc32.return_value = "ABCDEF12"
+    sheet.write_container_checksums.side_effect = error
+    item = variant(1, "*****")
+    service = FormBService(lambda: browser, master_sheet_factory=lambda _: sheet)
+    with pytest.raises(type(error), match=str(error)):
+        service.generate([item], tmp_path / "form.xlsx", master_sheet_path="master.xlsx")
+    sheet.close.assert_called_once()
+    browser.quit.assert_called_once()
+    assert item["form_b"]["BA"] == "*****"
+
+
+def test_master_checksum_does_not_trigger_writeback(tmp_path):
+    factory = Mock()
+    service = FormBService(Mock(), master_sheet_factory=factory)
+    service.generate([variant(1, "ABCDEF12")], tmp_path / "form.xlsx")
+    factory.assert_not_called()
+
+
+def test_checksum_writeback_requires_loaded_master_path(tmp_path):
+    browser_factory = Mock()
+    service = FormBService(browser_factory, master_sheet_factory=Mock())
+    with pytest.raises(ValueError, match="Load a Master Sheet"):
+        service.generate([variant(1)], tmp_path / "form.xlsx")
+    browser_factory.assert_not_called()
 
 
 def test_missing_checksum_without_webflow_link_fails_before_opening_browser(tmp_path):
@@ -302,6 +383,59 @@ def test_form_b_information_defaults_to_today_with_placeholder_only_examples(qap
     assert values["date"] == date(2027, 1, 15)
 
 
+def test_advanced_fields_default_hidden_and_keep_values_when_toggled(qapp):
+    settings = MemorySettings()
+    widget = FormBWidget(Mock(), Mock(), settings)
+    advanced = ("return_to", "project_release", "production_project", "ecu_type")
+    for key in advanced:
+        assert widget._field_containers[key].isHidden()
+    assert not widget._field_containers["name"].isHidden()
+    widget._form_fields["department_organization"].setText("Engineering")
+    widget._form_fields["name"].setText("Alex")
+    widget.set_variants([variant(1)])
+    widget._checklist._checkboxes["PART-1"].setChecked(True)
+    assert widget._form_fields["return_to"].text() == "Engineering Alex"
+    assert widget._form_fields["production_project"].text() == "62XS MP1"
+    values = {key: field.text() for key, field in widget._form_fields.items()}
+    for enabled in (True, False, True):
+        widget.apply_settings({SHOW_FORM_B_ADVANCED_FIELDS_KEY: enabled})
+        for key in advanced:
+            assert widget._field_containers[key].isHidden() is not enabled
+        assert {key: field.text() for key, field in widget._form_fields.items()} == values
+    _, invalid = widget._collect_form_information()
+    assert "Return To" not in invalid
+    assert "Production Project" not in invalid
+
+
+def test_settings_advanced_form_b_fields_apply_live_persist_and_discard(qapp):
+    from autohub.modules.settings.ui import SettingsWidget
+    from autohub.ui.main_window import MainWindow
+
+    settings, dialogs = MemorySettings(), Mock()
+    widget = FormBWidget(Mock(), Mock(), settings)
+    page = SettingsWidget(settings, dialogs)
+    MainWindow._wire_cross_module_signals([page, widget])
+    assert not page._show_form_b_advanced.isChecked()
+    assert not page._apply.isEnabled()
+    page._show_form_b_advanced.setChecked(True)
+    assert widget._field_containers["return_to"].isHidden()
+    page._apply.click()
+    assert settings.load()[SHOW_FORM_B_ADVANCED_FIELDS_KEY] is True
+    assert not widget._field_containers["return_to"].isHidden()
+    reopened = FormBWidget(Mock(), Mock(), settings)
+    assert not reopened._field_containers["ecu_type"].isHidden()
+    assert SettingsWidget(settings, dialogs)._show_form_b_advanced.isChecked()
+    page._show_form_b_advanced.setChecked(False)
+    dialogs.ask_yes_no_cancel.return_value = False
+    assert page.confirm_leave()
+    assert page._show_form_b_advanced.isChecked()
+    assert not page._apply.isEnabled()
+    page._show_form_b_advanced.setChecked(False)
+    page._apply.click()
+    assert settings.load()[SHOW_FORM_B_ADVANCED_FIELDS_KEY] is False
+    assert widget._field_containers["return_to"].isHidden()
+
+
 def test_form_b_information_requires_every_field_and_valid_date(qapp):
     dialogs = Mock()
     widget = FormBWidget(Mock(), dialogs)
@@ -373,7 +507,7 @@ def test_form_b_export_passes_form_information_to_generator(qapp, monkeypatch, m
     service = Mock()
     dialogs = Mock()
     dialogs.save_file.return_value = "selected.xlsx"
-    widget = FormBWidget(service, dialogs)
+    widget = FormBWidget(service, dialogs, MemorySettings({"master_sheet_path": "master.xlsx"}))
     item = variant(1)
     if missing_phase:
         item["event_name"] = "CERT"
@@ -408,6 +542,7 @@ def test_form_b_export_passes_form_information_to_generator(qapp, monkeypatch, m
             "ecu_type": "value-ecu_type",
             "expected_receipt_date": date(2027, 2, 8),
         },
+        master_sheet_path="master.xlsx",
     )
     assert prompt.called is missing_phase
     assert "form_b_phase" not in item

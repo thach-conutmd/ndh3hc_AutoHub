@@ -35,6 +35,37 @@ def test_number_writer_fails_for_missing_variant_or_formula():
         writer.write_webflow_numbers({"P": 11}, {"P": {"AX": "123"}})
 
 
+@pytest.mark.parametrize("column", ["BA", "Z"])
+def test_checksum_writer_updates_only_matching_cell_and_restores_format(column):
+    cell = Mock(HasFormula=False, Value="*****", NumberFormat="General")
+    worksheet = Mock()
+    worksheet.Range.side_effect = {f"{column}14": cell}.__getitem__
+    writer = VariantRowWriter(worksheet, None)
+    assert writer.write_container_checksums(
+        {"OTHER": 11, "PART-2": 14}, {"part-2": "000abc12"}, column
+    ) == 1
+    assert cell.Value == "000ABC12"
+    assert cell.NumberFormat == "General"
+    worksheet.Range.assert_called_once_with(f"{column}14")
+
+
+def test_checksum_writer_validates_all_targets_before_modifying_cells():
+    first = Mock(HasFormula=False, Value="*****", NumberFormat="General")
+    second = Mock(HasFormula=True, Formula="=OTHER", Value="old")
+    worksheet = Mock()
+    worksheet.Range.side_effect = {"BA11": first, "BA14": second}.__getitem__
+    writer = VariantRowWriter(worksheet, None)
+    with pytest.raises(ValueError, match="formula in BA14"):
+        writer.write_container_checksums(
+            {"P1": 11, "P2": 14}, {"P1": "12345678", "P2": "ABCDEF12"}
+        )
+    assert first.Value == "*****"
+    assert second.Formula == "=OTHER"
+    with pytest.raises(ValueError, match="No Master Sheet row"):
+        writer.write_container_checksums({"P1": 11}, {"P10": "12345678"})
+    assert first.Value == "*****"
+
+
 @pytest.mark.parametrize("formula", ["=K59", "=$K$59", "=k59"])
 def test_mg1_sw_writeback_preserves_ax_formula_and_writes_source_cell(formula):
     ax = Mock(HasFormula=True, Formula=formula)

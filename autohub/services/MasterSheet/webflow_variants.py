@@ -12,7 +12,7 @@ from autohub.core.webflow_options import GENERAL_OPTION_FIELDS, normalize_option
 COMPARISON_RESULT_COLUMN = "O"
 
 #: Sheet columns a request row is read from to build a WebFlow variant.
-_FORM_B_COLUMNS = ("AP", "AN", "AR", "AX", "AZ", "BA", "AW", "AD", "BG", "CX", "CY", "CZ")
+_FORM_B_COLUMNS = ("AP", "AN", "AR", "CS", "AX", "AZ", "BA", "AW", "AD", "BG", "CX", "CY", "CZ")
 WEBFLOW_SOURCE_COLUMNS = tuple(
     dict.fromkeys(("C", COMPARISON_RESULT_COLUMN, *VARIANT_FIELD_LABELS, "CR", *_FORM_B_COLUMNS))
 )
@@ -55,7 +55,8 @@ def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
     mapped = {
         "C", "H", "J", "Q", "R", "S", "BI",
         *_GENERAL_COLUMNS.values(), *_ECU_COLUMNS.values(), *_CUSTOMER_COLUMNS.values(),
-        *(field[0] for field in HARDWARE_FIELDS), *_FORM_B_COLUMNS,
+        *(field[0] for field in HARDWARE_FIELDS),
+        *(column for column in _FORM_B_COLUMNS if column != "CS"),
     }
     project, event_name = project_event(row.get("H"))
     return {
@@ -78,7 +79,7 @@ def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
         "form_b": {
             column: (
                 row.get(column) if column == "BA" else
-                str(row[column]) if column == "AR" and row.get(column) is not None else
+                str(row[column]) if column in ("AR", "CS") and row.get(column) is not None else
                 _text(row.get(column))
             )
             for column in _FORM_B_COLUMNS

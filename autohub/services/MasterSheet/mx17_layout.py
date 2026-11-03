@@ -18,6 +18,7 @@ MG1_SHEET_NAME = "Master sheet"
 FIRST_DATA_ROW = 7  # rows 1-5 are the header, row 6 is the "Example" row
 LAST_DATA_COLUMN = "DA"
 PART_NUMBER_COLUMN = "W"  # Customer order number: the variant's part number
+CONTAINER_CHECKSUM_COLUMN = "Z"
 
 INFO_HEADER_ROW = 4
 INFO_TITLE_ROW = 5

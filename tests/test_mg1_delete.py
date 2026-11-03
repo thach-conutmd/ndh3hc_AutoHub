@@ -54,3 +54,30 @@ def test_unknown_part_number_deletes_nothing():
     master, sheet = _master(["A-1", "B-2"])
     assert master.delete_variants_by_part_number(["Z-9", ""], save=False) == 0
     assert len(sheet.rows) == 6
+
+
+def test_checksum_writeback_resolves_latest_matching_request_row_and_saves():
+    from unittest.mock import Mock
+
+    worksheet = Mock()
+    worksheet.UsedRange.Row = 1
+    worksheet.UsedRange.Rows.Count = 19
+    values = {
+        "D11": "REQ", "J11": "PART-1", "BA11": "older",
+        "D14": "REQ", "J14": "PART-10", "BA14": "=OTHER",
+        "D17": "REQ", "J17": "PART-1", "BA17": "*****",
+    }
+    cells = {
+        address: Mock(Value=value, HasFormula=False, NumberFormat="General")
+        for address, value in values.items()
+    }
+    worksheet.Range.side_effect = lambda address: cells.setdefault(address, Mock(Value=None))
+    master = MasterSheet("master.xlsx")
+    master.workbook = SimpleNamespace(Worksheets=lambda _: worksheet)
+    master.save = Mock()
+    assert master.write_container_checksums({"PART-1": "000abc12"}) == 1
+    assert cells["BA17"].Value == "000ABC12"
+    assert cells["BA17"].NumberFormat == "General"
+    assert cells["BA11"].Value == "older"
+    assert cells["BA14"].Value == "=OTHER"
+    master.save.assert_called_once()

@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from autohub.core.impl_values import normalize_impl_value
+from autohub.core.checksums import normalize_crc32
 from autohub.core.impl_update import ImplOutcome, ImplUpdate
 from autohub.core.webflow_links import webflow_link_text
 from autohub.core.normalizers import clean_text, needs_text_format, normalize_part_number
@@ -126,6 +127,30 @@ class VariantRowWriter:
             cell.NumberFormat = "@"
             cell.Value = str(value)
         return len(numbers)
+
+    def write_container_checksums(
+        self, rows_by_part_number: dict[str, int], checksums: dict[str, str], column: str = "BA",
+    ) -> int:
+        pending = []
+        for part, checksum in checksums.items():
+            row = rows_by_part_number.get(normalize_part_number(part).upper())
+            if row is None:
+                raise ValueError(f"No Master Sheet row found for {part}.")
+            value = normalize_crc32(checksum)
+            if not value:
+                raise ValueError(f"{part}: Invalid Container Checksum from Flow5.")
+            cell = self._worksheet.Range(f"{column}{row}")
+            if cell.HasFormula:
+                raise ValueError(f"Cannot overwrite formula in {column}{row}.")
+            pending.append((cell, value))
+        for cell, value in pending:
+            number_format = cell.NumberFormat
+            try:
+                cell.NumberFormat = "@"
+                cell.Value = value
+            finally:
+                cell.NumberFormat = number_format
+        return len(pending)
 
     def write_impl_values(
         self, request_rows: dict[str, list[int]], updates: dict[str, ImplUpdate]
