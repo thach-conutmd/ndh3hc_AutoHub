@@ -25,7 +25,12 @@ a = Analysis(
         # Windows COM automation (Excel, ADODB); imported lazily in the app, so listed explicitly.
         "pythoncom",
         "pywintypes",
+        # pywin32 runtime dependency of win32com.client (date/time conversion); no PyInstaller hook provides it.
+        "win32timezone",
         "win32com.client",
+        "win32com.client.gencache",
+        # Every win32com submodule (client, dynamic, gencache, gen_py, ...) is loaded at runtime by Excel automation.
+        *collect_submodules("win32com"),
         # selenium.webdriver resolves Edge/Chrome/etc. lazily (webdriver.Edge in WebFlow.py), so collect every submodule.
         *collect_submodules("selenium"),
     ],
