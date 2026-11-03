@@ -3,16 +3,28 @@ from pathlib import Path
 
 ROOT = Path(SPECPATH)
 VERSION_FILE = ROOT / "build" / "version_info.txt"
+ICON_FILE = ROOT / "autohub" / "resources" / "AutoHub.ico"
+TEMPLATES_DIR = ROOT / "datas" / "templates"
+RESOURCES_DIR = ROOT / "autohub" / "resources"
+
+for required in (ROOT / "main.py", ICON_FILE, VERSION_FILE, TEMPLATES_DIR, RESOURCES_DIR):
+    if not required.exists():
+        raise SystemExit(f"AutoHub.spec: required build input is missing: {required}")
 
 a = Analysis(
     [str(ROOT / "main.py")],
     pathex=[str(ROOT)],
     binaries=[],
     datas=[
-        (str(ROOT / "autohub" / "resources"), "autohub/resources"),
-        (str(ROOT / "datas" / "templates"), "datas/templates"),
+        (str(RESOURCES_DIR), "autohub/resources"),
+        (str(TEMPLATES_DIR), "datas/templates"),
     ],
-    hiddenimports=[],
+    hiddenimports=[
+        # Windows COM automation (Excel, ADODB); imported lazily in the app, so listed explicitly.
+        "pythoncom",
+        "pywintypes",
+        "win32com.client",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -38,5 +50,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(ICON_FILE),
     version=str(VERSION_FILE),
 )
