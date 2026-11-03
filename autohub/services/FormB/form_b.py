@@ -174,7 +174,10 @@ def export_form_b(
             name = form_information["name"]
             phone_number = form_information["phone_number"]
             return_to = form_information["return_to"]
-            project_release = form_information["project_release"]
+            project = str(variants[0].get("project") or "").strip()
+            project_release = str(form_information["project_release"]).strip()
+            if not re.search(rf"(?<!\w){re.escape(project)}(?!\w)", project_release, re.IGNORECASE):
+                project_release = f"{project} {project_release}"
             production_project = form_information["production_project"]
             sheet["C3"] = department
             sheet["C4"] = name
@@ -184,6 +187,7 @@ def export_form_b(
             sheet["A18"] = f"After confirmation, please return this paper (FORM B) to {return_to}"
             sheet["A21"] = f"(Production release for project) : {project_release}"
             sheet["A22"] = f"For {production_project} production"
+            sheet["A49"] = f"The release of the file for {production_project} is hereby confirmed under "
             sheet["B23"] = form_information["bosch_project_number"]
             sheet["B24"] = form_information["ecu_type"]
             receipt_date = form_information.get("expected_receipt_date")

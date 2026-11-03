@@ -12,7 +12,7 @@ from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.form_b import form_b_phase, manual_phase, master_phase
 from autohub.core.ports import FormBGenerator
 from autohub.core.settings import JsonSettingsStore, SettingsStore
-from autohub.core.settings_keys import SHOW_FORM_B_ADVANCED_FIELDS_KEY
+from autohub.core.settings_keys import FORM_B_FIELD_VISIBILITY
 from autohub.core.workers import TaskRunner
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.ui.theme import set_muted
@@ -20,7 +20,6 @@ from autohub.ui.theme import set_muted
 _logger = logging.getLogger(__name__)
 FORM_B_INPUTS_KEY = "form_b_inputs"
 _DATE_FIELDS = ("date", "expected_receipt_date")
-_ADVANCED_FIELDS = ("return_to", "project_release", "production_project", "ecu_type")
 
 _FORM_FIELDS = (
     ("department_organization", "Department / Organization"),
@@ -156,15 +155,14 @@ class FormBWidget(QWidget):
                 field.textChanged.connect(self._save_inputs)
 
     def apply_settings(self, settings: dict) -> None:
-        if SHOW_FORM_B_ADVANCED_FIELDS_KEY not in settings:
-            show_advanced = bool(self._settings.load().get(SHOW_FORM_B_ADVANCED_FIELDS_KEY, False))
-        else:
-            show_advanced = bool(settings[SHOW_FORM_B_ADVANCED_FIELDS_KEY])
+        applied = {**self._settings.load(), **settings}
         for container in self._field_containers.values():
             self._information_grid.removeWidget(container)
         index = 0
         for key, container in self._field_containers.items():
-            visible = show_advanced or key not in _ADVANCED_FIELDS
+            visible = key not in FORM_B_FIELD_VISIBILITY or bool(
+                applied.get(FORM_B_FIELD_VISIBILITY[key][0], False)
+            )
             container.setVisible(visible)
             if visible:
                 self._information_grid.addWidget(container, index // 3, index % 3)
@@ -223,7 +221,7 @@ class FormBWidget(QWidget):
             ecu_type = str(
                 variant.get("form_b", {}).get("AP") or variant.get("ecu_type") or ""
             ).strip()
-            candidates["project_release"].add(project)
+            candidates["project_release"].add(f"{project} Honda Project" if project else "")
             if selected:
                 candidates["production_project"].add(
                     f"{project} {phase}" if project and phase else ""
@@ -273,7 +271,7 @@ class FormBWidget(QWidget):
                 "Form B",
                 "Complete the following Form B Information fields:\n" + "\n".join(invalid_fields)
                 + (
-                    "\n\nEnable Show advanced Form B fields in Settings > Form B to edit hidden fields."
+                    "\n\nEnable the corresponding Show option in Settings > Form B to edit hidden fields."
                     if any(self._field_containers[key].isHidden() and label in invalid_fields
                            for key, label in _FORM_FIELDS) else ""
                 ),

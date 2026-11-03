@@ -406,7 +406,7 @@ def test_settings_controls_are_organized_in_groups(qapp):
     assert page._attempts.parentWidget() is groups["WebFlow Retry"]
     assert page._latest.parentWidget() is groups["Home"]
     assert page._show_link.parentWidget() is groups["Home"]
-    assert page._show_form_b_advanced.parentWidget() is groups["Form B"]
+    assert all(checkbox.parentWidget() is groups["Form B"] for checkbox in page._form_b_visibility.values())
 
 
 def test_xml_exclusion_settings_add_edit_delete_restore_and_save(qapp):
