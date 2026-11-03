@@ -20,6 +20,7 @@ from .components import wait_until_idle
 from .FilesTab import FilesTab
 from .job_filler import JobFiller
 from .job_batch import JobBatch
+from .job_cancel import cancel_open_job
 from .SideMenuBar import SideMenuBar
 from .step_log import set_step_observer
 from .step_trace import StepTrace
@@ -143,6 +144,17 @@ class WebFlow(webdriver.Edge):
         if not self.open_job(job_id, url=link):
             raise RuntimeError(f"Could not open WebFlow job {job_id} for Export XML.")
         return export_xml(self)
+
+    def cancel_job(self, job_id: str, reason: str) -> bool:
+        """False when the job cannot be opened or WebFlow does not confirm the cancellation."""
+        if not self.open_job(job_id):
+            return False
+        try:
+            cancel_open_job(self, reason)
+            return True
+        except Exception:
+            _logger.exception("Could not cancel WebFlow job %s", job_id)
+            return False
 
     def get_container_crc32(self, link: str, filename: str) -> str:
         """Reads the Execution Files CRC32, downloading the .cnt only when WebFlow has none."""

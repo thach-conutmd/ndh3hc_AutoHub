@@ -17,6 +17,7 @@ from autohub.core.settings_keys import DEFAULT_WEBFLOW_MAX_ATTEMPTS, WEBFLOW_ATT
 _logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = DEFAULT_WEBFLOW_MAX_ATTEMPTS
+CANCEL_REASON = "Test version no longer required."
 
 
 def ecr_notes(project: str, event_name: str) -> str:
@@ -51,6 +52,8 @@ class WebFlowSession(Protocol):
         self, variants: list, tool_version: str, routing: str, progress: ProgressCallback = no_progress,
         state: dict | None = None, checkpoint: Callable[[], None] | None = None,
     ) -> list: ...
+
+    def cancel_job(self, job_id: str, reason: str) -> bool: ...
 
     def quit(self) -> None: ...
 
@@ -98,6 +101,38 @@ class WebFlowJobService:
         if self._journal:
             _logger.info("Discarding the unfinished WebFlow batch")
             self._journal.clear()
+
+    def cancel_pending_batch(self, progress: ProgressCallback = no_progress) -> None:
+        """Cancels every WebFlow job of the unfinished batch, then drops the retry record.
+
+        The record is kept when a cancellation fails, so the user can try again; jobs already
+        cancelled are remembered and skipped on the next attempt."""
+        state = self.pending_batch()
+        if state is None:
+            return
+        job_ids = list(state.get("job_ids", []))
+        cancelled = state.setdefault("cancelled_job_ids", [])
+        remaining = [job_id for job_id in job_ids if job_id not in cancelled]
+        if remaining:
+            known = {f.name for f in fields(WebFlowConfig)}
+            config = WebFlowConfig(**{k: v for k, v in state["config"].items() if k in known})
+            self.shutdown()
+            try:
+                self._webflow = self._webflow_factory(
+                    driver_path=config.driver_path, base_url=config.base_url, trace_dir=config.trace_dir
+                )
+                for job_id in remaining:
+                    progress(f"Cancelling WebFlow job {job_id}...")
+                    if not self._webflow.cancel_job(job_id, CANCEL_REASON):
+                        raise RuntimeError(
+                            f"WebFlow job {job_id} could not be cancelled. The retry was kept; try Discard again."
+                        )
+                    cancelled.append(job_id)
+                    if self._journal:
+                        self._journal.save(state)
+            finally:
+                self.shutdown()
+        self.discard_pending_batch()
 
     def resume_jobs(self, progress: ProgressCallback = no_progress) -> list[dict]:
         """Continues the unfinished batch, skipping jobs already created and completed."""

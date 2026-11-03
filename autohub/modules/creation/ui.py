@@ -136,12 +136,38 @@ class CreationWidget(QWidget):
             "Continue WebFlow jobs",
             "WebFlow job creation did not finish the last time AutoHub ran.\n\n"
             f"Variants: {names}\nCompleted: {done} of {len(pending['variants'])} job(s)\n\n"
-            "Continue the work now? Choose No to discard it.",
+            "Continue the work now? Choose No to cancel the WebFlow job and discard the retry.",
         ):
             _logger.info("Continuing the unfinished WebFlow batch")
             self._start_task(self._service.resume_jobs)
-        else:
-            self._service.discard_pending_batch()
+        elif self._dialogs.ask_yes_no_cancel(
+            "Discard WebFlow retry",
+            "Discard this retry and cancel the WebFlow job?",
+            yes_text="Confirm",
+            no_text="Cancel",
+        ):
+            self._cancel_pending_batch()
+
+    def _cancel_pending_batch(self) -> None:
+        self._running = True
+        self._create_jobs_btn.setEnabled(False)
+        window = QtDialogs(self).open_progress("Cancel WebFlow job")
+        self._tasks.start(
+            lambda: self._service.cancel_pending_batch(window.step),
+            lambda _: self._finish_cancel(window),
+            lambda error: self._fail_cancel(error, window),
+        )
+
+    def _finish_cancel(self, window: ProgressWindow) -> None:
+        self._running = False
+        self._create_jobs_btn.setEnabled(True)
+        window.succeed("The WebFlow retry was discarded and the job was cancelled.")
+
+    def _fail_cancel(self, error: str, window: ProgressWindow) -> None:
+        self._running = False
+        self._create_jobs_btn.setEnabled(True)
+        _logger.error("Cancelling the WebFlow job failed: %s", error)
+        window.fail(f"{error}\n\nThe retry was kept. Restart AutoHub to try again.")
 
     def _start_task(self, work) -> None:
         self._running = True

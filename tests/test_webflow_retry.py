@@ -329,16 +329,34 @@ def test_creation_page_asks_to_continue_unfinished_work_on_startup(qapp, answer)
     service = Mock(last_elapsed_seconds=0.0)
     service.pending_batch.return_value = {"variants": [{"part_number": "P1"}, {"part_number": "P2"}], "results": [{}]}
     dialogs = FakeDialogs(confirm_answer=answer)
+    dialogs.ask_yes_no_cancel = Mock(return_value=True)
     page = CreationWidget(service, MemorySettings(), dialogs)
     page._start_task = Mock()
+    page._cancel_pending_batch = Mock()
     page.on_startup()
     assert "P1, P2" in dialogs.confirmed[0][1] and "1 of 2" in dialogs.confirmed[0][1]
     if answer:
         page._start_task.assert_called_once_with(service.resume_jobs)
-        service.discard_pending_batch.assert_not_called()
+        page._cancel_pending_batch.assert_not_called()
+        dialogs.ask_yes_no_cancel.assert_not_called()
     else:
         page._start_task.assert_not_called()
-        service.discard_pending_batch.assert_called_once()
+        page._cancel_pending_batch.assert_called_once()
+        assert dialogs.ask_yes_no_cancel.call_args.kwargs == {"yes_text": "Confirm", "no_text": "Cancel"}
+
+
+@pytest.mark.parametrize("confirmed", [False, None])
+def test_declining_discard_keeps_the_retry_and_cancels_nothing(qapp, confirmed):
+    service = Mock(last_elapsed_seconds=0.0)
+    service.pending_batch.return_value = {"variants": [{"part_number": "P1"}], "results": []}
+    dialogs = FakeDialogs(confirm_answer=False)
+    dialogs.ask_yes_no_cancel = Mock(return_value=confirmed)
+    page = CreationWidget(service, MemorySettings(), dialogs)
+    page._cancel_pending_batch = Mock()
+    page.on_startup()
+    page._cancel_pending_batch.assert_not_called()
+    service.cancel_pending_batch.assert_not_called()
+    service.discard_pending_batch.assert_not_called()
 
 
 def test_creation_page_stays_quiet_without_unfinished_work(qapp):
@@ -418,3 +436,66 @@ def test_unknown_ids_of_a_later_group_are_not_resubmitted():
     with pytest.raises(NonRetryableError):
         workflow.run(variants, "t", "r", state=state)
     assert not any(c.startswith("create") for c in calls)
+
+
+class CancelWebFlow:
+    cancel_results: dict = {}
+    cancelled: list = []
+    sessions: list = []
+
+    def __init__(self, **_kwargs):
+        CancelWebFlow.sessions.append(self)
+
+    def cancel_job(self, job_id, reason):
+        assert reason == "Test version no longer required."
+        CancelWebFlow.cancelled.append(job_id)
+        return CancelWebFlow.cancel_results.get(job_id, True)
+
+    def quit(self):
+        pass
+
+
+def pending_state(job_ids):
+    return {
+        "config": asdict(CONFIG),
+        "master_sheet_path": "",
+        "variants": [{"part_number": f"P{i}"} for i, _ in enumerate(job_ids)],
+        "job_ids": list(job_ids),
+        "results": [],
+    }
+
+
+def cancel_service(journal, cancel_results=None):
+    CancelWebFlow.cancel_results = cancel_results or {}
+    CancelWebFlow.cancelled = []
+    CancelWebFlow.sessions = []
+    return WebFlowJobService(CancelWebFlow, journal=journal, sleep=lambda _s: None)
+
+
+def test_discard_cancels_every_job_then_clears_the_retry():
+    journal = MemoryJournal(pending_state(["11", "12"]))
+    service = cancel_service(journal)
+    service.cancel_pending_batch()
+    assert CancelWebFlow.cancelled == ["11", "12"]
+    assert journal.state is None
+    assert len(CancelWebFlow.sessions) == 1
+
+
+def test_failed_cancellation_keeps_the_retry_and_remembers_done_jobs():
+    journal = MemoryJournal(pending_state(["11", "12"]))
+    service = cancel_service(journal, {"12": False})
+    with pytest.raises(RuntimeError, match="12 could not be cancelled"):
+        service.cancel_pending_batch()
+    assert journal.state is not None
+    assert journal.state["cancelled_job_ids"] == ["11"]
+
+    CancelWebFlow.cancel_results = {}
+    service.cancel_pending_batch()
+    assert CancelWebFlow.cancelled == ["11", "12", "12"]
+    assert journal.state is None
+
+
+def test_discard_without_pending_batch_does_nothing():
+    journal = MemoryJournal(None)
+    cancel_service(journal).cancel_pending_batch()
+    assert CancelWebFlow.cancelled == [] and CancelWebFlow.sessions == []
