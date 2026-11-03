@@ -25,7 +25,7 @@ from autohub.core.settings_keys import (
     LATEST_COUNT_KEY,
     RECORD_PAGES_KEY,
     SHOW_WEBFLOW_LINK_KEY,
-    SHOW_FORM_B_ADVANCED_FIELDS_KEY,
+    FORM_B_FIELD_VISIBILITY,
     WEBFLOW_ATTEMPTS_LIMIT,
     WEBFLOW_MAX_ATTEMPTS_KEY,
     WEBFLOW_RETRY_ENABLED_KEY,
@@ -108,11 +108,13 @@ class SettingsWidget(QWidget):
         QFormLayout(theme_group).addRow("Mode:", self._theme)
 
         form_b_group = QGroupBox("Form B")
-        self._show_form_b_advanced = QCheckBox("Show advanced Form B fields")
-        self._show_form_b_advanced.setChecked(
-            bool(settings.load().get(SHOW_FORM_B_ADVANCED_FIELDS_KEY, False))
-        )
-        QVBoxLayout(form_b_group).addWidget(self._show_form_b_advanced)
+        form_b_layout = QVBoxLayout(form_b_group)
+        self._form_b_visibility: dict[str, QCheckBox] = {}
+        for key, label in FORM_B_FIELD_VISIBILITY.values():
+            checkbox = QCheckBox(label)
+            checkbox.setChecked(bool(settings.load().get(key, False)))
+            self._form_b_visibility[key] = checkbox
+            form_b_layout.addWidget(checkbox)
 
         logging_group = QGroupBox("Logging")
         logging_layout = QVBoxLayout(logging_group)
@@ -268,7 +270,8 @@ class SettingsWidget(QWidget):
         self._theme.currentIndexChanged.connect(self._refresh_apply)
         self._logging.toggled.connect(self._refresh_apply)
         self._log_location.textChanged.connect(self._refresh_apply)
-        self._show_form_b_advanced.toggled.connect(self._refresh_apply)
+        for checkbox in self._form_b_visibility.values():
+            checkbox.toggled.connect(self._refresh_apply)
         self._record.toggled.connect(self._refresh_apply)
         self._attempts.valueChanged.connect(self._refresh_apply)
         self._retry.toggled.connect(self._refresh_apply)
@@ -373,7 +376,7 @@ class SettingsWidget(QWidget):
             self._a2l_comp_id_symbol.text().strip(),
             self._disabled_exclusion_values(),
             self._exclusion_values(),
-            self._show_form_b_advanced.isChecked(),
+            *(checkbox.isChecked() for checkbox in self._form_b_visibility.values()),
             self._log_location.text().strip(),
         )
 
@@ -416,8 +419,12 @@ class SettingsWidget(QWidget):
             )))
             self._exclusions_master_only.setChecked(self._applied[exclusions_start])
             self._a2l_comp_id_symbol.setText(self._applied[exclusions_start + 1])
-            self._restore_exclusions(self._applied[-3], self._applied[-4])
-            self._show_form_b_advanced.setChecked(self._applied[-2])
+            visibility_start = exclusions_start + 4
+            self._restore_exclusions(
+                self._applied[exclusions_start + 3], self._applied[exclusions_start + 2]
+            )
+            for index, checkbox in enumerate(self._form_b_visibility.values(), visibility_start):
+                checkbox.setChecked(self._applied[index])
             self._log_location.setText(self._applied[-1])
         return True
 
@@ -448,7 +455,7 @@ class SettingsWidget(QWidget):
             A2L_COMP_ID_SYMBOL_KEY: self._a2l_comp_id_symbol.text().strip(),
             XML_COMPARISON_DISABLED_EXCLUSIONS_KEY: list(disabled),
             XML_COMPARISON_EXCLUSIONS_KEY: list(exclusions),
-            SHOW_FORM_B_ADVANCED_FIELDS_KEY: self._show_form_b_advanced.isChecked(),
+            **{key: checkbox.isChecked() for key, checkbox in self._form_b_visibility.items()},
             LOG_LOCATION_KEY: self._log_location.text().strip(),
         }
         changes = {}

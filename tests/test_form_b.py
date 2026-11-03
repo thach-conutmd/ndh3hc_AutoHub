@@ -16,7 +16,7 @@ from autohub.services.WebFlow.WebFlow import WebFlow
 from autohub.modules.form_b.ui import FormBWidget
 from autohub.modules.form_b import ui as form_b_ui
 from autohub.core.settings import JsonSettingsStore
-from autohub.core.settings_keys import SHOW_FORM_B_ADVANCED_FIELDS_KEY
+from autohub.core.settings_keys import FORM_B_FIELD_VISIBILITY
 from autohub.core.form_b import form_b_phase, master_phase
 from autohub.core.progress_dialog import ProgressDialog
 from tests.fakes import MemorySettings
@@ -328,12 +328,19 @@ def test_form_b_information_overwrites_template_header_without_changing_formatti
         assert sheet["C5"].value == "Phone No.: +1 555 0100"
         assert sheet["C13"].value.date() == date(2026, 11, 3)
         assert sheet["A18"].value.endswith("to Release Team")
-        assert sheet["A21"].value == "(Production release for project) : Project Alpha"
+        assert sheet["A21"].value == "(Production release for project) : 62XS Project Alpha"
         assert sheet["A22"].value == "For Production Beta production"
         assert sheet["B23"].value == "BOSCH-123"
         assert sheet["B24"].value == "ECU-ABC"
         assert sheet[f"A{receipt_row}"].value == "We appreciate the receipt by 8 February 2027"
         assert sheet[f"A{receipt_row}"]._style == template_sheet["A43"]._style
+        confirmation = sheet[f"A{receipt_row + 6}"]
+        responsibility = sheet[f"A{receipt_row + 7}"]
+        assert confirmation.value + responsibility.value == (
+            "The release of the file for Production Beta is hereby confirmed under our responsibility."
+        )
+        assert confirmation._style == template_sheet["A49"]._style
+        assert responsibility._style == template_sheet["A50"]._style
         footer_cell = sheet[f"A{receipt_row + 16}"]
         assert footer_cell.value == "Date: 2026-11-03 Alex Example"
         assert footer_cell._style == template_sheet["A59"]._style
@@ -397,43 +404,57 @@ def test_advanced_fields_default_hidden_and_keep_values_when_toggled(qapp):
     assert widget._form_fields["return_to"].text() == "Engineering Alex"
     assert widget._form_fields["production_project"].text() == "62XS MP1"
     values = {key: field.text() for key, field in widget._form_fields.items()}
-    for enabled in (True, False, True):
-        widget.apply_settings({SHOW_FORM_B_ADVANCED_FIELDS_KEY: enabled})
-        for key in advanced:
-            assert widget._field_containers[key].isHidden() is not enabled
+    for selected_key in (*advanced, None):
+        widget.apply_settings({
+            setting: key == selected_key for key, (setting, _) in FORM_B_FIELD_VISIBILITY.items()
+        })
+        visible_containers = []
+        for key, container in widget._field_containers.items():
+            visible = key not in advanced or key == selected_key
+            assert container.isHidden() is not visible
+            if visible:
+                visible_containers.append(container)
+        for index, container in enumerate(visible_containers):
+            position = widget._information_grid.getItemPosition(widget._information_grid.indexOf(container))
+            assert position[:2] == (index // 3, index % 3)
         assert {key: field.text() for key, field in widget._form_fields.items()} == values
     _, invalid = widget._collect_form_information()
     assert "Return To" not in invalid
     assert "Production Project" not in invalid
 
 
-def test_settings_advanced_form_b_fields_apply_live_persist_and_discard(qapp):
+@pytest.mark.parametrize("field_key", FORM_B_FIELD_VISIBILITY)
+def test_settings_advanced_form_b_fields_apply_live_persist_and_discard(qapp, tmp_path, field_key):
     from autohub.modules.settings.ui import SettingsWidget
     from autohub.ui.main_window import MainWindow
 
-    settings, dialogs = MemorySettings(), Mock()
+    settings, dialogs = JsonSettingsStore(tmp_path / "settings.json"), Mock()
+    setting_key = FORM_B_FIELD_VISIBILITY[field_key][0]
     widget = FormBWidget(Mock(), Mock(), settings)
     page = SettingsWidget(settings, dialogs)
     MainWindow._wire_cross_module_signals([page, widget])
-    assert not page._show_form_b_advanced.isChecked()
+    assert all(not checkbox.isChecked() for checkbox in page._form_b_visibility.values())
     assert not page._apply.isEnabled()
-    page._show_form_b_advanced.setChecked(True)
-    assert widget._field_containers["return_to"].isHidden()
+    page._form_b_visibility[setting_key].setChecked(True)
+    assert widget._field_containers[field_key].isHidden()
     page._apply.click()
-    assert settings.load()[SHOW_FORM_B_ADVANCED_FIELDS_KEY] is True
-    assert not widget._field_containers["return_to"].isHidden()
-    reopened = FormBWidget(Mock(), Mock(), settings)
-    assert not reopened._field_containers["ecu_type"].isHidden()
-    assert SettingsWidget(settings, dialogs)._show_form_b_advanced.isChecked()
-    page._show_form_b_advanced.setChecked(False)
+    assert settings.load()[setting_key] is True
+    assert not widget._field_containers[field_key].isHidden()
+    restored_settings = JsonSettingsStore(tmp_path / "settings.json")
+    reopened = FormBWidget(Mock(), Mock(), restored_settings)
+    restored_page = SettingsWidget(restored_settings, dialogs)
+    for key, (setting, _) in FORM_B_FIELD_VISIBILITY.items():
+        assert reopened._field_containers[key].isHidden() is (key != field_key)
+        assert restored_page._form_b_visibility[setting].isChecked() is (key == field_key)
+    page._form_b_visibility[setting_key].setChecked(False)
     dialogs.ask_yes_no_cancel.return_value = False
     assert page.confirm_leave()
-    assert page._show_form_b_advanced.isChecked()
+    assert page._form_b_visibility[setting_key].isChecked()
     assert not page._apply.isEnabled()
-    page._show_form_b_advanced.setChecked(False)
+    page._form_b_visibility[setting_key].setChecked(False)
     page._apply.click()
-    assert settings.load()[SHOW_FORM_B_ADVANCED_FIELDS_KEY] is False
-    assert widget._field_containers["return_to"].isHidden()
+    assert settings.load()[setting_key] is False
+    assert widget._field_containers[field_key].isHidden()
 
 
 def test_form_b_information_requires_every_field_and_valid_date(qapp):
@@ -485,19 +506,27 @@ def test_form_b_information_requires_every_field_and_valid_date(qapp):
     assert invalid_fields == ["Expected Receipt Date (use YYYY-MM-DD)"]
 
 
-def test_iso_receipt_date_exports_as_long_date(qapp, tmp_path):
+@pytest.mark.parametrize("release_project", [
+    "Honda Project", "6SAY Honda Project", "Honda Project for 6SAY",
+])
+def test_iso_receipt_date_exports_as_long_date(qapp, tmp_path, release_project):
     widget = FormBWidget(Mock(), Mock())
     for key, field in widget._form_fields.items():
         field.setText("2026-05-19" if key in ("date", "expected_receipt_date") else f"value-{key}")
     information, invalid_fields = widget._collect_form_information()
     assert invalid_fields == []
+    item = variant(1, "12345678")
+    item["project"] = "6SAY"
+    information["project_release"] = release_project
     output = FormBService(Mock()).generate(
-        [variant(1, "12345678")], tmp_path / "form.xlsx",
+        [item], tmp_path / "form.xlsx",
         form_information=information,
     )
     workbook = openpyxl.load_workbook(output)
     try:
         assert workbook["FormB"]["A43"].value == "We appreciate the receipt by 19 May 2026"
+        expected = "6SAY Honda Project" if release_project == "Honda Project" else release_project
+        assert workbook["FormB"]["A21"].value == f"(Production release for project) : {expected}"
     finally:
         workbook.close()
 
@@ -552,7 +581,7 @@ def test_form_b_master_information_uses_loaded_and_selected_values_without_overw
     widget = FormBWidget(Mock(), Mock())
     first, second = variant(1), variant(2)
     widget.set_variants([first, second])
-    assert widget._form_fields["project_release"].text() == "62XS"
+    assert widget._form_fields["project_release"].text() == "62XS Honda Project"
     assert widget._form_fields["production_project"].text() == ""
     widget._checklist._checkboxes[first["part_number"]].setChecked(True)
     assert widget._form_fields["production_project"].text() == "62XS MP1"
@@ -574,7 +603,7 @@ def test_form_b_master_information_uses_loaded_and_selected_values_without_overw
     widget._checklist._checkboxes[second["part_number"]].setChecked(True)
     assert widget._form_fields["production_project"].text() == "OTHER MP2"
     assert widget._form_fields["ecu_type"].text() == "OTHER-ECU"
-    assert widget._form_fields["project_release"].text() == "OTHER"
+    assert widget._form_fields["project_release"].text() == "OTHER Honda Project"
     assert widget._form_fields["date"].text() == "2027-01-15"
     widget.set_variants([])
     assert widget._form_fields["production_project"].text() == ""
@@ -601,13 +630,13 @@ def test_form_b_restores_non_date_inputs_and_saves_changes(qapp, tmp_path):
         )
     reopened.set_variants([variant(1)])
     reopened._checklist._checkboxes["PART-1"].setChecked(True)
-    assert reopened._form_fields["project_release"].text() == "62XS"
+    assert reopened._form_fields["project_release"].text() == "62XS Honda Project"
     assert reopened._form_fields["production_project"].text() == "62XS MP1"
     assert reopened._form_fields["ecu_type"].text() == "MG1CS022"
     assert reopened._form_fields["name"].text() == "saved-name"
     reopened._form_fields["project_release"].setText("edited project")
     reopened.set_variants([variant(1)])
-    assert reopened._form_fields["project_release"].text() == "62XS"
+    assert reopened._form_fields["project_release"].text() == "62XS Honda Project"
     reopened._form_fields["name"].clear()
     assert settings.load()[form_b_ui.FORM_B_INPUTS_KEY]["name"] == ""
 

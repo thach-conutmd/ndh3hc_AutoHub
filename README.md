@@ -130,10 +130,12 @@ automation. Each feature is a module plugged into the main window sidebar.
 
 ### Form B module
 
-- Return To, Project / Production Release Project, Production Project and ECU-Type are hidden by default while retaining their data, auto-fill and export mappings. Enable **Settings > Form B > Show advanced Form B fields** and apply changes to review/edit them; the setting is saved between sessions.
+- Return To, Project / Production Release Project, Production Project and ECU-Type are hidden by default while retaining their data, auto-fill and export mappings. **Settings > Form B** has a separate **Show** checkbox for each field. Apply changes to review/edit selected fields; each preference is saved between sessions, and the layout compacts without clearing values.
 - Receives selected variants from Home and uses Master Sheet values to fill the supplied Form B workbook template.
 - Each Form B column uses its selected row's exact **DWG NO.** (Master Sheet CS) as Customer HW Part No. Variants removes the `37820-` prefix and an additional trailing suffix when present: `37820-65A-T31` becomes `65A-T31`, and `37820-62X-MD20-M6` becomes `62X-MD20`. RB ECU No. and RB Software No. continue to use Master Sheet columns AN and AX.
 - The existing template footer uses the entered Form B Date and Name as `Date: YYYY-MM-DD <Name>`, retaining its styling and moving with the footer when variant blocks are added.
+- Confirmation uses the current Production Project in "The release of the file for ... is hereby confirmed under our responsibility.", preserving the template's existing two-line layout and formatting.
+- Production release for project defaults to `<Project> Honda Project`. Export combines the selected Master Sheet Project with the release-project input without repeating a Project already included in that input, retaining the existing cell formatting.
 - Requires Department / Organization, Name, Phone Number, Date, Return To, Project / Production Release Project, Production Project, Bosch Project Number and ECU-Type in the Form B Information section.
 - Date starts with today's date in `YYYY-MM-DD` format and remains editable. Empty fields show example placeholders only; these examples are not exported as values.
 - Project and ECU-Type auto-fill when the loaded or selected Master Sheet variants agree; Production Project uses selected variants only. These values remain editable; other fields retain their placeholders. Expected Receipt Date uses the same validated `YYYY-MM-DD` input format as Date and is exported as `DD MMMM YYYY` (for example, `2026-05-19` becomes `19 May 2026`) in the template's "We appreciate the receipt by" text, including when extra variant blocks move the footer. It is not persisted between sessions.
