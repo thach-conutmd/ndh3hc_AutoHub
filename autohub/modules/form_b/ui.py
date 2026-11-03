@@ -177,6 +177,8 @@ class FormBWidget(QWidget):
                 index += 1
         self._information_grid.removeWidget(self._production_warning)
         self._information_grid.addWidget(self._production_warning, (index + 2) // 3, 0, 1, 3)
+        if hasattr(self, "_export_btn"):
+            self._refresh_export_enabled()
 
     def _update_return_to(self) -> None:
         self._form_fields["return_to"].setText(" ".join(
@@ -207,7 +209,14 @@ class FormBWidget(QWidget):
             "Select at least one variant to continue." if total else
             "Load variants on Home to get started."
         )
-        self._export_btn.setEnabled(selected > 0 and not self._running)
+        self._refresh_export_enabled(selected)
+
+    def _refresh_export_enabled(self, selected: int | None = None) -> None:
+        if selected is None:
+            selected = len(self._checklist.selected_variants())
+        self._export_btn.setEnabled(
+            selected > 0 and not self._running and not self._service.template_problem()
+        )
 
     def _fill_master_information(self) -> None:
         selected = self._checklist.selected_variants()

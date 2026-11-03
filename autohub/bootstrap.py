@@ -38,7 +38,7 @@ def build_variant_service() -> VariantService:
 
 def build_templates(settings: SettingsStore) -> TemplateManager:
     """The single template manager shared by Home, Form B and Settings."""
-    return TemplateManager(
+    templates = TemplateManager(
         settings,
         defaults={FORM_B_TEMPLATE.name: str(FORM_B_TEMPLATE_PATH)},
         load_checks={
@@ -46,6 +46,8 @@ def build_templates(settings: SettingsStore) -> TemplateManager:
             FORM_B_TEMPLATE.name: form_b_template_problem,
         },
     )
+    templates.seed_default(FORM_B_TEMPLATE)
+    return templates
 
 
 def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:

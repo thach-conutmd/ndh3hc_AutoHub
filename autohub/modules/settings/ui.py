@@ -125,9 +125,15 @@ class SettingsWidget(QWidget):
 
         form_b_template_group = QGroupBox(FORM_B_TEMPLATE.label)
         self._form_b_template = self._template_field(
-            FORM_B_TEMPLATE, "Used by Form B export. Must be an .xlsx file. Exports are copied from this template.",
+            FORM_B_TEMPLATE, "Used by Form B export. Must be an .xlsx file. If it is missing or invalid, the built-in template is used.",
         )
-        QVBoxLayout(form_b_template_group).addLayout(self._template_row(FORM_B_TEMPLATE, self._form_b_template))
+        form_b_template_layout = QVBoxLayout(form_b_template_group)
+        form_b_template_layout.addLayout(self._template_row(FORM_B_TEMPLATE, self._form_b_template))
+        self._form_b_active = QLabel()
+        self._form_b_active.setWordWrap(True)
+        self._form_b_active.setAccessibleName("Active Form B template")
+        form_b_template_layout.addWidget(self._form_b_active)
+        self._refresh_active_form_b_template()
 
         form_b_group = QGroupBox("Form B")
         form_b_layout = QVBoxLayout(form_b_group)
@@ -239,7 +245,8 @@ class SettingsWidget(QWidget):
                             "The template is never changed; each new variant is saved as a copy named "
                             "Honda_<Project>_Container_MasterSheet_r00.xlsx next to it.",
             form_b_template_group: "Form B exports are created from a copy of this .xlsx template. "
-                                   "The template is never changed. Exports stop with an error if it is missing or invalid.",
+                                   "The template is never changed. If it is missing or invalid, the built-in template is used. "
+                                   "Export is disabled if neither is valid.",
             form_b_group: "Show Return To, Project / Production Release Project, Production Project "
                           "and ECU-Type for review and editing. Hidden fields still auto-fill and export.",
             creation_group: "Configure the WebFlow connection and ECR details. Leave all four ECR "
@@ -381,6 +388,13 @@ class SettingsWidget(QWidget):
         folder = QFileDialog.getExistingDirectory(self, "Log location", self._log_location.text())
         if folder:
             self._log_location.setText(folder)
+
+    def _refresh_active_form_b_template(self) -> None:
+        active = self._templates.resolve(FORM_B_TEMPLATE)
+        self._form_b_active.setText(
+            f"Active template: {active}" if active
+            else "Active template: none. Form B export is disabled until a valid template is selected."
+        )
 
     def _template_field(self, spec: TemplateSpec, tooltip: str) -> QLineEdit:
         field = QLineEdit(self._templates.configured(spec))
@@ -550,5 +564,6 @@ class SettingsWidget(QWidget):
         set_logging_enabled(enabled)
         apply_theme(QApplication.instance(), mode)
         self._applied = self._current()
+        self._refresh_active_form_b_template()
         self._refresh_apply()
         self.settingsChanged.emit(changes)
