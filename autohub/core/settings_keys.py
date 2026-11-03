@@ -13,6 +13,7 @@ WEBFLOW_GENERAL_OPTIONS_KEY = "webflow_general_options"
 CALIBRATION_FOLDER_PATH_KEY = "calibration_folder_path"
 NEW_VARIANT_DEFAULTS_KEY = "new_variant_defaults"
 DEFAULT_MASTER_SHEET_TEMPLATE_KEY = "default_master_sheet_template_path"
+FORM_B_TEMPLATE_KEY = "form_b_template_path"
 FORM_B_FIELD_VISIBILITY = {
     "return_to": ("show_form_b_return_to", "Show Return To"),
     "project_release": ("show_form_b_project_release", "Show Project / Production Release Project"),

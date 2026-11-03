@@ -1,8 +1,6 @@
 """Settings page for theme, logging, WebFlow tracing and retry attempts."""
 from __future__ import annotations
 
-from pathlib import Path
-
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
@@ -18,7 +16,8 @@ from autohub.core.logger import (
 )
 from autohub.core.a2l_hex import DEFAULT_COMP_ID_SYMBOL
 from autohub.core.settings import SettingsStore
-from autohub.core.settings_keys import DEFAULT_MASTER_SHEET_TEMPLATE_KEY, NEW_VARIANT_DEFAULTS_KEY
+from autohub.core.settings_keys import NEW_VARIANT_DEFAULTS_KEY
+from autohub.core.templates import FORM_B_TEMPLATE, MASTER_SHEET_TEMPLATE, TemplateManager, TemplateSpec
 from autohub.core.webflow_defaults import new_variant_defaults
 from autohub.core.settings_keys import (
     A2L_COMP_ID_SYMBOL_KEY,
@@ -51,10 +50,16 @@ _LABELS = {"system": "System", "light": "Light", "dark": "Dark"}
 class SettingsWidget(QWidget):
     settingsChanged = Signal(dict)
 
-    def __init__(self, settings: SettingsStore, dialogs: Dialogs | None = None):
+    def __init__(
+        self,
+        settings: SettingsStore,
+        dialogs: Dialogs | None = None,
+        templates: TemplateManager | None = None,
+    ):
         super().__init__()
         self._settings = settings
         self._dialogs = dialogs or QtDialogs(self)
+        self._templates = templates or TemplateManager(settings)
 
         title = QLabel("Settings")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
@@ -108,20 +113,21 @@ class SettingsWidget(QWidget):
         home_form.addRow(self._show_link)
         home_form.addRow("A2L component ID symbol:", self._a2l_comp_id_symbol)
 
-        template_group = QGroupBox("Default Master Sheet Template")
-        self._master_template = QLineEdit(str(settings.load().get(DEFAULT_MASTER_SHEET_TEMPLATE_KEY, "")))
-        self._master_template.setAccessibleName("Default Master Sheet Template")
-        self._master_template.setToolTip("Used by New variant when no Master Sheet is loaded. Must be an .xlsx file.")
-        self._browse_master_template = QPushButton("Browse...")
-        self._browse_master_template.clicked.connect(self._on_browse_master_template)
-        template_row = QHBoxLayout()
-        template_row.addWidget(QLabel("Template:"))
-        template_row.addWidget(self._master_template, 1)
-        template_row.addWidget(self._browse_master_template)
-        QVBoxLayout(template_group).addLayout(template_row)
+        template_group = QGroupBox(MASTER_SHEET_TEMPLATE.label)
+        self._master_template = self._template_field(
+            MASTER_SHEET_TEMPLATE,
+            "Used by New variant when no Master Sheet is loaded. Must be an .xlsx file.",
+        )
+        QVBoxLayout(template_group).addLayout(self._template_row(MASTER_SHEET_TEMPLATE, self._master_template))
 
         theme_group = QGroupBox("Theme")
         QFormLayout(theme_group).addRow("Mode:", self._theme)
+
+        form_b_template_group = QGroupBox(FORM_B_TEMPLATE.label)
+        self._form_b_template = self._template_field(
+            FORM_B_TEMPLATE, "Used by Form B export. Must be an .xlsx file. Exports are copied from this template.",
+        )
+        QVBoxLayout(form_b_template_group).addLayout(self._template_row(FORM_B_TEMPLATE, self._form_b_template))
 
         form_b_group = QGroupBox("Form B")
         form_b_layout = QVBoxLayout(form_b_group)
@@ -232,6 +238,8 @@ class SettingsWidget(QWidget):
             template_group: "New variant uses this .xlsx template when no Master Sheet is loaded. "
                             "The template is never changed; each new variant is saved as a copy named "
                             "Honda_<Project>_Container_MasterSheet_r00.xlsx next to it.",
+            form_b_template_group: "Form B exports are created from a copy of this .xlsx template. "
+                                   "The template is never changed. Exports stop with an error if it is missing or invalid.",
             form_b_group: "Show Return To, Project / Production Release Project, Production Project "
                           "and ECU-Type for review and editing. Hidden fields still auto-fill and export.",
             creation_group: "Configure the WebFlow connection and ECR details. Leave all four ECR "
@@ -253,7 +261,7 @@ class SettingsWidget(QWidget):
             ("General", (theme_group, logging_group, analysis_group)),
             ("Home", (home_group, template_group)),
             ("Creation", (creation_group, new_variants_group, retry_group)),
-            ("Form B", (form_b_group,)),
+            ("Form B", (form_b_template_group, form_b_group)),
             ("Comparison", (exclusions_group,)),
         ):
             content = QWidget()
@@ -374,12 +382,28 @@ class SettingsWidget(QWidget):
         if folder:
             self._log_location.setText(folder)
 
-    def _on_browse_master_template(self) -> None:
+    def _template_field(self, spec: TemplateSpec, tooltip: str) -> QLineEdit:
+        field = QLineEdit(self._templates.configured(spec))
+        field.setPlaceholderText(self._templates.path(spec) or "Not set")
+        field.setAccessibleName(spec.label)
+        field.setToolTip(tooltip)
+        return field
+
+    def _template_row(self, spec: TemplateSpec, field: QLineEdit) -> QHBoxLayout:
+        browse = QPushButton("Browse...")
+        browse.clicked.connect(lambda: self._on_browse_template(spec, field))
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Template:"))
+        row.addWidget(field, 1)
+        row.addWidget(browse)
+        return row
+
+    def _on_browse_template(self, spec: TemplateSpec, field: QLineEdit) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Default Master Sheet Template", self._master_template.text(), "Excel files (*.xlsx)",
+            self, spec.label, field.text() or self._templates.path(spec), "Excel files (*.xlsx)",
         )
         if path:
-            self._master_template.setText(path)
+            field.setText(path)
 
     def _on_open_log(self) -> None:
         path = log_file_path()
@@ -413,6 +437,7 @@ class SettingsWidget(QWidget):
             " ".join(self._form_b_project_suffix.text().split()),
             self._log_location.text().strip(),
             self._master_template.text().strip(),
+            self._form_b_template.text().strip(),
         )
 
     def _refresh_apply(self, *_args) -> None:
@@ -460,9 +485,10 @@ class SettingsWidget(QWidget):
             )
             for index, checkbox in enumerate(self._form_b_visibility.values(), visibility_start):
                 checkbox.setChecked(self._applied[index])
-            self._form_b_project_suffix.setText(self._applied[-3])
-            self._log_location.setText(self._applied[-2])
-            self._master_template.setText(self._applied[-1])
+            self._form_b_project_suffix.setText(self._applied[-4])
+            self._log_location.setText(self._applied[-3])
+            self._master_template.setText(self._applied[-2])
+            self._form_b_template.setText(self._applied[-1])
         return True
 
     def _on_apply(self) -> None:
@@ -472,13 +498,13 @@ class SettingsWidget(QWidget):
         except ValueError as error:
             self._dialogs.error("XML Comparison Exclusions", str(error))
             return
-        template = self._master_template.text().strip()
-        if template and (Path(template).suffix.lower() != ".xlsx" or not Path(template).is_file()):
-            self._dialogs.error(
-                "Default Master Sheet Template", "Select an existing .xlsx file as the default Master Sheet template.",
-            )
-            return
-        if self._log_location.text().strip() != self._applied[-2]:
+        templates = {MASTER_SHEET_TEMPLATE: self._master_template.text().strip(),
+                     FORM_B_TEMPLATE: self._form_b_template.text().strip()}
+        for spec, path in templates.items():
+            if path and (problem := self._templates.problem(spec, path)):
+                self._dialogs.error(spec.label, problem)
+                return
+        if self._log_location.text().strip() != self._applied[-3]:
             try:
                 folder = set_log_location(self._log_location.text().strip())
             except (OSError, ValueError) as error:
@@ -501,7 +527,8 @@ class SettingsWidget(QWidget):
             **{key: checkbox.isChecked() for key, checkbox in self._form_b_visibility.items()},
             FORM_B_PROJECT_SUFFIX_KEY: " ".join(self._form_b_project_suffix.text().split()),
             LOG_LOCATION_KEY: self._log_location.text().strip(),
-            DEFAULT_MASTER_SHEET_TEMPLATE_KEY: template,
+            MASTER_SHEET_TEMPLATE.settings_key: templates[MASTER_SHEET_TEMPLATE],
+            FORM_B_TEMPLATE.settings_key: templates[FORM_B_TEMPLATE],
         }
         changes = {}
         position = 0

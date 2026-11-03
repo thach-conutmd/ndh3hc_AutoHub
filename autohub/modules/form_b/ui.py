@@ -287,6 +287,10 @@ class FormBWidget(QWidget):
                 ),
             )
             return
+        template_problem = self._service.template_problem()
+        if template_problem:
+            self._dialogs.error("Form B", template_problem)
+            return
         path = self._dialogs.save_file("Export Form B", "Form_B.xlsx", "Excel workbook (*.xlsx)")
         if not path:
             return

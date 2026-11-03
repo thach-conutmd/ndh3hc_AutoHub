@@ -10,11 +10,11 @@ from autohub.core.a2l_hex import DEFAULT_COMP_ID_SYMBOL
 from autohub.core.file_fields import FileField
 from autohub.core.progress import ProgressCallback, ProgressWindow, no_progress
 from autohub.core.settings import SettingsStore
+from autohub.core.templates import MASTER_SHEET_TEMPLATE, TemplateManager
 from autohub.core.webflow_defaults import new_variant_defaults
 from autohub.core.settings_keys import (
     A2L_COMP_ID_SYMBOL_KEY,
     CALIBRATION_FOLDER_PATH_KEY,
-    DEFAULT_MASTER_SHEET_TEMPLATE_KEY,
     LATEST_COUNT_CHOICES,
     LATEST_COUNT_KEY,
     normalize_latest_count,
@@ -26,7 +26,6 @@ _logger = logging.getLogger(__name__)
 
 MASTER_SHEET = "Master Sheet"
 NEW_VARIANT_TEXT = "New variants"
-DEFAULT_TEMPLATE_MISSING_TEXT = "Default Master Sheet template not found. Please select a valid template."
 UPDATE_TEXT = "Update Master Sheet"
 LOAD_TEXT = "Load variants"
 NEW_VARIANT_TIP = (
@@ -96,12 +95,16 @@ class HomePresenter:
         settings: SettingsStore,
         dialogs: Dialogs,
         start_task: TaskStarter,
+        templates: TemplateManager | None = None,
     ):
         self._view = view
         self._service = service
         self._settings = settings
         self._dialogs = dialogs
         self._start_task = start_task
+        self._templates = templates or TemplateManager(
+            settings, load_checks={MASTER_SHEET_TEMPLATE.name: service.master_sheet_problem},
+        )
         self._paths: dict[str, str] = {}
         self._edited = False  # the table holds changes that are not in the Master Sheet yet
         self._loaded_rows: list[dict] | None = None  # every variant of the last Load, before the "latest" limit
@@ -133,7 +136,7 @@ class HomePresenter:
     def _refresh_actions(self) -> None:
         ready = self._master_valid and not self._busy
         # Without a loaded Master Sheet, New variant still works when a default template is configured.
-        can_create = (self._master_valid or bool(self._configured_template())) and not self._busy
+        can_create = (self._master_valid or bool(self._templates.configured(MASTER_SHEET_TEMPLATE))) and not self._busy
         self._view.set_new_variant_state(
             can_create, "Creating..." if self._busy and self._operation == NEW_VARIANT_TEXT else NEW_VARIANT_TEXT,
         )
@@ -441,8 +444,8 @@ class HomePresenter:
             template_check = None
         else:
             # A loaded Master Sheet always wins; without one, the configured template is copied.
-            master_sheet_path = self._configured_template()
-            template_check = lambda: self._template_problem(master_sheet_path)  # noqa: E731
+            master_sheet_path = self._templates.path(MASTER_SHEET_TEMPLATE)
+            template_check = lambda: self._templates.problem(MASTER_SHEET_TEMPLATE)  # noqa: E731
         keep_rows = self._ask_keep_rows(NEW_VARIANT_TEXT)
         if keep_rows is None:
             return
@@ -477,15 +480,6 @@ class HomePresenter:
             lambda error: self._fail_new_variant(error, window),
             window, NEW_VARIANT_TEXT, check=template_check,
         )
-
-    def _template_problem(self, path: str) -> str:
-        """Empty when the configured default template is a readable Master Sheet."""
-        if not path or self._master_problem(path):
-            return DEFAULT_TEMPLATE_MISSING_TEXT
-        return ""
-
-    def _configured_template(self) -> str:
-        return str(self._settings.load().get(DEFAULT_MASTER_SHEET_TEMPLATE_KEY, "") or "").strip()
 
     def _ask_sources(self) -> dict[str, str] | None:
         """The source file paths from one dialog (always empty at first, nothing is remembered), or None when cancelled."""
