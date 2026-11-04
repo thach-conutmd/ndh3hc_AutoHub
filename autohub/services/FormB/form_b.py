@@ -12,7 +12,7 @@ from typing import Callable, Protocol
 
 import openpyxl
 
-from autohub.config import BASE_DIR
+from autohub.config import TEMPLATES_DIR
 from autohub.core.checksums import normalize_crc32
 from autohub.core.form_b import form_b_phase, master_phase
 from autohub.core.ports import ContainerChecksumSheet
@@ -21,7 +21,7 @@ from autohub.core.templates import FORM_B_TEMPLATE, TemplateManager
 from autohub.services.common.encrypted_workbook import decrypt_workbook
 
 _logger = logging.getLogger(__name__)
-TEMPLATE_PATH = BASE_DIR / "datas" / "templates" / "Form_B_Default_Template.xlsx"
+TEMPLATE_PATH = TEMPLATES_DIR / "Form_B_Default_Template.xlsx"
 FIRST_BLOCK_ROW = 26
 BLOCK_ROWS = 13
 BLOCK_SPACING = 1
