@@ -17,8 +17,14 @@ python build_version_info.py || (echo ERROR: could not generate version metadata
 echo Building AutoHub...
 pyinstaller --clean --noconfirm AutoHub.spec || (echo ERROR: PyInstaller build failed. & goto :fail)
 
-if not exist dist\AutoHub.exe (echo ERROR: dist\AutoHub.exe was not produced. & goto :fail)
-echo Build complete: dist\AutoHub.exe
+echo Placing editable resource folders beside AutoHub.exe...
+for %%F in (assets templates) do (
+    if not exist dist\AutoHub\_internal\%%F (echo ERROR: _internal\%%F was not produced. & goto :fail)
+    move /y dist\AutoHub\_internal\%%F dist\AutoHub\%%F >nul || (echo ERROR: could not move %%F. & goto :fail)
+)
+
+if not exist dist\AutoHub\AutoHub.exe (echo ERROR: dist\AutoHub\AutoHub.exe was not produced. & goto :fail)
+echo Build complete: dist\AutoHub\AutoHub.exe
 exit /b 0
 
 :fail

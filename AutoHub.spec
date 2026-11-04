@@ -18,8 +18,8 @@ a = Analysis(
     pathex=[str(ROOT)],
     binaries=[],
     datas=[
-        (str(RESOURCES_DIR), "autohub/resources"),
-        (str(TEMPLATES_DIR), "datas/templates"),
+        (str(RESOURCES_DIR), "assets"),
+        (str(TEMPLATES_DIR), "templates"),
     ],
     hiddenimports=[
         # Windows COM automation (Excel, ADODB); imported lazily in the app, so listed explicitly.
@@ -45,9 +45,8 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name="AutoHub",
     debug=False,
     bootloader_ignore_signals=False,
@@ -61,4 +60,16 @@ exe = EXE(
     entitlements_file=None,
     icon=str(ICON_FILE),
     version=str(VERSION_FILE),
+)
+
+# One-folder output: dist/AutoHub/ holds AutoHub.exe and _internal/ (DLLs and modules).
+# build.bat moves the editable resource folders (assets/, templates/) beside the EXE after the build.
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name="AutoHub",
 )

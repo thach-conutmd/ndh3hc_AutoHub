@@ -255,7 +255,7 @@ python main.py
 build.bat
 ```
 
-`build.bat` removes old `build` and `dist` folders, writes the Windows version resource from `APP_VERSION` in `autohub/config.py` (via `build_version_info.py`), and runs `pyinstaller --clean --noconfirm AutoHub.spec`. The result is `dist\AutoHub.exe`, with FileVersion/ProductVersion, ProductName, FileDescription, InternalName, OriginalFilename and company/copyright metadata. Change the version only in `APP_VERSION`.
+`build.bat` removes old `build` and `dist` folders, writes the Windows version resource from `APP_VERSION` in `autohub/config.py` (via `build_version_info.py`), and runs `pyinstaller --clean --noconfirm AutoHub.spec`. The result is a one-folder build: `dist\AutoHub\AutoHub.exe` with `_internal\` for dependencies, and `assets\` and `templates\` beside the EXE (moved out of `_internal` by `build.bat`). The EXE carries FileVersion/ProductVersion, ProductName, FileDescription, InternalName, OriginalFilename and company/copyright metadata. Change the version only in `APP_VERSION`.
 
 ## Test
 
