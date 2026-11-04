@@ -6,8 +6,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "build" / "version_info.txt"
 
-COMPANY_NAME = "TuytNBosch"
-COPYRIGHT = "Copyright (c) 2026 TuytNBosch"
+COMPANY_NAME = "Bosch Global Software Technologies Company Limited"
+COPYRIGHT = "Copyright (c) 2026 Bosch Global Software Technologies Company Limited."
 FILE_DESCRIPTION = "AutoHub - Container Automation Tool"
 ORIGINAL_FILENAME = "AutoHub.exe"
 
