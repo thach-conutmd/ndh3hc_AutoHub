@@ -27,7 +27,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self._base_title)
         if LOGO_PATH.exists():
             self.setWindowIcon(QIcon(str(LOGO_PATH)))
-        self.setFixedSize(1024, 700)
+        self.resize(1024, 700)
+        self.setMinimumSize(1024, 700)
 
         self._sidebar = Sidebar(
             [(module.icon_file, module.display_name) for module in modules],
