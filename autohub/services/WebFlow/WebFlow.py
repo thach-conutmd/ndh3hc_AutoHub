@@ -190,6 +190,12 @@ class WebFlow(webdriver.Edge):
         self.general_options = self.body.tab.generaltab.general_options
         return results
 
+    def add_instance_member(self, job_id: str, name: str) -> bool:
+        """Open a saved job and add the user to Instance Members, using the normal flow's steps."""
+        if not self.open_job(job_id):
+            raise RuntimeError(f"Could not open WebFlow job {job_id}.")
+        return InstanceMembers(self).add_user(name)
+
     def _fill_job(self, variant: dict) -> list[str]:
         result = self.job_filler.fill(variant)  # runs Save last; Instance Members only follows a saved job
         change_engineer = str((variant.get("ecr") or {}).get("change_engineer") or "").strip()
