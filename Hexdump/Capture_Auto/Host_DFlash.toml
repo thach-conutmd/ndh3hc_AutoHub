@@ -1,0 +1,84 @@
+#_dflash_Layout.txt
+#_dflashBlockOverview.txt
+#.cnt
+#Fee_ContentDetails.txt
+
+# 1 _dflashBlockOverview.txt
+[common]
+OUT = "out"
+PAD_X = 20
+MIN_W = 400
+SCROLL_W = 30
+FIT_W = 0
+FIT_H = 0
+RECALIBRATE = false
+DEBUG = false
+
+[[file]]
+FILE = 'C:\01_Workspace\Task\Hex_Dump\6WZX\MP0\6WZX_Hexdump_Verification_0261S10BN8\05_DFlash_analysis\0261s109wl_mg1cs022_5100101316675002_dflashBlockOverview.txt'
+APP = "npp"
+FORCE_NO_WRAP = false
+INCLUDE_HEADER = false
+INCLUDE_MARGIN = false
+MODE = "block"
+enabled = false
+  [[file.shot]]
+  name = "FactoryData"
+  key = 'FactoryData'
+
+  [[file.shot]]
+  name = "DCM_PROGID"
+  key = 'DCM_PROGID'
+
+  [[file.shot]]
+  name = "DCM_SWVERSID"
+  key = 'DCM_SWVERSID'
+
+  [[file.shot]]
+  name = "DCM_SIGNALG_KEYID"
+  key = 'DCM_SIGNALG_KEYID'
+
+  [[file.shot]]
+  name = "DCM_ECUID"
+  key = 'DCM_ECUID'
+
+  [[file.shot]]
+  name = "DCM_SECACOEFF"
+  key = 'DCM_SECACOEFF'
+
+  [[file.shot]]
+  name = "EEPData1"
+  key = 'EEPData1'
+
+# 2 .cnt
+[[file]]
+FILE = 'C:\01_Workspace\Task\Hex_Dump\6WZX\MP0\6WZX_Hexdump_Verification_0261S10BN8\00_Hex_from_CNT\10SW137784.cnt'
+APP = "notepad"
+FORCE_NO_WRAP = false
+INCLUDE_HEADER = true
+INCLUDE_MARGIN = true
+MODE = "cnt"
+enabled = true
+  [[file.shot]]
+  name = "EEPData1"
+  key = 'EEPData1'
+
+  [[file.shot]]
+  name = "SeccCoeff3_Boot"
+  key = 'SeccCoeff3_Boot'  
+
+  [[file.shot]]
+  name = "Prog_ID_Boot"
+  key = 'Prog_ID_Boot'  
+
+  [[file.shot]]
+  name = "ECU_ID_Boot"
+  key = 'ECU_ID_Boot'  
+
+  [[file.shot]]
+  name = "SW_Version"
+  key = 'SW_Version'
+
+  [[file.shot]]
+  name = "Dcm_SignalG_KeyID"
+  key = 'DCM_SIGNALG_KEYID'  

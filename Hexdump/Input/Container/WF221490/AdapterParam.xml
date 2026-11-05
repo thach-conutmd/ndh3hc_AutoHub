@@ -1,0 +1,32 @@
+<Fields Group="Adapter">
+  <Field Name="PSTBuildType" Type="String">MDG</Field>
+  <Field Name="BuildMode" Type="String">4</Field>
+  <Field Name="BuildCount" Type="String">4_0</Field>
+  <Field Name="PSTBuildVersion" Type="String">2019.2_3.0.0</Field>
+  <Field Name="PSTName" Type="String">MG1CA020_6SAY</Field>
+  <Field Name="PSTVariant" Type="String">V011_TPROT</Field>
+  <Field Name="PSTRevision" Type="String">0</Field>
+  <Field Name="ProjectName" Type="String">MG1CA020</Field>
+  <Field Name="PVER_Label" Type="String">MG1CA020_6SAY/V011_TPROT;0</Field>
+  <Field Name="Root_PST_Folder" Type="String">\\Bosch.com\dfsrb\DfsDE\LOC\Si\GS\SDE\MDG1\pst\MDG1_JAP\Honda\MG1CA020\Int\MG1CA020_6SAY__V011_TPROT__0__Build_4\MG1CA020_6SAY_V011_TPROT</Field>
+  <Field Name="INFOBLOCKS" Type="String">&lt;![CDATA[&lt;BLKLINK START="0x80000020" NXTBLK="0x80034000" /&gt;
+&lt;BLKLINK START="0x80034000" NXTBLK="0x80040000" /&gt;
+&lt;BLKLINK START="0x80040000" NXTBLK="0x800A0000" /&gt;
+&lt;BLKLINK START="0x800A0000" NXTBLK="0x804D8000" /&gt;
+&lt;BLKLINK START="0x804D8000" NXTBLK="0x00" /&gt;]]&gt;</Field>
+  <Field Name="VDS_STARTADDRESS" Type="String" />
+  <Field Name="COMPATIBILITY_POINTER_LIST" Type="String">&lt;![CDATA[&lt;IB BLKADDR="0x804D8000" DEPBLKADDR="0x800A0000" /&gt;
+]]&gt;</Field>
+  <Field Name="ABMBLOCKS" Type="String">&lt;![CDATA[&lt;PRIMARY START="0x80000000" \&gt;
+]]&gt;</Field>
+  <Field Name="XADDRESS" Type="String"></Field>
+  <Field Name="SB_SIG_STARTADDRESS" Type="String"></Field>
+  <Field Name="SB_SIG_ENDADDRESS" Type="String"></Field>
+  <Field Name="CB_ADDON_STARTADDRESS" Type="String"></Field>
+  <Field Name="CB_ADDON_ENDADDRESS" Type="String"></Field>
+  <Field Name="TPROT_STARTADDRESS" Type="String"></Field>
+  <Field Name="CB_STARTADDRESS" Type="String"></Field>
+  <Field Name="ASW0_STARTADDRESS" Type="String"></Field>
+  <Field Name="CMBTYP_SY" Type="String">1</Field>
+  <Field Name="ECU_TRICORE_SY" Type="String"></Field>
+</Fields>
