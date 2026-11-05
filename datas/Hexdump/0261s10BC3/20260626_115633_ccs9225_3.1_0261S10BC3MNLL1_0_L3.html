@@ -1,0 +1,180 @@
+﻿<!DOCTYPE html><html xmlns:msxsl="urn:schemas-microsoft-com:xslt" xmlns:user="XsltEnhanceFunctions"><head><meta name="viewport" content="width=device-width, initial-scale=1.0" /><style>
+		
+        
+        :root {
+            --body-bg: #FAFAFA; 
+            --body-text: #333333; 
+            --heading-color: #707070; 
+            --hr-color: #E0E0E0;
+
+            --table-header-bg: #D4D3D3; 
+            --table-header-text: #000000; 
+            --table-cell-text: #000000; 
+
+            --table-row-odd-bg: #FFFFFF; 
+            --table-row-even-bg: #F2F2F2; 
+
+            --bad-bg: red;
+            --bad-text: lightgray;
+            --good-bg: green;
+            --good-text: lightgray;
+
+            --filter-border-color: darkgray; 
+            --filter-text-color: #333333; 
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --body-bg: #1A1A1A; 
+                --body-text: #E0E0E0; 
+                --heading-color: #B0B0B0; 
+                --hr-color: #404040; 
+
+                --table-header-bg: #282828; 
+                --table-header-text: #F0F0F0; 
+                --table-cell-text: #E0E0E0; 
+
+                --table-row-odd-bg: #1A1A1A; 
+                --table-row-even-bg: #222222; 
+                
+                
+                --bad-bg: #B00020; 
+                --bad-text: #FFFFFF; 
+                --good-bg: #008000; 
+                --good-text: #FFFFFF; 
+
+                --filter-border-color: #555555; 
+                --filter-text-color: #E0E0E0; 
+            }
+        }
+
+        body {
+            font-family: Verdana, Tahoma, Arial, sans-serif;
+            font-size: 80%;
+            background-color: var(--body-bg);
+            color: var(--body-text);
+            transition: background-color 0.3s ease, color 0.3s ease; 
+        }
+
+        hr {
+            border: none;
+            height: 1px; 
+            background-color: var(--hr-color); 
+            margin: 10px 0; 
+        }
+
+        h1, h2 {
+            color: var(--heading-color);
+            text-decoration: none;
+        }
+
+      
+        th {
+            text-align: left;
+            color: var(--table-header-text);
+            background-color: var(--table-header-bg);
+            padding: 8px 12px; 
+        }
+
+        td {
+            color: var(--table-cell-text);
+            padding: 4px 6px; 
+        }
+        
+        tr:nth-child(even) {
+            background-color: var(--table-row-even-bg);
+        }
+
+        tr:nth-child(odd) {
+            background-color: var(--table-row-odd-bg);
+        }
+        
+        table {
+            border-collapse: collapse; 
+            width: 100%; 
+            margin-bottom: 20px;             
+            border: 1px solid var(--hr-color); 
+        }
+        
+        .bad td, td.bad {
+            background-color: var(--bad-bg) !important;
+            color: var(--bad-text) !important;
+            font-size: 110% !important;
+        }
+
+        .good { 
+            background-color: var(--good-bg);
+            color: var(--good-text);
+        }
+        
+        #filterText {
+            width: 40%;
+            font-size: 110%;
+            padding: 12px 12px 12px 12px;
+            border: 1px solid var(--filter-border-color);
+            margin-bottom: 12px;
+            background-color: var(--body-bg); 
+            color: var(--filter-text-color); 
+        }
+        
+        #filterFailed {
+            margin: 15px;
+            transform: scale(1.5);
+            accent-color: var(--heading-color); 
+        }
+		
+        label {
+            color: var(--body-text); 
+        }		
+	#overview {
+	    width: 40%;
+	}
+		 </style></head><body><hr width="100%" border="none" /><h1>Measurement Statistics Total Report</h1><hr width="100%" border="none" /><h2>General data</h2><table id="overview"><thead><tr><th>Description</th><th>Value</th></tr></thead><tbody><tr><td>Version</td><td>1.7</td></tr><tr><td>Date</td><td>26/06/2026 11:56:33</td></tr><tr><td>Part No.</td><td>0261S10BC3/MNLL/1</td></tr><tr><td>SG-ID</td><td>5100101195117001</td></tr><tr><td>Tester type</td><td>LL</td></tr><tr><td>Soft.HardSection</td><td>3.1</td></tr><tr><td>Temperature</td><td>0</td></tr><tr><td>Tester</td><td>ccs9225</td></tr><tr><td>Lot</td><td></td></tr><tr><td>Change No.</td><td>label</td></tr><tr><td>User mark</td><td>PAP(CD)-EH-3:LL</td></tr><tr><td>Barcode No.</td><td></td></tr><tr><td>EPROM No.</td><td>FFFFFFFFFFXXXXXXXXXX</td></tr><tr><td>Result</td><td class="good">Good</td></tr><tr><td>Running No.</td><td>0003</td></tr><tr><td>Total test time</td><td>0</td></tr><tr><td>Test time (one ECU)</td><td>0,252</td></tr><tr><td>Product release</td><td></td></tr><tr><td>KtName</td><td>EPA#03#093</td></tr><tr><td>KtName2</td><td></td></tr><tr><td>WTName</td><td></td></tr><tr><td>Serial</td><td></td></tr><tr><td /><td /></tr><tr><td /><td /></tr><tr><td /><td /></tr></tbody></table><br /><hr width="100%" border="none" /><h2>Measurement List</h2><form><input type="text" id="filterText" onkeyup="filterRows()" placeholder="Search and filter for ..." /><input type="checkbox" id="filterFailed" onchange="filterFailedRows()" /><label for="filterFailed">Filter failed test steps (if any).</label></form><table id="measurements"><thead><tr><th>TestStep</th><th>PosNr</th><th>Modname</th><th>Min</th><th>Value</th><th>Max</th><th>Dim</th><th>Info</th></tr></thead><tbody><tr><td>26.1</td><td>0</td><td>--- AUSGABE ---</td><td></td><td>SYSTEMDATEN</td><td></td><td></td><td></td></tr><tr><td>31.1</td><td>0</td><td>PRODUKTSTAND</td><td></td><td>SY,20:</td><td></td><td></td><td></td></tr><tr><td>36.1</td><td>0</td><td>PL VERZEICHNIS</td><td></td><td>SY,20: MNLL</td><td></td><td></td><td></td></tr><tr><td>41.1</td><td>0</td><td>PL NAME</td><td></td><td>SY,20: 1271116561</td><td></td><td></td><td></td></tr><tr><td>46.1</td><td>0</td><td>PL VARIANTE</td><td></td><td>SY,20: 01</td><td></td><td></td><td></td></tr><tr><td>51.1</td><td>0</td><td>CCS-RELEASE</td><td></td><td>SY,0: 19.0.17</td><td></td><td></td><td></td></tr><tr><td>62.1</td><td>0</td><td>R_KUNDDAT</td><td></td><td>SY,0: 5100101195117001</td><td></td><td></td><td></td></tr><tr><td>66.1</td><td>0</td><td>DMC CODE</td><td></td><td>00005100101195117001</td><td></td><td></td><td></td></tr><tr><td>110.1</td><td>0</td><td>GETDATA ALIASFILE</td><td></td><td>&gt;GETDATA/STD_1.CSV</td><td></td><td></td><td></td></tr><tr><td>137.1</td><td>0</td><td>FSW TTNR</td><td></td><td>10SW133407</td><td></td><td></td><td></td></tr><tr><td>167.1</td><td>0</td><td>TSW TTNR</td><td></td><td>0261TS30EC</td><td></td><td></td><td></td></tr><tr><td>1026.1</td><td>0</td><td></td><td></td><td>LABELDATEN AUS CSV-FILE</td><td></td><td></td><td></td></tr><tr><td>1037.1</td><td>0</td><td>LABELTYP_CSV</td><td></td><td>D1271116561V01</td><td></td><td></td><td></td></tr><tr><td>1107.1</td><td>0</td><td>FELD7_CSV</td><td></td><td>3E10181675</td><td></td><td></td><td></td></tr><tr><td>1137.1</td><td>0</td><td>FELD10_CSV</td><td></td><td>LEER</td><td></td><td></td><td></td></tr><tr><td>1207.1</td><td>0</td><td>FELD13_CSV</td><td></td><td>7C8</td><td></td><td></td><td></td></tr><tr><td>1217.1</td><td>0</td><td>FELD14_CSV</td><td></td><td>LLK</td><td></td><td></td><td></td></tr><tr><td>1227.1</td><td>0</td><td>FELD15_CSV</td><td></td><td>37820-62X-MG2</td><td></td><td></td><td></td></tr><tr><td>1257.1</td><td>0</td><td>FELD16_CSV</td><td></td><td>______</td><td></td><td></td><td></td></tr><tr><td>2026.1</td><td>0</td><td></td><td></td><td>LABELDATEN AUS CC-PR?FUNG</td><td></td><td></td><td></td></tr><tr><td>10026.1</td><td>0</td><td></td><td></td><td>LABEL-DATEN VORBEREITEN</td><td></td><td></td><td></td></tr><tr><td>10051.1</td><td>3</td><td>FELD3_LN13</td><td></td><td>LN,13: 470437151</td><td></td><td></td><td></td></tr><tr><td>10081.1</td><td>6</td><td>FELD6_FD11</td><td></td><td>FD,11: 26-06-26</td><td></td><td></td><td></td></tr><tr><td>11006.1</td><td>0</td><td></td><td></td><td>LABELDATEN-AUSGABE</td><td></td><td></td><td></td></tr><tr><td>11031.1</td><td>3</td><td>FELD3</td><td></td><td>FELD3=962XMG20437151</td><td></td><td></td><td></td></tr><tr><td>11046.1</td><td>6</td><td>FELD6</td><td></td><td>FELD6=26-06-26</td><td></td><td></td><td></td></tr><tr><td>11051.1</td><td>7</td><td>FELD7</td><td></td><td>FELD7=3E10181675</td><td></td><td></td><td></td></tr><tr><td>11056.1</td><td>8</td><td>FELD8</td><td></td><td>FELD8=0003</td><td></td><td></td><td></td></tr><tr><td>11076.1</td><td>10</td><td>FELD10</td><td></td><td>FELD10#LEER</td><td></td><td></td><td></td></tr><tr><td>11086.1</td><td>11</td><td>FELD11</td><td></td><td>FELD11=068492250003260626115623</td><td></td><td></td><td></td></tr><tr><td>11091.1</td><td>12</td><td>FELD12</td><td></td><td>FELD12=962XMG20437151</td><td></td><td></td><td></td></tr><tr><td>11106.1</td><td>13</td><td>FELD13</td><td></td><td>FELD13=7C8</td><td></td><td></td><td></td></tr><tr><td>11111.1</td><td>14</td><td>FELD14</td><td></td><td>FELD14=LLK</td><td></td><td></td><td></td></tr><tr><td>11116.1</td><td>15</td><td>FELD15</td><td></td><td>FELD15=37820-62X-MG2</td><td></td><td></td><td></td></tr><tr><td>11121.1</td><td>16</td><td>FELD16</td><td></td><td>FELD16=______</td><td></td><td></td><td></td></tr><tr><td>20010.1</td><td>0</td><td>B_INIT</td><td></td><td>d1271116561v01</td><td></td><td></td><td></td></tr><tr><td>20012.1</td><td>0</td><td>B_MAKE</td><td></td><td>d1271116561v01</td><td></td><td></td><td></td></tr><tr><td>20013.1</td><td>0</td><td>B_MAKE</td><td></td><td>d1271116561v01</td><td></td><td></td><td></td></tr><tr><td>20014.1</td><td>0</td><td>B_MAKE</td><td></td><td>d1271116561v01</td><td></td><td></td><td></td></tr><tr><td>20015.1</td><td>0</td><td>B_MAKE</td><td></td><td>d1271116561v01</td><td></td><td></td><td></td></tr><tr><td>20017.1</td><td>0</td><td>B_MAKE</td><td></td><td>d1271116561v01</td><td></td><td></td><td></td></tr><tr><td>20018.1</td><td>0</td><td>B_MAKE</td><td></td><td>d1271116561v01</td><td></td><td></td><td></td></tr><tr><td>20021.1</td><td>0</td><td>B_DRUCKEN</td><td></td><td>d1271116561v01</td><td></td><td></td><td></td></tr></tbody></table><script type="text/javascript">
+ function filterRows() {
+  // Declare variables
+  var input, filter, table, tr, td, th, i, txtValue;
+  input = document.getElementById("filterText");
+  filter = input.value.toUpperCase();
+  table = document.getElementById("measurements");
+  tr = table.getElementsByTagName("tr");
+  th = table.getElementsByTagName("th");
+
+   // Loop through all table rows, and hide those who don't match the        search query
+for (i = 1; i < tr.length; i++) {
+   for(var j=0; j<th.length; j++){
+        td = tr[i].getElementsByTagName("td")[j];      
+        if (td) {
+            if (td.innerHTML.toUpperCase().indexOf(filter.toUpperCase()) > -1){
+                tr[i].style.display = "";
+                break;
+            } else {
+			     tr[i].style.display = "none";
+			}
+        }
+    }
+  }
+}
+
+function filterFailedRows() {
+  // Declare variables
+  var input, filter, table, tr, i;
+  input = document.getElementById("filterFailed");  
+  table = document.getElementById("measurements");
+  tr = table.getElementsByTagName("tr");
+  // alert(input.checked);
+   // Loop through all table rows, and hide those who don't match the class
+for (i = 1; i < tr.length; i++){ 
+       // alert(tr[i].classList.contains("bad"));
+	   if(input.checked == true){
+	      if(tr[i].classList.contains("bad")){
+		     tr[i].style.display = "";  
+		  }else{
+		      tr[i].style.display = "none";
+		  }
+	   } else {
+	      tr[i].style.display = "";
+	   }	   	    
+  }
+}
+
+</script></body></html>
