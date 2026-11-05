@@ -22,6 +22,7 @@ from autohub.ui.link_label import LinkLabel
 
 _ALL_EVENTS = "All events"
 _NO_EVENT = NO_EVENT
+_PART_NUMBER_MAX_WIDTH = 240
 _HEADERS = (
     "Select", "Part Number", "Family Name", "FSWID Project Version", "FSWID Program Version", "WebFlow Link",
     "SW Part Number", "ECR Number",
@@ -43,12 +44,19 @@ class CreationTable(QTableWidget):
             max(header.sectionSizeHint(column), self.sizeHintForColumn(column))
             for column in range(self.columnCount())
         ]
-        widths[1] = max(widths[1], max(widths[:1] + widths[2:]) + 24)
-        available = self.viewport().width()
-        total = sum(widths)
-        if total > available:
-            widths = [int(width * available / total) for width in widths]
-        widths[1] += available - sum(widths)
+        select_width = widths[0]
+        part_width = min(widths[1], _PART_NUMBER_MAX_WIDTH)
+        others = widths[2:]
+        available = self.viewport().width() - select_width - part_width
+        if sum(others) > available:
+            others = [int(width * available / sum(others)) for width in others]
+            others[-1] += available - sum(others)
+        else:
+            extra = available - sum(others)
+            total = sum(others) or 1
+            others = [width + int(extra * width / total) for width in others]
+            others[-1] += available - sum(others)
+        widths = [select_width, part_width, *others]
         for column, width in enumerate(widths):
             self.setColumnWidth(column, width)
 
