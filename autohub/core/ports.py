@@ -99,19 +99,3 @@ class HWInfoDocument(DocumentReader, HWLookup, Protocol):
 
 class KickOffDocument(DocumentReader, Protocol):
     info: KickOffInfo
-
-
-class HexdumpInputError(Exception):
-    """A user-facing problem with Hexdump input (bad settings, missing file, key not found)."""
-
-
-class HexdumpAnalysis(Protocol):
-    def modes(self) -> tuple[str, ...]: ...
-
-    def check_settings(self, path: str) -> str:
-        """Validate a settings .toml and return a plain-text summary. Raises HexdumpInputError."""
-        ...
-
-    def find_range(self, mode: str, path: str, key: str) -> tuple[int, int]:
-        """Return the (start_line, end_line) of `key` in `path`. Raises HexdumpInputError."""
-        ...

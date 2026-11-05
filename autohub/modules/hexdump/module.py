@@ -1,18 +1,20 @@
-from typing import Callable
-
-from PySide6.QtWidgets import QWidget
+"""Hexdump module: navigation entry with a placeholder page until the feature is built."""
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from autohub.core.module_base import AutoHubModule
-from autohub.core.ports import HexdumpAnalysis
-from autohub.modules.hexdump.ui import HexdumpWidget
 
 
 class HexdumpModule(AutoHubModule):
     display_name = "Hexdump"
     icon_file = "hexdump.svg"
 
-    def __init__(self, service_factory: Callable[[], HexdumpAnalysis]):
-        self._service_factory = service_factory
-
     def create_widget(self) -> QWidget:
-        return HexdumpWidget(self._service_factory())
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        label = QLabel("Coming Soon")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addStretch()
+        layout.addWidget(label)
+        layout.addStretch()
+        return page
