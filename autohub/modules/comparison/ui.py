@@ -53,6 +53,31 @@ class _ResultState:
     base_variants: set[tuple[str, str]]
 
 
+def _fit_widths(
+    minimums: dict[int, int], weights: dict[int, float], available: int, maximums: dict[int, int] | None = None
+) -> dict[int, int]:
+    """Start from each column's minimum and share extra width by weight, honouring optional maximums."""
+    widths = dict(minimums)
+    caps = maximums or {}
+    free = {column: weight for column, weight in weights.items() if weight > 0}
+    extra = available - sum(widths.values())
+    while extra > 0 and free:
+        total = sum(free.values())
+        capped = [c for c in free if c in caps and widths[c] + extra * free[c] / total > caps[c]]
+        if capped:
+            for column in capped:
+                extra -= max(0, caps[column] - widths[column])
+                widths[column] = max(widths[column], caps[column])
+                del free[column]
+            continue
+        shares = {column: int(extra * weight / total) for column, weight in free.items()}
+        for column, share in shares.items():
+            widths[column] += share
+        widths[max(free)] += extra - sum(shares.values())
+        break
+    return widths
+
+
 def _display(value: ParameterValue) -> str:
     if value in (None, "", (), "---"):
         return "(missing)"
@@ -185,11 +210,8 @@ class ComparisonWidget(QWidget):
         self._variants_table.verticalHeader().setVisible(False)
         header = self._variants_table.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignCenter)
-        header.setResizeContentsPrecision(-1)
-        for column in (0, 1, 2, 4):
-            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
-        for column in (3, 5):
-            header.setSectionResizeMode(column, QHeaderView.Stretch)
+        self._variants_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+
         self._check_delegate = _CenteredCheckDelegate(self._variants_table)
         self._variants_table.setItemDelegateForColumn(0, self._check_delegate)
         self._link_delegate = WebFlowLinkDelegate(self._variants_table, (2, 3))
@@ -230,6 +252,8 @@ class ComparisonWidget(QWidget):
         self._result_clipboard = TableClipboard(self._table)
         self._table.installEventFilter(self)
         self._table.viewport().installEventFilter(self)
+        self._variants_table.viewport().installEventFilter(self)
+        self._variants_table.model().dataChanged.connect(lambda *_: self._size_variant_columns())
         self._table.frozen.view.installEventFilter(self)
         self._table.frozen.view.setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.frozen.view.customContextMenuRequested.connect(self._open_frozen_result_menu)
@@ -425,6 +449,7 @@ class ComparisonWidget(QWidget):
                     format_webflow_link_item(item, str(text), editable=column == 3)
                 self._variants_table.setItem(row, column, item)
         self._variants_table.blockSignals(False)
+        self._size_variant_columns()
         if keep_results:
             self._source_changed()
         else:
@@ -838,23 +863,47 @@ class ComparisonWidget(QWidget):
         self._size_result_columns()
         self._apply_filters()
 
+    def _size_variant_columns(self) -> None:
+        table = self._variants_table
+        header = table.horizontalHeader()
+
+        def content_width(column: int) -> int:
+            return max(table.sizeHintForColumn(column), header.sectionSizeHint(column))
+
+        base_width = max(content_width(3), content_width(5))
+        widths = _fit_widths(
+            {0: content_width(0), 1: content_width(1), 2: content_width(2), 3: base_width,
+             4: content_width(4), 5: base_width},
+            {1: 2, 3: 1, 5: 1},
+            table.viewport().width(),
+            {1: 360, 3: 480, 5: 480},
+        )
+        for column, width in widths.items():
+            table.setColumnWidth(column, width)
+
     def _size_result_columns(self) -> None:
-        widths = {
-            0: 260, **{column: 160 for column in range(1, self._status_column)},
-            self._status_column: 180,
-        } if self._manual_mode else {
-            0: max(100, self._table.sizeHintForColumn(0)),
-            _STATUS_COLUMN: max(90, self._table.sizeHintForColumn(_STATUS_COLUMN)),
-            1: 160, 2: 110, 3: 110, 4: 110,
-        }
+        if self._manual_mode:
+            minimums = {0: 260, **{column: 160 for column in range(1, self._status_column)},
+                        self._status_column: 180, self._comment_column: 260}
+            weights = {0: 2, self._comment_column: 1}
+            maximums = {0: 400}
+        else:
+            minimums = {
+                0: max(100, self._table.sizeHintForColumn(0)),
+                1: 160, 2: 110, 3: 110, 4: 110,
+                _STATUS_COLUMN: max(90, self._table.sizeHintForColumn(_STATUS_COLUMN)),
+                self._comment_column: 260,
+            }
+            weights = {0: 2, 1: 2, self._comment_column: 1}
+            maximums = {0: 360, 1: 400}
+        widths = _fit_widths(minimums, weights, self._table.viewport().width(), maximums)
         for column, width in widths.items():
             self._table.setColumnWidth(column, width)
-        self._table.setColumnWidth(
-            self._comment_column, max(260, self._table.viewport().width() - sum(widths.values()))
-        )
 
     def eventFilter(self, watched, event) -> bool:
-        if watched is self._table.viewport() and event.type() == QEvent.Resize:
+        if event.type() == QEvent.Resize and watched is self._variants_table.viewport():
+            self._size_variant_columns()
+        elif event.type() == QEvent.Resize and watched is self._table.viewport():
             self._size_result_columns()
         if watched in (self._table, self._table.frozen.view) and event.type() == QEvent.KeyPress:
             if event.matches(QKeySequence.Copy):
