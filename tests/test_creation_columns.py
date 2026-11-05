@@ -113,7 +113,8 @@ def test_event_is_left_aligned_and_columns_fit_individual_content(qapp):
         qapp.processEvents()
         table = checklist._table
         assert sum(table.columnWidth(col) for col in range(table.columnCount())) == table.viewport().width()
-        assert table.columnWidth(1) > max(table.columnWidth(col) for col in range(table.columnCount()) if col != 1)
+        assert table.columnWidth(1) <= 240
+        assert table.columnWidth(0) == min(table.columnWidth(col) for col in range(table.columnCount()))
         assert table.horizontalScrollBar().maximum() == 0
         assert table.columnWidth(5) < table.columnWidth(3)
         assert table.columnWidth(5) >= table.cellWidget(0, 5).sizeHint().width()
@@ -144,4 +145,22 @@ def test_columns_resize_after_import_and_filter_changes(qapp):
     checklist._event_filter.setCurrentText("B")
     qapp.processEvents()
     assert table.columnWidth(7) == initial
+    checklist.close()
+
+
+def test_maximized_table_caps_part_number_and_keeps_select_narrow(qapp):
+    checklist = VariantChecklist()
+    checklist.set_variants([{
+        "part_number": "37820-6WZ-M610-M6", "ecu_type": "MG1CS022",
+        "webflow_link": "https://webflow/app/ShowJob/16413",
+        "ecu": {"family_name": "MG1CS022", "project_version": "6WZX", "program_version": "V037"},
+    }])
+    checklist.resize(1920, 900)
+    checklist.show()
+    qapp.processEvents()
+    table = checklist._table
+    assert table.columnWidth(1) <= 240
+    assert table.columnWidth(0) < 100
+    assert table.columnWidth(3) > table.columnWidth(1) or table.columnWidth(5) > table.columnWidth(1)
+    assert sum(table.columnWidth(col) for col in range(table.columnCount())) == table.viewport().width()
     checklist.close()
