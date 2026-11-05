@@ -442,7 +442,7 @@ class ComparisonWidget(QWidget):
             initial = "Completed" if str(variant.get("comparison_result") or "").strip().upper() == "OK" else "Pending"
             for column, text in enumerate((identity[0], identity[2], base_link, initial, ""), 1):
                 item = QTableWidgetItem(str(text))
-                if column in (1, 2, 4):
+                if column in (1, 2, 3, 4):
                     item.setTextAlignment(Qt.AlignCenter)
                 if column != 3:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
