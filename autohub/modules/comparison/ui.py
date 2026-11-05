@@ -442,6 +442,8 @@ class ComparisonWidget(QWidget):
             initial = "Completed" if str(variant.get("comparison_result") or "").strip().upper() == "OK" else "Pending"
             for column, text in enumerate((identity[0], identity[2], base_link, initial, ""), 1):
                 item = QTableWidgetItem(str(text))
+                if column in (2, 4):
+                    item.setTextAlignment(Qt.AlignCenter)
                 if column != 3:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 item.setToolTip(str(text))
@@ -874,9 +876,9 @@ class ComparisonWidget(QWidget):
         widths = _fit_widths(
             {0: content_width(0), 1: content_width(1), 2: content_width(2), 3: base_width,
              4: content_width(4), 5: base_width},
-            {1: 2, 3: 1, 5: 1},
+            {1: 2, 2: 2, 3: 2, 5: 2},
             table.viewport().width(),
-            {1: 360, 3: 480, 5: 480},
+            {1: 360, 2: 240, 3: 480, 5: 480},
         )
         for column, width in widths.items():
             table.setColumnWidth(column, width)
