@@ -18,11 +18,12 @@ from .Body import Body
 from .browser import edge_service
 from .components import wait_until_idle
 from .FilesTab import FilesTab
+from .InstanceMembers import InstanceMembers
 from .job_filler import JobFiller
 from .job_batch import JobBatch
 from .job_cancel import cancel_open_job
 from .SideMenuBar import SideMenuBar
-from .step_log import set_step_observer
+from .step_log import run_step, set_step_observer
 from .step_trace import StepTrace
 from .xml_export import export_xml
 
@@ -190,4 +191,11 @@ class WebFlow(webdriver.Edge):
         return results
 
     def _fill_job(self, variant: dict) -> list[str]:
-        return self.job_filler.fill(variant)
+        result = self.job_filler.fill(variant)  # runs Save last; Instance Members only follows a saved job
+        change_engineer = str((variant.get("ecr") or {}).get("change_engineer") or "").strip()
+        if change_engineer and not run_step(
+            _logger, "Add Change Engineer to Instance Members",
+            InstanceMembers(self).add_user, change_engineer,
+        ):
+            raise RuntimeError(f"Could not add Change Engineer {change_engineer!r} to Instance Members.")
+        return result
