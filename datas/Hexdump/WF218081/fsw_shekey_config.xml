@@ -1,0 +1,119 @@
+<!-- SHE_TYPE = FIX means -> extract value(SHE_VALUE) from this file 
+     SHE_TYPE = DYN       -> Extract value from the SeedGetKey function via PAV
+     SHE_TYPE = SDoACD    -> Extract value from the SDoACD interface via PAV
+     SHE_TYPE = PBDP      -> Extract value from the PBDP interface via PAV  ( lae1hc: assumption)
+     SHE Keys use TSW_A5 version -->
+
+<FSW_SHE_BLOCKS>
+    <FSW_SHE_BLOCK>
+        <SHE_BLOCK_SHORT_NAME>DYNAMIC_BASIC_SHE_MASTER_KEY</SHE_BLOCK_SHORT_NAME>           <!-- (SHE MASTER ECU KEY) -->
+        <SHE_TYPE>SDoACD</SHE_TYPE>
+        <SHE_ID>0x01</SHE_ID>
+        <SHE_FLAGS>0x00</SHE_FLAGS>
+        <SHE_MEK>0x00000000000000000000000000000000</SHE_MEK>
+        <SHE_NEW_KEY>GenKey_MDG1_HONDA_62XS_SheMasterKey_V01</SHE_NEW_KEY>                  <!-- lae1hc: SDoACD SHE key SLOT NAME -->
+    </FSW_SHE_BLOCK>
+    
+    <FSW_SHE_BLOCK>
+        <SHE_BLOCK_SHORT_NAME>DYNAMIC_BASIC_SHE_DFLASH_KEY_INST_3</SHE_BLOCK_SHORT_NAME>    <!-- SHE key for SW encryption/decryption key (SHE KEY_4) -->
+        <SHE_TYPE>PBDP</SHE_TYPE>
+        <SHE_ID>0x07</SHE_ID>
+        <SHE_FLAGS>0x00</SHE_FLAGS>
+        <SHE_MEK>GenKey_MDG1_HONDA_62XS_SheMasterKey_V01</SHE_MEK>
+        <SHE_NEW_KEY>GenEncrSW_MDG1_HONDA_V02</SHE_NEW_KEY>                                 <!-- lae1hc: PBDP SHE key SLOT NAME -->
+        <SHE_NEW_KEY_CONTEXT>MG1CS022_CS_woOTA_Enc_Dev_V02</SHE_NEW_KEY_CONTEXT>            <!-- PBDP SHE key CONTEXT -->
+    </FSW_SHE_BLOCK>
+    
+    <FSW_SHE_BLOCK>
+        <SHE_BLOCK_SHORT_NAME>DYNAMIC_BASIC_SHE_DFLASH_KEY_INST_7</SHE_BLOCK_SHORT_NAME>    <!-- SHE key for Customer Security Type X( SHE KEY_8) -->
+        <SHE_TYPE>SDoACD</SHE_TYPE>
+        <SHE_ID>0x0B</SHE_ID>
+        <SHE_FLAGS>0x00</SHE_FLAGS>
+        <SHE_MEK>GenKey_MDG1_HONDA_62XS_SheMasterKey_V01</SHE_MEK>
+        <SHE_NEW_KEY>GenKey_MDG1_HONDA_62XS_V01</SHE_NEW_KEY>                          <!-- lae1hc: SDoACD SHE key SLOT NAME -->
+    </FSW_SHE_BLOCK>
+</FSW_SHE_BLOCKS>
+
+<!-- Container blocks structure -->
+<!-- <CNT_Paramaters>
+            <PARAMETER>
+            <PARAMETER-NAME>SHE_KEY_NBR</PARAMETER-NAME>
+            <PARAMETER-VALUE>3</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_1_NAME</PARAMETER-NAME>
+              <PARAMETER-VALUE>DYNAMIC_BASIC_SHE_MASTER_KEY</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_1_TYPE</PARAMETER-NAME>
+              <PARAMETER-VALUE>SDoACD</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_1_ID</PARAMETER-NAME>
+              <PARAMETER-VALUE>0x01</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_1_FLAGS</PARAMETER-NAME>
+              <PARAMETER-VALUE>0x00</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_1_MEK</PARAMETER-NAME>
+              <PARAMETER-VALUE>0x00000000000000000000000000000000</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_1_NEW_KEY</PARAMETER-NAME>
+              <PARAMETER-VALUE>GenKey_MDG1_HONDA_62XS_SheMasterKey_V01</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_2_NAME</PARAMETER-NAME>
+              <PARAMETER-VALUE>DYNAMIC_BASIC_SHE_DFLASH_KEY_INST_3</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_2_TYPE</PARAMETER-NAME>
+              <PARAMETER-VALUE>PBDP</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_2_ID</PARAMETER-NAME>
+              <PARAMETER-VALUE>0x07</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_2_FLAGS</PARAMETER-NAME>
+              <PARAMETER-VALUE>0x00</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_2_MEK</PARAMETER-NAME>
+              <PARAMETER-VALUE>GenKey_MDG1_HONDA_62XS_SheMasterKey_V01</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_2_NEW_KEY</PARAMETER-NAME>
+              <PARAMETER-VALUE>GenEncrSW_MDG1_HONDA_V01</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_2_NEW_KEY_CONTEXT</PARAMETER-NAME>
+              <PARAMETER-VALUE>62XS_MG1CS022_CS_woOTA_Enc_Dev_V01</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_3_NAME</PARAMETER-NAME>
+              <PARAMETER-VALUE>DYNAMIC_BASIC_SHE_DFLASH_KEY_INST_7</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_3_TYPE</PARAMETER-NAME>
+              <PARAMETER-VALUE>SDoACD</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_3_ID</PARAMETER-NAME>
+              <PARAMETER-VALUE>0x0B</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_3_FLAGS</PARAMETER-NAME>
+              <PARAMETER-VALUE>0x00</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_3_MEK</PARAMETER-NAME>
+              <PARAMETER-VALUE>GenKey_MDG1_HONDA_62XS_SheMasterKey_V01</PARAMETER-VALUE>
+            </PARAMETER>
+            <PARAMETER>
+              <PARAMETER-NAME>SHE_KEY_3_NEW_KEY</PARAMETER-NAME>
+              <PARAMETER-VALUE>Test_GenKey_MDG1_HONDA_62XS_V02</PARAMETER-VALUE>
+            </PARAMETER>
+</CNT_Paramaters-->

@@ -1,0 +1,179 @@
+<?xml version='1.0' encoding='UTF-8'?>
+
+<ULF-PROCESSING-LOG>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T040</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">options passed: no_backup=True; output_path=C:\temp\PDT\JAP\MDG1\MDG1_JAP_Honda_PDW0002\PST_Lib\Honda\MG1CS022\MG1CS022_62XSC_V036_TPROT_0\SRVCheckerOutput; root=\\Bosch.com\dfsrb\DfsDE\LOC\Si\GS\SDE\MDG1\pst\MDG1_JAP\Honda\MG1CS022\Int\MG1CS022_62XSC__V036_TPROT__0__Build_1\MG1CS022_62XSC_V036_TPROT options default: a2l=; about=False; affected_list=; compiler=C:\toolbase\hightec\cd_v3.4.5.14\bin\tricore-gcc.exe; conf_filepath=; cpu=-1; debug=False; endian=auto; exclude=(srv*|eos*|epos*); force_scan=False; get_conf_file=False; hex=; ifiles=False; input_lst=; input_src_lst=; log=False; no_backup=False; no_counter=False; no_scan=False; output_affected_ulf=; output_impact_lst=; output_impact_ulf=; output_lst=; output_path=; output_ulf=; prio=low; quiet=False; root=; search=; temp_folder=C:\Users\NDH3HC\AppData\Local\Temp\_srvchecker; whitelist=</L-2>
+    </DESC>
+    <CATEGORY>DEBUG</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T021</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">Given project path is a network path. Hence, it will take more time for processing. For faster processing, copy PVER with results to local drive.</L-2>
+    </DESC>
+    <CATEGORY>WARNING</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T017</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">Used paths for header including: 
+./_gen/swb/filegroup/includes/armemmap
+./_gen/swb/filegroup/includes/corecfg
+./_gen/swb/filegroup/includes/corepost
+./_gen/swb/filegroup/includes/data
+./_gen/swb/filegroup/includes/linker
+./_gen/swb/filegroup/includes/mcop
+./_gen/swb/filegroup/includes/project
+./_gen/swb/filegroup/includes/rtaos
+./_gen/swb/filegroup/includes/rtegen
+./_gen/swb/filegroup/includes/rte_contract
+./_gen/swb/filegroup/includes/swtrace
+./_gen/swb/filegroup/src_files/corecfg
+./_gen/swb/filegroup/src_files/corepost
+./_gen/swb/filegroup/src_files/data
+./_gen/swb/filegroup/src_files/mcop
+./_gen/swb/filegroup/src_files/mcopremco
+./_gen/swb/filegroup/src_files/remco
+./_gen/swb/filegroup/src_files/rtegen
+./_gen/swb/filegroup/src_files/swtrace</L-2>
+    </DESC>
+    <CATEGORY>DEBUG</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T044</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">Using gcc version C:\toolbase\hightec\cd_v3.4.5.14\bin</L-2>
+    </DESC>
+    <CATEGORY>INFO</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T090</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">i files creation started.</L-2>
+    </DESC>
+    <CATEGORY>DEBUG</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T045</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">Scanning 3568 relevant source files ...</L-2>
+    </DESC>
+    <CATEGORY>INFO</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T046</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">5553.8MB done in 1473.1 seconds (3.8MB/s).</L-2>
+    </DESC>
+    <CATEGORY>INFO</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T091</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">i files creation ended.</L-2>
+    </DESC>
+    <CATEGORY>DEBUG</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T092</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">Total time taken for i file generation: 1483.26 seconds.</L-2>
+    </DESC>
+    <CATEGORY>DEBUG</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T026</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">regex pattern used: "\bSrvX_IpoMap_S16S16_S32\b|\bSrvX_IpoMap_S16S16_S8\b|\bSrvX_IpoMap_S16S16_U16\b|\bSrvX_IpoMap_S16S16_U8\b|\bSrvX_IpoMap_S16S8_S16\b|\bSrvX_IpoMap_S16S8_S8\b|\bSrvX_IpoMap_S16S8_U16\b|\bSrvX_IpoMap_S16S8_U8\b|\bSrvX_IpoMap_S16U8_S16\b|\bSrvX_IpoMap_S16U8_S8\b|\bSrvX_IpoMap_S16U8_U16\b|\bSrvX_IpoMap_S16U8_U8\b|\bSrvX_IpoMap_S8S8_S16\b|\bSrvX_IpoMap_S8S8_U16\b|\bSrvX_IpoMap_S8S8_U8\b|\bSrvX_IpoMap_U16S16_S16\b|\bSrvX_IpoMap_U16S16_S8\b|\bSrvX_IpoMap_U16S16_U16\b|\bSrvX_IpoMap_U16S16_U8\b|\bSrvX_IpoMap_U16S8_S16\b|\bSrvX_IpoMap_U16S8_S8\b|\bSrvX_IpoMap_U16S8_U16\b|\bSrvX_IpoMap_U16S8_U8\b|\bSrvX_IpoMap_U16U16_S16\b|\bSrvX_IpoMap_U16U16_S8\b|\bSrvX_IpoMap_U16U16_U8\b|\bSrvX_IpoMap_U16U8_S16\b|\bSrvX_IpoMap_U16U8_S8\b|\bSrvX_IpoMap_U16U8_U16\b|\bSrvX_IpoMap_U16U8_U8\b|\bSrvX_IpoMap_U8S8_S16\b|\bSrvX_IpoMap_U8S8_S8\b|\bSrvX_IpoMap_U8S8_U16\b|\bSrvX_IpoMap_U8S8_U8\b|\bSrvX_IpoMap_U8U8_S16\b|\bSrvX_IpoMap_U8U8_S8\b|\bSrvX_IpoMap_U8U8_U16\b|\bSrvF_IpoMap_R32R32_S8\b|\bSrvF_IpoMap_R32R32_U8\b|\bSrvF_IpoMap_R32R32_U16\b|\bSrvF_IpoMap_U8U8_R32\b|\bSrvF_IpoMap_U8S8_R32\b|\bSrvF_IpoMap_S8S8_R32\b|\bSrvF_IpoMap_U16U16_R32\b|\bSrvF_IpoMap_U16S16_R32\b|\bSrvF_IpoMap_U16U8_R32\b|\bSrvF_IpoMap_U16S8_R32\b|\bSrvF_IpoMap_S16U8_R32\b|\bSrvF_IpoMap_S16S8_R32\b|\bSrvF_IpoMap_R32U8_R32\b|\bSrvF_IpoMap_R32S8_R32\b|\bSrvF_IpoMap_R32U16_R32\b|\bSrvF_IpoMap_S16S16_R32\b|\bSrvF_IpoMap_R32R32_S16\b|\bSrvF_IpoMap_R32S16_R32\b|\bSrvF_IpoMap_R32S16_S16\b|\bSrvF_IpoMap_R32S16_U8\b|\bSrvF_IpoMap_R32U8_U8\b|\bSrvF_IpoMap_R32S8_U8\b|\bSrvF_IpoMap_R32U16_U8\b|\bSrvF_IpoMap_R32U8_S8\b|\bSrvF_IpoMap_R32S8_S8\b|\bSrvF_IpoMap_R32U16_S8\b|\bSrvF_IpoMap_R32S16_S8\b|\bSrvF_IpoMap_R32U8_U16\b|\bSrvF_IpoMap_R32S8_U16\b|\bSrvF_IpoMap_R32U16_U16\b|\bSrvF_IpoMap_R32S16_U16\b|\bSrvF_IpoMap_R32U8_S16\b|\bSrvF_IpoMap_R32S8_S16\b|\bSrvF_IpoMap_R32U16_S16\b|\bSrvF_IpoMap_R32U16_S16\b|\bSrvF_IpoMap_R32R32_R32\b|\bIfx_IntIpoMap_s16s16_s8\b|\bIfx_IntIpoMap_s16s16_u16\b|\bIfx_IntIpoMap_s16s16_u8\b|\bIfx_IntIpoMap_s16s8_s16\b|\bIfx_IntIpoMap_s16s8_s8\b|\bIfx_IntIpoMap_s16s8_u16\b|\bIfx_IntIpoMap_s16s8_u8\b|\bIfx_IntIpoMap_s16u8_s16\b|\bIfx_IntIpoMap_s16u8_s8\b|\bIfx_IntIpoMap_s16u8_u16\b|\bIfx_IntIpoMap_s16u8_u8\b|\bIfx_IntIpoMap_s8s8_s16\b|\bIfx_IntIpoMap_s8s8_u16\b|\bIfx_IntIpoMap_s8s8_u8\b|\bIfx_IntIpoMap_u16s16_s16\b|\bIfx_IntIpoMap_u16s16_s8\b|\bIfx_IntIpoMap_u16s16_u16\b|\bIfx_IntIpoMap_u16s16_u8\b|\bIfx_IntIpoMap_u16s8_s16\b|\bIfx_IntIpoMap_u16s8_s8\b|\bIfx_IntIpoMap_u16s8_u16\b|\bIfx_IntIpoMap_u16s8_u8\b|\bIfx_IntIpoMap_u16u16_s16\b|\bIfx_IntIpoMap_u16u16_s8\b|\bIfx_IntIpoMap_u16u16_u8\b|\bIfx_IntIpoMap_u16u8_s16\b|\bIfx_IntIpoMap_u16u8_s8\b|\bIfx_IntIpoMap_u16u8_u16\b|\bIfx_IntIpoMap_u16u8_u8\b|\bIfx_IntIpoMap_u8s8_s16\b|\bIfx_IntIpoMap_u8s8_s8\b|\bIfx_IntIpoMap_u8s8_u16\b|\bIfx_IntIpoMap_u8s8_u8\b|\bIfx_IntIpoMap_u8u8_s16\b|\bIfx_IntIpoMap_u8u8_s8\b|\bIfx_IntIpoMap_u8u8_u16\b|\bIfl_IntIpoMap_f32f32_f32\b"</L-2>
+    </DESC>
+    <CATEGORY>DEBUG</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T024</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">No labels with direct call found. Hence, the hex file will not be impacted.</L-2>
+    </DESC>
+    <CATEGORY>INFO</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>SRVCHK_T018</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">"srvchecker_scan.lst" written to "C:\temp\PDT\JAP\MDG1\MDG1_JAP_Honda_PDW0002\PST_Lib\Honda\MG1CS022\MG1CS022_62XSC_V036_TPROT_0\SRVCheckerOutput"</L-2>
+    </DESC>
+    <CATEGORY>INFO</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+  <LOG-ENTRY TI="DGS_Coding_Guideline_SRVCHK">
+    <SHORT-NAME>000</SHORT-NAME>
+    <DESC>
+      <L-2 L="EN">Tool executed successfully.</L-2>
+    </DESC>
+    <CATEGORY>INFO</CATEGORY>
+    <SDG GID="ULF">
+      <SD GID="ULF-TOOL-NAME">srvchecker</SD>
+      <SD GID="ULF-TOOL-VERSION">2.1.0</SD>
+      <SD GID="ULF-MSG-CATEGORY">serviceCheck</SD>
+    </SDG>
+  </LOG-ENTRY>
+</ULF-PROCESSING-LOG>

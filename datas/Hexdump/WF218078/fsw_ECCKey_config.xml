@@ -1,0 +1,64 @@
+<!--    <ECC_KEY_n_NAME>           [String]  alphanumeric (ASCII char)
+        <ECC_KEY_n_ID>             [0x00000001..0x000000FF]
+        <ECC_KEY_n_KEY_BIT_SIZE>   [=0x000000010; 0x00000015]
+        <ECC_KEY_n_TYPE>           [FIX;…]
+        <ECC_KEY_n_VALUE>          [String]  Hex
+        <ECC_KEY_n_PRO>            [0x00000001..0x000000FF]  Hex (properties)
+        <ECC_KEY_n_KIND>           [0x00000001..0x000000FF]
+        <ECC_KEY_n_KIND_NUMBER>    [0x00000001..0x000000FF]
+        <ECC_KEY_n_OTW>            [0;1]  Integer    optional if it’s one time writeable
+-->
+
+<FSW_ECC_BLOCKS>
+    <!-- <ECC_KEY_NBR>1</ECC_KEY_NBR> -->
+    <FSW_ECC_BLOCK>
+        <ECC_NAME>DYNAMIC_ECC_ECDSA_SECP256_PUB_KEY_DFLASH</ECC_NAME>
+        <ECC_ID>0x00000208</ECC_ID>
+        <ECC_KEY_BIT_SIZE>0x000000100</ECC_KEY_BIT_SIZE>
+        <ECC_TYPE>FIX</ECC_TYPE>
+        <ECC_VALUE>7ecd8cdbf668c41ca73b43e3112549b3866087671590ccab25f098a6ab8f5b24147194e02bc1b00d60817c0572822656d1aea5a8cce628530cf596e47e0b22d0</ECC_VALUE>
+        <ECC_PRO>0x00000000</ECC_PRO>
+        <ECC_KIND>0x0000000D</ECC_KIND>
+        <ECC_KIND_NUMBER>0x0000000D</ECC_KIND_NUMBER>
+    </FSW_ECC_BLOCK>
+</FSW_ECC_BLOCKS>
+
+<!-- Container blocks structure -->
+<!-- <CNT_Paramaters> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_NBR</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>1</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_1_NAME</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>DYNAMIC_ECC_ECDSA_SECP256_PUB_KEY_DFLASH</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_1_ID</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>0x00000208</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_1_KEY_BIT_SIZE</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>0x000000100</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_1_TYPE</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>FIX</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_1_VALUE</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>7ecd8cdbf668c41ca73b43e3112549b3866087671590ccab25f098a6ab8f5b24147194e02bc1b00d60817c0572822656d1aea5a8cce628530cf596e47e0b22d0</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_1_PRO</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>0x00000000</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_1_KIND</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>0x0000000D</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+            <!-- <PARAMETER> -->
+              <!-- <PARAMETER-NAME>ECC_KEY_1_KIND_NUMBER</PARAMETER-NAME> -->
+              <!-- <PARAMETER-VALUE>0x0000000D</PARAMETER-VALUE> -->
+            <!-- </PARAMETER> -->
+<!-- </CNT_Paramaters> -->

@@ -1,0 +1,259 @@
++ --------------------------------------------------------------------------------------------------------------+
+|                                                                                                               |
+|  T H E   M E M - T O O L S   A R E   F O R   R O B E R T   B O S C H   I N T E R N A L   U S E   O N L Y !!!  |
+|                                                                                                               |
++---------------------------------------------------------------------------------------------------------------+
+
+
+
+
+
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 0000000000
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 068492120001020526125121
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 31305357313234303830
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): D0D0
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 30323631545333304543
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 3030303035313030313031313935313139303032303030303030303030303030
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 39393939393939393939
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000000000000000
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000004600000000
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 00000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 0000000000
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 068492240001020526141235
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 31305357313332343832
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): D0D0
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 30323631545333304543
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 3030303035313030313031313935313139303032303030303030303030303030
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 39393939393939393939
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000000000000000
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000004600000000
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 00000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 0000000000
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 068492240001020526141235
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 31305357313332343832
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 30
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 03
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): D0D0
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 30323631545333304543
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 3030303035313030313031313935313139303032303030303030303030303030
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 39393939393939393939
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000000000000000
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000004600000000
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 00000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                   EEPData1 | Element:                        SiaCode | Type:        uint8[3] | Len:     3 | Data(Hex): 5D4F9B
+| Block:                   EEPData1 | Element:                      SiaExCode | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                   EEPData1 | Element:                          Dummy | Type:      uint8[107] | Len:   107 | Data(Hex): 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                   EEPData1 | Element:                        SiaCode | Type:        uint8[3] | Len:     3 | Data(Hex): 5D4F9B
+| Block:                   EEPData1 | Element:                      SiaExCode | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                   EEPData1 | Element:                          Dummy | Type:      uint8[107] | Len:   107 | Data(Hex): 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 0000000000
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 068492250002020526145330
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 31305357313332343832
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 30
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 03
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): D0D0
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 30323631545333304543
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 3030303035313030313031313935313139303032303030303030303030303030
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 39393939393939393939
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000000000000000
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 00000007194600000000
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 00000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 0000000000
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 30342D30352D3236
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 068492250002020526145330
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 31305357313332343832
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 30
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 03
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): D0D0
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 30323631545333304543
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 3030303035313030313031313935313139303032303030303030303030303030
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 39393939393939393939
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000000000000000
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 00000007194600000000
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 00000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                   EEPData1 | Element:                        SiaCode | Type:        uint8[3] | Len:     3 | Data(Hex): 9128D9
+| Block:                   EEPData1 | Element:                      SiaExCode | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                   EEPData1 | Element:                          Dummy | Type:      uint8[107] | Len:   107 | Data(Hex): 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                   EEPData1 | Element:                        SiaCode | Type:        uint8[3] | Len:     3 | Data(Hex): 9128D9
+| Block:                   EEPData1 | Element:                      SiaExCode | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                   EEPData1 | Element:                          Dummy | Type:      uint8[107] | Len:   107 | Data(Hex): 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 0000000000
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 30322D30352D3236
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 00
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 0000
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 30342D30352D3236
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 068492250001040526075910
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 31305357313332343832
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 30
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 03
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): D0D0
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 30323631545333304543
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 3030303035313030313031313935313139303032303030303030303030303030
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 39393939393939393939
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 00000000000000000000
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 00000007194600000000
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 00000000
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                   EEPData1 | Element:                        SiaCode | Type:        uint8[3] | Len:     3 | Data(Hex): 
+| Block:                   EEPData1 | Element:                      SiaExCode | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                   EEPData1 | Element:                          Dummy | Type:      uint8[107] | Len:   107 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                   EEPData1 | Element:                        SiaCode | Type:        uint8[3] | Len:     3 | Data(Hex): 
+| Block:                   EEPData1 | Element:                      SiaExCode | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                   EEPData1 | Element:                          Dummy | Type:      uint8[107] | Len:   107 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                   EEPData1 | Element:                        SiaCode | Type:        uint8[3] | Len:     3 | Data(Hex): 
+| Block:                   EEPData1 | Element:                      SiaExCode | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                   EEPData1 | Element:                          Dummy | Type:      uint8[107] | Len:   107 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                   EEPData1 | Element:                        SiaCode | Type:        uint8[3] | Len:     3 | Data(Hex): 
+| Block:                   EEPData1 | Element:                      SiaExCode | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                   EEPData1 | Element:                          Dummy | Type:      uint8[107] | Len:   107 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+
+| Block:                FactoryData | Element:                       Reserve1 | Type:        uint8[5] | Len:     5 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve2 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum1 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                  Versionierung | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                 SicherungBlock | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:               Fertigungsdatum2 | Type:        uint8[8] | Len:     8 | Data(Hex): 
+| Block:                FactoryData | Element:                   Seriennummer | Type:       uint8[12] | Len:    12 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer1 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                             HW | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                             LP | Type:           uint8 | Len:     1 | Data(Hex): 
+| Block:                FactoryData | Element:                           D0D0 | Type:        uint8[2] | Len:     2 | Data(Hex): 
+| Block:                FactoryData | Element:                   TSWContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                            DMC | Type:       uint8[32] | Len:    32 | Data(Hex): 
+| Block:                FactoryData | Element:               Aenderungsschein | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                  FSWContainer2 | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                   HSMContainer | Type:       uint8[10] | Len:    10 | Data(Hex): 
+| Block:                FactoryData | Element:                       Reserve3 | Type:        uint8[4] | Len:     4 | Data(Hex): 
++-----------------------------------+-----------------------------------------+-----------------------+------------+

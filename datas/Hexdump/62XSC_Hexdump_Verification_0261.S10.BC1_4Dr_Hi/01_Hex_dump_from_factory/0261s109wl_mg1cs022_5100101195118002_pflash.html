@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<HTML>
+	<HEAD>
+		<TITLE>C:/Users/NDH3HC/OneDrive - Bosch Group/Workspace/_OnlineShare_/_Tasks_/MG1_62XS_MP2_Hexdump/62XSC_Hexdump_Verification_0261.S10.BC1_4Dr_Hi/01_Hex_dump_from_factory/0261s109wl_mg1cs022_5100101195118002_pflash.hex</TITLE>
+		<STYLE TYPE="text/css">
+body 
+{	margin:0pt;
+	margin-bottom: 0.0pt;
+	text-indent: 10.0pt;
+	font-size:10.0pt;
+	font-family:"Arial";
+	text-align: "justify";
+	color:#153B63;
+}
+	
+table 
+{	margin:0pt;
+	margin-bottom: 0.0pt;
+	text-indent: 5.0pt;
+	font-size:10.0pt;
+	font-family:"Arial";
+	text-align: "justify";
+	color:#153B63;
+}
+	
+tr.normal, td.normal
+{	margin:0pt;
+	margin-bottom: 0.0pt;
+	text-indent: 0.0pt;
+	font-size:10.0pt;
+	font-family:"Arial";
+	text-align: "justify";
+	color:#153B63;
+}
+		
+table.page, 
+{
+	border-collapse:collapse;
+	border: 0px;
+}
+			
+p.pavpage 
+{	margin:0pt;
+	margin-bottom: 0.0pt;
+	text-indent: 10.0pt;
+	font-size:10.0pt;
+	font-family:"Courier New";
+	text-align: justify;
+	color:#000000;
+}
+	
+td.digest 
+{	margin:0pt;
+	margin-bottom: 0.0pt;
+	text-indent: 0.0pt;
+	font-size:10.0pt;
+	font-family:"Courier New";
+	text-align: justify;
+	color:#000000;
+}
+	
+td.sign 
+{	margin:0pt;
+	margin-bottom: 0.0pt;
+	text-indent: 0.0pt;
+	font-size:10.0pt;
+	font-family:"Courier New";
+	text-align: justify;
+	color: #153B63	;
+}
+	
+			
+		
+p.content1	
+{	
+	text-indent: 10.0pt;
+	margin: 0.0pt;
+	margin-bottom: 0.0pt;
+}
+		
+p.content2	
+{	
+	text-indent: 20.0pt;
+	margin: 0.0pt;
+	margin-bottom: 0.0pt;
+}
+		
+p.content3	
+{	
+	text-indent: 30.0pt;
+	margin: 0.0pt;
+	margin-bottom: 0.0pt;
+}
+		
+p.content4	
+{	
+	text-indent: 40.0pt;
+	margin: 0.0pt;
+	margin-bottom: 0.0pt;
+}
+		
+p.content5	
+{	
+	text-indent: 50.0pt;
+	margin: 0.0pt;
+	margin-bottom: 0.0pt;
+}	
+		
+p.content6	
+{	
+	text-indent: 60.0pt;
+	margin: 0.0pt;
+	margin-bottom: 0.0pt;
+}
+		
+div.chapter
+{	margin-top: 10 pt;
+	font-size:11.0pt;
+	font-family:"Arial";
+	font-weight: Bold;
+	text-align: justify;
+	color:#000000;
+	background-color:#FFFFCC;
+	text-decoration: underline;		
+}
+
+div.title,h1.title,h2.title,h3.title, td.title
+{	margin-top: 10 pt;
+	font-size:11.0pt;
+	font-family:"Arial";
+	font-weight: Bold;
+	text-align: justify;
+	color:#153B63;		
+}
+
+div.subresults
+{	margin:0cm;
+	font-size:10.0pt;
+	font-family:"Arial";
+	text-align: justify;
+	color:#000000;
+	background-color:#FFFFCC;		
+}		
+		
+		
+p.fileHeader , div.fileHeader, h4.fileHeader, tr.fileHeader
+{	
+	font-size:14.0pt;
+	font-family:"Arial";
+	font-weight: bold;		
+	background-color:#153B63;
+	padding: 2em;
+	text-align: center; 
+	color: #FFFFFF
+}
+
+div.error, td.error, p.error
+{	
+	font-size:10.0pt;
+	font-family:"Arial";
+	font-weight: bold;
+	color:#000000;
+	background-color: #FF0000;
+}
+	
+div.disc,p.disc 
+{	
+	font-size:10.0pt;
+	font-family:"Arial";
+	font-weight: bold;
+	color:#000000;
+	background-color: #FF9600;
+}
+	
+div.warning, p.warning 
+{	
+	font-size:10.0pt;
+	font-family:"Arial";
+	font-weight: bold;
+	color:#000000;
+	background-color: #FF9600;
+}
+
+address.mpFooter
+{	margin:0cm;
+	margin-bottom:.0001pt;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	font-style: italic;
+	text-align: justify;
+	color:#000080;
+}
+		
+td.bosch{
+	color:#FF0000;
+	font-size:14.0pt;
+	font-family:"Arial";
+	font-style: "bold";
+	text-align: left;
+	background-color: #ECECEC;
+	width: 20%;
+}
+	
+td.tableHeader{
+	font-style: bold;
+	background-color: #C0C0C0;
+}
+	
+td.cellOk{
+	background-color: #33CC33;
+}
+	
+td.cellNok{
+	background-color: #FF0000;
+}
+	
+td.cellWarn{
+	background-color: #FF9600;
+}
+	
+td.leftCol
+{
+	color:#FFFFFF;
+	font-family:"Arial";
+	text-align: left;
+	background-color: #153B63;
+	vertical-align: top;
+}
+
+.leftCol a:link {
+	color: #FFFFFF; /* unvisited link */
+}
+
+.leftCol a:visited {
+	color: #FFFF00; /* visited link */
+}
+
+.leftCol a:hover {
+	color: #F00; /* mouse over link */
+}
+
+.leftCol a:active {
+	color: #0000FF; /* selected link */
+}  
+		</STYLE>
+	</HEAD>
+
+	<BODY>
+<TABLE CLASS="page">
+<TR CLASS="fileHeader"><TD CLASS="bosch"><H1>BOSCH </H1></TD>
+<TD CLASS="hexreader"><H1>HexReader R.Bosch version - 3.10.0</H1></BR>By PS-EC/ECP22 © 2014 - 2020</TD></TR>
+<TR><TD CLASS="leftCol"><H1>Content</H1>
+<P CLASS="content1"><A HREF="#link_1.DISCLAIMER">1. DISCLAIMER</A> </P>
+<P CLASS="content1"><A HREF="#link_2.InformationfromtheHexFile">2. Information from the Hex File</A> </P>
+<P CLASS="content2"><A HREF="#link_2.1.StructureoftheHexFile">2.1. Structure of the Hex File</A> </P>
+<P CLASS="content2"><A HREF="#link_2.2.InformationfromtheABM">2.2. Information from the ABM</A> </P>
+<P CLASS="content1"><A HREF="#link_3.InformationfromtheInfoblocksandtheSB">3. Information from the Infoblocks and the SB</A> </P>
+<P CLASS="content2"><A HREF="#link_3.1.VersionoftheSB">3.1. Version of the SB </A> </P>
+<P CLASS="content2"><A HREF="#link_3.2.Block[1]:SB">3.2. Block[1]: SB</A> </P>
+<P CLASS="content3"><A HREF="#link_3.2.1.Checksumoftheprologue">3.2.1. Checksum of the prologue</A> </P>
+<P CLASS="content3"><A HREF="#link_3.2.2.ChecksumBlock[0]">3.2.2. Checksum Block[0]</A> </P>
+<P CLASS="content3"><A HREF="#link_3.2.3.ChecksumBlock[1]">3.2.3. Checksum Block[1]</A> </P>
+<P CLASS="content2"><A HREF="#link_3.3.Block[2]:CB">3.3. Block[2]: CB</A> </P>
+<P CLASS="content3"><A HREF="#link_3.3.1.Checksumoftheprologue">3.3.1. Checksum of the prologue</A> </P>
+<P CLASS="content3"><A HREF="#link_3.3.2.ChecksumBlock[0]">3.3.2. Checksum Block[0]</A> </P>
+<P CLASS="content2"><A HREF="#link_3.4.Block[3]:ASW0">3.4. Block[3]: ASW0</A> </P>
+<P CLASS="content3"><A HREF="#link_3.4.1.Checksumoftheprologue">3.4.1. Checksum of the prologue</A> </P>
+<P CLASS="content3"><A HREF="#link_3.4.2.ChecksumBlock[0]">3.4.2. Checksum Block[0]</A> </P>
+<P CLASS="content3"><A HREF="#link_3.4.3.ChecksumBlock[1]">3.4.3. Checksum Block[1]</A> </P>
+<P CLASS="content3"><A HREF="#link_3.4.4.ChecksumBlock[2]">3.4.4. Checksum Block[2]</A> </P>
+<P CLASS="content3"><A HREF="#link_3.4.5.ChecksumBlock[3]">3.4.5. Checksum Block[3]</A> </P>
+<P CLASS="content3"><A HREF="#link_3.4.6.ChecksumBlock[4]">3.4.6. Checksum Block[4]</A> </P>
+<P CLASS="content3"><A HREF="#link_3.4.7.ChecksumBlock[5]">3.4.7. Checksum Block[5]</A> </P>
+<P CLASS="content3"><A HREF="#link_3.4.8.ChecksumBlock[6]">3.4.8. Checksum Block[6]</A> </P>
+<P CLASS="content2"><A HREF="#link_3.5.Block[4]:DS0">3.5. Block[4]: DS0</A> </P>
+<P CLASS="content3"><A HREF="#link_3.5.1.Checksumoftheprologue">3.5.1. Checksum of the prologue</A> </P>
+<P CLASS="content3"><A HREF="#link_3.5.2.ChecksumBlock[0]">3.5.2. Checksum Block[0]</A> </P>
+<P CLASS="content3"><A HREF="#link_3.5.3.ChecksumBlock[1]">3.5.3. Checksum Block[1]</A> </P>
+<P CLASS="content1"><A HREF="#link_4.CBlogisticdata">4. CB logistic data</A> </P>
+<P CLASS="content2"><A HREF="#link_4.1.VersionoftheCB">4.1. Version of the CB </A> </P>
+<P CLASS="content1"><A HREF="#link_5.Identificationoftheapplicationsoftware">5. Identification of the application software</A> </P>
+<P CLASS="content2"><A HREF="#link_5.1.EPROMIdentificationString(EPK)">5.1.  EPROM Identification String(EPK) </A> </P>
+<P CLASS="content1"><A HREF="#link_6.Miscellaneous">6. Miscellaneous</A> </P>
+<P CLASS="content2"><A HREF="#link_6.1.CVN">6.1.  CVN</A> </P>
+</TD>
+<TD BGCOLOR= "#ECECEC"><H1 CLASS="">Results</H1>
+<H1 CLASS="title"><A NAME="link_1.DISCLAIMER">1. DISCLAIMER</H1>
+<P CLASS=" disc ">
+This software is delivered without any warranty. Its author is therefore
+not liable for any damage caused by a misuse or a bug of this software.
+Please keep in mind that this tool is basically a reading tool and not
+designed as a verification one. It shall not be part of the software
+generation process and should be used only for documentation and first
+analysis purposes.
+</P>
+<H1 CLASS="title"><A NAME="link_2.InformationfromtheHexFile">2. Information from the Hex File</H1>
+	<table>	<tr>
+		<td class="normal">Hex file :</td>
+		<td class="">C:/Users/NDH3HC/OneDrive - Bosch Group/Workspace/_OnlineShare_/_Tasks_/MG1_62XS_MP2_Hexdump/62XSC_Hexdump_Verification_0261.S10.BC1_4Dr_Hi/01_Hex_dump_from_factory/0261s109wl_mg1cs022_5100101195118002_pflash.hex</td>
+	</tr>
+		<tr>
+			<td class="normal">Parse time (s) :</td>
+			<td>0.596</td>
+		</tr>
+	<tr>
+		<td class="normal">Selected project :</td>
+		<td class="">Standard (not customer specific) - MDG1 IFX, JDP and ST </td>
+	</tr>
+	<tr>
+		<td class="normal">Tool version :</td>
+		<td class="">HexReader R.Bosch version - 3.10.0</td>
+	</tr>
+	</table>
+<H2 CLASS="title"><A NAME="link_2.1.StructureoftheHexFile">2.1. Structure of the Hex File</H2>
+<P CLASS=>Number of blocks : 1</P>
+<P CLASS=>Hex Block [0]</P>
+	<table>		<tr>
+			<td class="normal">Start address :</td>
+			<td>0x80000000</td>
+		</tr>
+		<tr>
+			<td class="normal">End address :</td>
+			<td>0x805FFFFF</td>
+		</tr>
+	</table>
+<H2 CLASS="title"><A NAME="link_2.2.InformationfromtheABM">2.2. Information from the ABM</H2>
+<p>
+CPU family: MDG1 IFX</p>
+<p>
+ABM Record #1 found at 0x80000000</p>
+	<table>	<tr>
+		<td class="tableHeader">Status of the ABM header integrity check</td>
+		<td class="cellOk">ABM checksum OK</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum of the ABM header</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum of the range checked in the ABM header</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Checksum start address</td>
+			<td>0xA000FAE0</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Checksum end address</td>
+			<td>0xA000FFFC</td>
+		</tr>
+	</table>
+<H1 CLASS="title"><A NAME="link_3.InformationfromtheInfoblocksandtheSB">3. Information from the Infoblocks and the SB</H1>
+<H2 CLASS="title"><A NAME="link_3.1.VersionoftheSB">3.1. Version of the SB </H2>
+<p>
+CUBAS BOOTCTRL_V04.25.06/IFX DEV3_40NM_A  </p>
+<H2 CLASS="title"><A NAME="link_3.2.Block[1]:SB">3.2. Block[1]: SB</H2>
+	<table>	<tr>
+		<td class="tableHeader">Infoblock version</td>
+		<td class="">9 - 11</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Block Id</td>
+			<td>0x10</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Block Name</td>
+		<td class="">SB</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Block Validity</td>
+		<td class="cellOk">Block is Ok</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x80000020</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x8000FFFF</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Address of next Block</td>
+			<td>0x80070000</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End pattern</td>
+			<td>0xDEADBEEF</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">xTTNr</td>
+			<td>10SW133405			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Compatibility Identifier</td>
+			<td>0xFAFAFAFAFAFAFAFA			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Computed Compatibility Identifier</td>
+			<td>0xFAFAFAFAFAFAFAFA			</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Computed Compatibility Identifier version</td>
+		<td class="">-</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Compatibility Link</td>
+		<td class="">no compatibility link configured</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Compatibility check</td>
+		<td class="">compatibility check not needed</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Compatibility reference</td>
+			<td>0xFAFAFAFAFAFAFAFA			</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Number of checksum entries</td>
+		<td class="">2</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Epilog type</td>
+		<td class="">Signature and Certificate with RSA2048</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Signature</td>
+			<td><div>3f 83 c0 9d 5d d4 43 dc 99 3e 3c ff ff 19 dc 4b dd e9 85 c0 43 eb c1 3d d9 9b 6d 82 9f dc 17 17 <div/><div>a8 eb 3c e2 cd 89 9e 83 12 ad 9a 08 47 32 76 9d 0b bf 0a 54 1f 56 b0 9f 59 05 e3 12 dc 17 41 35 <div/>			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Certificate</td>
+			<td><div>7f 21 82 01 11 7f 4e 81 ca 5f 29 01 00 42 17 52 42 41 32 4d 44 47 31 2f 48 4f 4e 44 41 31 3a 43 <div/><div>4e 30 30 30 30 31 7f 49 52 06 0d 2b 06 01 04 01 a9 46 93 48 15 01 09 02 86 41 04 d4 92 25 52 1d <div/><div>76 3f 10 55 6a 7b 90 f3 e9 d1 4c 67 86 e2 a8 03 fd 20 51 28 91 a6 0c 13 8b 9f c6 58 d1 08 3f 66 <div/><div>60 25 82 78 20 fa 78 7c 52 70 c3 5e 48 73 82 99 46 c5 a1 76 be 36 0e 31 e9 d8 32 5f 20 1c 52 42 <div/><div>41 34 37 42 33 41 34 30 41 43 38 30 39 44 33 44 34 39 3a 50 4e 30 30 30 30 31 7f 4c 24 06 10 2b <div/><div>06 01 04 01 a9 46 93 48 15 02 01 01 23 82 7c 53 10 24 00 00 00 00 00 00 00 00 01 07 ff ff 00 00 <div/><div>00 5f 25 06 02 04 00 08 00 06 5f 24 06 02 05 00 08 00 05 5f 37 40 26 4f bd a3 4f 3a b0 4e 53 5f <div/><div>73 ec 58 0f 2e 33 68 a9 ce 2a c3 26 07 f5 27 ff 08 91 f5 c0 f6 6c ee cb 3c 5d 54 f1 47 ff c3 f8 <div/><div>9f 12 23 95 cb c0 cc 18 e7 f8 35 b2 cd b1 6f 03 64 f5 de e0 58 74 			</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.2.1.Checksumoftheprologue">3.2.1. Checksum of the prologue</H3>
+	<table>	<tr>
+		<td class="tableHeader">Checksum of the Prologue</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.2.2.ChecksumBlock[0]">3.2.2. Checksum Block[0]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x80000120</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x8000FFF7</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.2.3.ChecksumBlock[1]">3.2.3. Checksum Block[1]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x8000F840</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x8000FABB</td>
+		</tr>
+	</table>
+<H2 CLASS="title"><A NAME="link_3.3.Block[2]:CB">3.3. Block[2]: CB</H2>
+	<table>	<tr>
+		<td class="tableHeader">Infoblock version</td>
+		<td class="">9 - 11</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Block Id</td>
+			<td>0x50</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Block Name</td>
+		<td class="">CB</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Block Validity</td>
+		<td class="cellOk">Block is Ok</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x80070000</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x80097B0F</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Address of next Block</td>
+			<td>0x800A0000</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End pattern</td>
+			<td>0xDEADBEEF</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">xTTNr</td>
+			<td>10SW133405			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Compatibility Identifier</td>
+			<td>0xFAFAFAFAFAFAFAFA			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Computed Compatibility Identifier</td>
+			<td>0xFAFAFAFAFAFAFAFA			</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Computed Compatibility Identifier version</td>
+		<td class="">-</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Compatibility Link</td>
+		<td class="">no compatibility link configured</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Compatibility check</td>
+		<td class="">compatibility check not needed</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Compatibility reference</td>
+			<td>0xFAFAFAFAFAFAFAFA			</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Number of checksum entries</td>
+		<td class="">1</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Epilog type</td>
+		<td class="">Signature and Certificate with RSA2048</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Signature</td>
+			<td><div>97 b9 40 06 bf 70 a7 30 8c ca 99 82 35 8f e9 c7 9d 06 f6 f6 59 6b d2 57 f8 9b 4f 36 80 d5 b7 37 <div/><div>53 f0 10 12 00 a0 61 03 4f e5 b3 59 59 0c 5b f4 3b 79 29 60 88 dd 8a 26 ba 0f 4a 35 ae cb 7e 7e <div/>			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Certificate</td>
+			<td><div>7f 21 82 01 11 7f 4e 81 ca 5f 29 01 00 42 17 52 42 41 32 4d 44 47 31 2f 48 4f 4e 44 41 31 3a 43 <div/><div>4e 30 30 30 30 31 7f 49 52 06 0d 2b 06 01 04 01 a9 46 93 48 15 01 09 02 86 41 04 d4 92 25 52 1d <div/><div>76 3f 10 55 6a 7b 90 f3 e9 d1 4c 67 86 e2 a8 03 fd 20 51 28 91 a6 0c 13 8b 9f c6 58 d1 08 3f 66 <div/><div>60 25 82 78 20 fa 78 7c 52 70 c3 5e 48 73 82 99 46 c5 a1 76 be 36 0e 31 e9 d8 32 5f 20 1c 52 42 <div/><div>41 34 37 42 33 41 34 30 41 43 38 30 39 44 33 44 34 39 3a 50 4e 30 30 30 30 31 7f 4c 24 06 10 2b <div/><div>06 01 04 01 a9 46 93 48 15 02 01 01 23 82 7c 53 10 24 00 00 00 00 00 00 00 00 01 07 ff ff 00 00 <div/><div>00 5f 25 06 02 04 00 08 00 06 5f 24 06 02 05 00 08 00 05 5f 37 40 26 4f bd a3 4f 3a b0 4e 53 5f <div/><div>73 ec 58 0f 2e 33 68 a9 ce 2a c3 26 07 f5 27 ff 08 91 f5 c0 f6 6c ee cb 3c 5d 54 f1 47 ff c3 f8 <div/><div>9f 12 23 95 cb c0 cc 18 e7 f8 35 b2 cd b1 6f 03 64 f5 de e0 58 74 			</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.3.1.Checksumoftheprologue">3.3.1. Checksum of the prologue</H3>
+	<table>	<tr>
+		<td class="tableHeader">Checksum of the Prologue</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.3.2.ChecksumBlock[0]">3.3.2. Checksum Block[0]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x80070100</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x80097B07</td>
+		</tr>
+	</table>
+<H2 CLASS="title"><A NAME="link_3.4.Block[3]:ASW0">3.4. Block[3]: ASW0</H2>
+	<table>	<tr>
+		<td class="tableHeader">Infoblock version</td>
+		<td class="">9 - 11</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Block Id</td>
+			<td>0x60</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Block Name</td>
+		<td class="">ASW0</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Block Validity</td>
+		<td class="cellOk">Block is Ok</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x800A0000</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x804D7FFF</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Address of next Block</td>
+			<td>0x804D8000</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End pattern</td>
+			<td>0xDEADBEEF</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">xTTNr</td>
+			<td>10SW133405			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Compatibility Identifier</td>
+			<td>0xFAC540AC4DDFD989			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Computed Compatibility Identifier</td>
+			<td>0xFAC540AC4DDFD989			</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Computed Compatibility Identifier version</td>
+		<td class="">2</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Compatibility Link</td>
+		<td class="">no compatibility link configured</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Compatibility check</td>
+		<td class="">compatibility check not needed</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Compatibility reference</td>
+			<td>0xFAFAFAFAFAFAFAFA			</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Number of checksum entries</td>
+		<td class="">7</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Epilog type</td>
+		<td class="">Signature and Certificate with RSA2048</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Signature</td>
+			<td><div>b9 99 68 f2 28 8e 0f 51 c1 4b 9e fb 7b 74 09 6a 43 66 86 64 c7 3a ed 23 90 02 5e 04 46 cd 1d 88 <div/><div>03 ab 8d 16 5b 4d 44 a5 73 3f 57 59 ed e2 5f f7 ad 1a 36 24 b9 2f 60 26 f0 c8 e9 6b 0b e7 7b 8a <div/>			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Certificate</td>
+			<td><div>7f 21 82 01 11 7f 4e 81 ca 5f 29 01 00 42 17 52 42 41 32 4d 44 47 31 2f 48 4f 4e 44 41 31 3a 43 <div/><div>4e 30 30 30 30 31 7f 49 52 06 0d 2b 06 01 04 01 a9 46 93 48 15 01 09 02 86 41 04 d4 92 25 52 1d <div/><div>76 3f 10 55 6a 7b 90 f3 e9 d1 4c 67 86 e2 a8 03 fd 20 51 28 91 a6 0c 13 8b 9f c6 58 d1 08 3f 66 <div/><div>60 25 82 78 20 fa 78 7c 52 70 c3 5e 48 73 82 99 46 c5 a1 76 be 36 0e 31 e9 d8 32 5f 20 1c 52 42 <div/><div>41 34 37 42 33 41 34 30 41 43 38 30 39 44 33 44 34 39 3a 50 4e 30 30 30 30 31 7f 4c 24 06 10 2b <div/><div>06 01 04 01 a9 46 93 48 15 02 01 01 23 82 7c 53 10 24 00 00 00 00 00 00 00 00 01 07 ff ff 00 00 <div/><div>00 5f 25 06 02 04 00 08 00 06 5f 24 06 02 05 00 08 00 05 5f 37 40 26 4f bd a3 4f 3a b0 4e 53 5f <div/><div>73 ec 58 0f 2e 33 68 a9 ce 2a c3 26 07 f5 27 ff 08 91 f5 c0 f6 6c ee cb 3c 5d 54 f1 47 ff c3 f8 <div/><div>9f 12 23 95 cb c0 cc 18 e7 f8 35 b2 cd b1 6f 03 64 f5 de e0 58 74 			</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.4.1.Checksumoftheprologue">3.4.1. Checksum of the prologue</H3>
+	<table>	<tr>
+		<td class="tableHeader">Checksum of the Prologue</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.4.2.ChecksumBlock[0]">3.4.2. Checksum Block[0]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x800A0100</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x804D7FF7</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.4.3.ChecksumBlock[1]">3.4.3. Checksum Block[1]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x800D4830</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x800D701B</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.4.4.ChecksumBlock[2]">3.4.4. Checksum Block[2]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x800D701C</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x800D99FB</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.4.5.ChecksumBlock[3]">3.4.5. Checksum Block[3]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x800D99FC</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x800DBF9B</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.4.6.ChecksumBlock[4]">3.4.6. Checksum Block[4]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x800DBF9C</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x800DE523</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.4.7.ChecksumBlock[5]">3.4.7. Checksum Block[5]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x800DE524</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x800DE543</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.4.8.ChecksumBlock[6]">3.4.8. Checksum Block[6]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x800DE608</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x801007B7</td>
+		</tr>
+	</table>
+<H2 CLASS="title"><A NAME="link_3.5.Block[4]:DS0">3.5. Block[4]: DS0</H2>
+	<table>	<tr>
+		<td class="tableHeader">Infoblock version</td>
+		<td class="">9 - 11</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Block Id</td>
+			<td>0x70</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Block Name</td>
+		<td class="">DS0</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Block Validity</td>
+		<td class="cellOk">Block is Ok</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x804D8000</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x805FFFFF</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Address of next Block</td>
+			<td>0x00000000</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End pattern</td>
+			<td>0xDEADBEEF</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">xTTNr</td>
+			<td>10SW133405			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Compatibility Identifier</td>
+			<td>0xC95B75D855B0BC7E			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Computed Compatibility Identifier</td>
+			<td>0xC95B75D855B0BC7E			</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Computed Compatibility Identifier version</td>
+		<td class="">2</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Compatibility Link</td>
+		<td class="">block is compatible with Application software #0</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Compatibility check</td>
+		<td class="cellOk">compatibility check OK </td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Compatibility reference</td>
+			<td>0xFAC540AC4DDFD989			</td>
+		</tr>
+	<tr>
+		<td class="tableHeader">Number of checksum entries</td>
+		<td class="">2</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Epilog type</td>
+		<td class="">Signature and Certificate with RSA2048</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Signature</td>
+			<td><div>4d 7f 09 02 8f 86 37 55 65 9c 11 7b e0 27 3c 3b 92 7e f9 5d 83 d7 4f 6c 82 f8 3f 93 5b 3f ad ae <div/><div>b7 21 ab 46 30 5b 09 78 5f dd 7b c6 6c 80 96 69 29 4a 63 86 ef 15 ae a0 2b 15 16 77 ca 22 fc c2 <div/>			</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">Certificate</td>
+			<td><div>7f 21 82 01 11 7f 4e 81 ca 5f 29 01 00 42 17 52 42 41 32 4d 44 47 31 2f 48 4f 4e 44 41 31 3a 43 <div/><div>4e 30 30 30 30 31 7f 49 52 06 0d 2b 06 01 04 01 a9 46 93 48 15 01 09 02 86 41 04 d4 92 25 52 1d <div/><div>76 3f 10 55 6a 7b 90 f3 e9 d1 4c 67 86 e2 a8 03 fd 20 51 28 91 a6 0c 13 8b 9f c6 58 d1 08 3f 66 <div/><div>60 25 82 78 20 fa 78 7c 52 70 c3 5e 48 73 82 99 46 c5 a1 76 be 36 0e 31 e9 d8 32 5f 20 1c 52 42 <div/><div>41 34 37 42 33 41 34 30 41 43 38 30 39 44 33 44 34 39 3a 50 4e 30 30 30 30 31 7f 4c 24 06 10 2b <div/><div>06 01 04 01 a9 46 93 48 15 02 01 01 23 82 7c 53 10 24 00 00 00 00 00 00 00 00 01 07 ff ff 00 00 <div/><div>00 5f 25 06 02 04 00 08 00 06 5f 24 06 02 05 00 08 00 05 5f 37 40 26 4f bd a3 4f 3a b0 4e 53 5f <div/><div>73 ec 58 0f 2e 33 68 a9 ce 2a c3 26 07 f5 27 ff 08 91 f5 c0 f6 6c ee cb 3c 5d 54 f1 47 ff c3 f8 <div/><div>9f 12 23 95 cb c0 cc 18 e7 f8 35 b2 cd b1 6f 03 64 f5 de e0 58 74 			</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.5.1.Checksumoftheprologue">3.5.1. Checksum of the prologue</H3>
+	<table>	<tr>
+		<td class="tableHeader">Checksum of the Prologue</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.5.2.ChecksumBlock[0]">3.5.2. Checksum Block[0]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">CRC32</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x804D8100</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x805FFFF7</td>
+		</tr>
+	</table>
+<H3 CLASS="title"><A NAME="link_3.5.3.ChecksumBlock[1]">3.5.3. Checksum Block[1]</H3>
+	<table>	<tr>
+		<td class="tableHeader">Algorithm:</td>
+		<td class="">ADD16</td>
+	</tr>
+	<tr>
+		<td class="tableHeader">Checksum status:</td>
+		<td class="cellOk">checksum OK</td>
+	</tr>
+		<tr>
+			<td class="tableHeader">Start Address</td>
+			<td>0x805914C0</td>
+		</tr>
+		<tr>
+			<td class="tableHeader">End Address</td>
+			<td>0x80595C77</td>
+		</tr>
+	</table>
+<H1 CLASS="title"><A NAME="link_4.CBlogisticdata">4. CB logistic data</H1>
+<H2 CLASS="title"><A NAME="link_4.1.VersionoftheCB">4.1. Version of the CB </H2>
+<p>
+PVER:CB_HONDA_nonOTA_1997.7.0_62XS0;0              </p>
+<H1 CLASS="title"><A NAME="link_5.Identificationoftheapplicationsoftware">5. Identification of the application software</H1>
+<H2 CLASS="title"><A NAME="link_5.1.EPROMIdentificationString(EPK)">5.1.  EPROM Identification String(EPK) </H2>
+<p>
+<p>-- WARNING: EPK string not found</p>
+<H1 CLASS="title"><A NAME="link_6.Miscellaneous">6. Miscellaneous</H1>
+<H2 CLASS="title"><A NAME="link_6.1.CVN">6.1.  CVN</H2>
+<p>-- No CVN computation available for the selected project.	</BODY>
+</HTML>

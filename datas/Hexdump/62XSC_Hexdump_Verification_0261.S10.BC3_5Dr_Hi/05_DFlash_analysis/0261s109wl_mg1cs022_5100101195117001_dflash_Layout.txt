@@ -1,0 +1,111 @@
++ --------------------------------------------------------------------------------------------------------------+
+|                                                                                                               |
+|  T H E   M E M - T O O L S   A R E   F O R   R O B E R T   B O S C H   I N T E R N A L   U S E   O N L Y !!!  |
+|                                                                                                               |
++---------------------------------------------------------------------------------------------------------------+
+
+
+
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                                                                                                                                                                                                                         |
+|                                                                                          F  A  T      O  V  E  R  V  I  E  W                                                                                            |
+|                                                                                                                                                                                                                         |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-----------------------------------------------------------------+
+| SectorNumber :               0 | Erased marker:             SET |
+| OffsetAdr    :             0x0 | Start Marker :         NOT_SET |
+| Sector Type  :             FAT | Clone Marker :         NOT_SET |
+| SectorCounter:               1 | SectorAddress:      0xAF000000 |
++-----------------------------------------------------------------+
++---------------------------------------------------+----------------+--------------------+------+-------------------+--------------------+--------------+-------------------+------------------+-------------------------+
+|Name:                                  FactoryData |PersId:  0x3B2F |Address: 0xAF000080 |SL: 1 |Len:    132 (0x84) |Header:       VALID |CRC16: 0xDB46 |Block:       VALID |CRC32: 0x12D19630 |Blockaddress: 0xAF004080 | 
+|Name:                                  FactoryData |PersId:  0x3B2F |Address: 0xAF000090 |SL: 1 |Len:    132 (0x84) |Header:       VALID |CRC16: 0xA875 |Block:       VALID |CRC32: 0x2397CC2A |Blockaddress: 0xAF004108 | 
+|Name:                                  FactoryData |PersId:  0x3B2F |Address: 0xAF0000A0 |SL: 1 |Len:    132 (0x84) |Header:       VALID |CRC16: 0x6B93 |Block:       VALID |CRC32: 0xEF159D45 |Blockaddress: 0xAF004190 | 
+|Name:                            DCM_SIGNALG_KEYID |PersId:  0x83EE |Address: 0xAF0000B0 |SL: 1 |Len:       3 (0x3) |Header:       VALID |CRC16: 0xFEED |Block:       VALID |CRC32: 0x12CB6C50 |Blockaddress: 0xAF004218 | 
+|Name:                                     EEPData1 |PersId:  0xFC22 |Address: 0xAF0000C0 |SL: 2 |Len:    116 (0x74) |Header:       VALID |CRC16: 0xDAD9 |Block:       VALID |CRC32: 0x13EED4CF |Blockaddress: 0xAF004220 | 
+|Name:                                     EEPData1 |PersId:  0xFC22 |Address: 0xAF0000D0 |SL: 2 |Len:    116 (0x74) |Header:       VALID |CRC16: 0x2C37 |Block:       VALID |CRC32: 0x13EED4CF |Blockaddress: 0xAF004298 | 
+|Name:                                DCM_SECACOEFF |PersId:  0xB1F5 |Address: 0xAF0000E0 |SL: 1 |Len:       6 (0x6) |Header:       VALID |CRC16: 0x4C37 |Block:       VALID |CRC32: 0x41D9ED00 |Blockaddress: 0xAF004310 | 
+|Name:                                   DCM_PROGID |PersId:  0x3C9B |Address: 0xAF0000F0 |SL: 1 |Len:      14 (0xE) |Header:       VALID |CRC16: 0xCCCD |Block:       VALID |CRC32: 0xE2D077A4 |Blockaddress: 0xAF004318 | 
+|Name:                                    DCM_ECUID |PersId:  0xA57E |Address: 0xAF000100 |SL: 1 |Len:      10 (0xA) |Header:       VALID |CRC16: 0xAFEF |Block:       VALID |CRC32: 0xF0641CA6 |Blockaddress: 0xAF004328 | 
+|Name:                                 DCM_SWVERSID |PersId:  0x81C1 |Address: 0xAF000110 |SL: 1 |Len:       6 (0x6) |Header:       VALID |CRC16: 0x80D1 |Block:       VALID |CRC32: 0x44F69194 |Blockaddress: 0xAF004338 | 
+|Name:                                  FactoryData |PersId:  0x3B2F |Address: 0xAF000120 |SL: 1 |Len:    132 (0x84) |Header:       VALID |CRC16: 0x8BA4 |Block:       VALID |CRC32: 0x5D681C53 |Blockaddress: 0xAF004340 | 
+|Name:                                      UNKNOWN |PersId:  0xE938 |Address: 0xAF000130 |SL: 1 |Len:    240 (0xF0) |Header:       VALID |CRC16: 0x134A |Block:       VALID |CRC32: 0xBC612413 |Blockaddress: 0xAF0043C8 | 
++---------------------------------------------------+----------------+--------------------+------+-------------------+--------------------+--------------+-------------------+------------------+-------------------------+
+
+
+
+
+
++-------------------------------------------------------------------------------------------------------------------------+
+|                                                                                                                         |
+|                                        D  A  T  A       O  V  E  R  V  I  E  W                                          |
+|                                                                                                                         |
++-------------------------------------------------------------------------------------------------------------------------+
++-----------------------------------------------------------------+
+| SectorNumber :               1 | Erased marker:             SET |
+| OffsetAdr    :             0x0 | Start Marker :         NOT_SET |
+| Sector Type  :            DATA | Clone Marker :         NOT_SET |
+| SectorCounter:               2 | SectorAddress:      0xAF004000 |
++-----------------------------------------------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
+|Name:                                  FactoryData |PersId:  0x3B2F |Block Status:       VALID |Blockaddress: 0xAF004080 | 
+|Name:                                  FactoryData |PersId:  0x3B2F |Block Status:       VALID |Blockaddress: 0xAF004108 | 
+|Name:                                  FactoryData |PersId:  0x3B2F |Block Status:       VALID |Blockaddress: 0xAF004190 | 
+|Name:                            DCM_SIGNALG_KEYID |PersId:  0x83EE |Block Status:       VALID |Blockaddress: 0xAF004218 | 
+|Name:                                     EEPData1 |PersId:  0xFC22 |Block Status:       VALID |Blockaddress: 0xAF004220 | 
+|Name:                                     EEPData1 |PersId:  0xFC22 |Block Status:       VALID |Blockaddress: 0xAF004298 | 
+|Name:                                DCM_SECACOEFF |PersId:  0xB1F5 |Block Status:       VALID |Blockaddress: 0xAF004310 | 
+|Name:                                   DCM_PROGID |PersId:  0x3C9B |Block Status:       VALID |Blockaddress: 0xAF004318 | 
+|Name:                                    DCM_ECUID |PersId:  0xA57E |Block Status:       VALID |Blockaddress: 0xAF004328 | 
+|Name:                                 DCM_SWVERSID |PersId:  0x81C1 |Block Status:       VALID |Blockaddress: 0xAF004338 | 
+|Name:                                  FactoryData |PersId:  0x3B2F |Block Status:       VALID |Blockaddress: 0xAF004340 | 
+|Name:                                      UNKNOWN |PersId:  0xE938 |Block Status:       VALID |Blockaddress: 0xAF0043C8 | 
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++-----------------------------------------------------------------+
+| SectorNumber :               2 | Erased marker:             SET |
+| OffsetAdr    :             0x0 | Start Marker :         NOT_SET |
+| Sector Type  :           UNDEF | Clone Marker :         NOT_SET |
+| SectorCounter:               3 | SectorAddress:      0xAF008000 |
++-----------------------------------------------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++-----------------------------------------------------------------+
+| SectorNumber :               3 | Erased marker:             SET |
+| OffsetAdr    :             0x0 | Start Marker :         NOT_SET |
+| Sector Type  :           UNDEF | Clone Marker :         NOT_SET |
+| SectorCounter:               4 | SectorAddress:      0xAF00C000 |
++-----------------------------------------------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++-----------------------------------------------------------------+
+| SectorNumber :               4 | Erased marker:             SET |
+| OffsetAdr    :             0x0 | Start Marker :         NOT_SET |
+| Sector Type  :           UNDEF | Clone Marker :         NOT_SET |
+| SectorCounter:               5 | SectorAddress:      0xAF010000 |
++-----------------------------------------------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++-----------------------------------------------------------------+
+| SectorNumber :               5 | Erased marker:             SET |
+| OffsetAdr    :             0x0 | Start Marker :         NOT_SET |
+| Sector Type  :           UNDEF | Clone Marker :         NOT_SET |
+| SectorCounter:               6 | SectorAddress:      0xAF014000 |
++-----------------------------------------------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++-----------------------------------------------------------------+
+| SectorNumber :               6 | Erased marker:             SET |
+| OffsetAdr    :             0x0 | Start Marker :         NOT_SET |
+| Sector Type  :           UNDEF | Clone Marker :         NOT_SET |
+| SectorCounter:               7 | SectorAddress:      0xAF018000 |
++-----------------------------------------------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++-----------------------------------------------------------------+
+| SectorNumber :               7 | Erased marker:             SET |
+| OffsetAdr    :             0x0 | Start Marker :         NOT_SET |
+| Sector Type  :           UNDEF | Clone Marker :         NOT_SET |
+| SectorCounter:               8 | SectorAddress:      0xAF01C000 |
++-----------------------------------------------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+
++---------------------------------------------------+----------------+--------------------------+-------------------------+

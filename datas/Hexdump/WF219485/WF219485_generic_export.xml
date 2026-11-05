@@ -1,0 +1,108 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<FLOW5_DATA>
+  <ECR_NUMBER WF_UIname="ECR number" ImportToHis="True" HisName="HIS_TSS_ECR.ECR_NUMBER" UsedForECR="True">3E10181673</ECR_NUMBER>
+  <ECR_Notes WF_UIname="ECR Notes" ImportToHis="True" HisName="HIS_TSS_ECR.ECR_Notes" UsedForECR="True">This container is for 62XS MP2 event.</ECR_Notes>
+  <ECR_INITIATOR WF_UIname="ECR Initiator" ImportToHis="True" HisName="HIS_TSS_ECR.ECR_INITIATOR" UsedForECR="True">AMU2KOR</ECR_INITIATOR>
+  <ECR_INITIATOR_MGR WF_UIname="ECR Initiator Manager" ImportToHis="True" HisName="HIS_TSS_ECR.ECR_INITIATOR_MGR" UsedForECR="True">SVT3KOR</ECR_INITIATOR_MGR>
+  <ISIR_Required WF_UIname="ISIR Required" ImportToHis="True" HisName="HIS_TSS_ECR.ISIR_Required" UsedForECR="True"></ISIR_Required>
+  <ISIR_DueDate WF_UIname="ISIR Due Date" ImportToHis="True" HisName="HIS_TSS_ECR.ISIR_DueDate" UsedForECR="True"></ISIR_DueDate>
+  <JOBNUMBER WF_UIname="Job number" ImportToHis="True" HisName="FLOW5_NUMBER" UsedForECR="True">WF219485</JOBNUMBER>
+  <SOFTWARE_PART_NUMBER WF_UIname="Software part number" ImportToHis="True" HisName="HIS_TSS_ECR.SOFTWARE_NUMBER" UsedForECR="True" copied="True">10SW133405</SOFTWARE_PART_NUMBER>
+  <HARDWARE_PART_NUMBER WF_UIname="Hardware part number" ImportToHis="True" HisName="HIS_PROJEKTE.TTN" UsedForECR="True">0261S10BC1</HARDWARE_PART_NUMBER>
+  <RELEASE_SCOPE WF_UIname="Release scope" ImportToHis="False" HisName="HIS_PROJEKTE.TTN" UsedForECR="True">Program and Data</RELEASE_SCOPE>
+  <INITIAL_HARDWARE_PART_NUMBERS_BSW WF_UIname="Hardware part numbers (BSW)" ImportToHis="False" HisName="HIS_PROJEKTE.TTN" UsedForECR="True" />
+  <CUSTOMER_ORDER_NUMBER WF_UIname="Customer order number" ImportToHis="True" HisName="HIS_PROJEKTE.CUST_ECU_NUMBER" UsedForECR="True">37820-62X-ME20-M6</CUSTOMER_ORDER_NUMBER>
+  <CUSTOMER_HW_NO WF_UIname="Customer hardware part number" ImportToHis="False" HisName="NA" UsedForECR="True">37820-62X-ME2</CUSTOMER_HW_NO>
+  <Customer_software_number WF_UIname="Customer software part number" ImportToHis="False" HisName="NA" UsedForECR="True">10SW133405</Customer_software_number>
+  <IMMOBILIZER_VERSION WF_UIname="Immobilizer" ImportToHis="False" HisName="NA" UsedForECR="True">activeIMMO6</IMMOBILIZER_VERSION>
+  <RELEASE_CLASS WF_UIname="Release class" ImportToHis="False" HisName="NA" UsedForECR="True">Production</RELEASE_CLASS>
+  <PSP_ELEMENT WF_UIname="Cost allocation" ImportToHis="False" HisName="NA" UsedForECR="True">BM-00076893_005</PSP_ELEMENT>
+  <CHANGE_ENGINEER WF_UIname="Change engineer" ImportToHis="False" HisName="NA" UsedForECR="True">Pham Thi Phuong Loan (MS/EJV5-PS)</CHANGE_ENGINEER>
+  <CHANGE_REASON WF_UIname="Change Reason" ImportToHis="False" HisName="NA" UsedForECR="True">Customer requirement (Target: Customer covers costs)</CHANGE_REASON>
+  <CHANGE_IS_RELEASED_BY WF_UIname="Change is released by" ImportToHis="False" HisName="NA" UsedForECR="True">Komagamine Michimasa (PS-SC/ECH1-JP)</CHANGE_IS_RELEASED_BY>
+  <FSW_ID_PROJECT_VERSION WF_UIname="Project version" ImportToHis="False" HisName="NA" UsedForECR="True">62XS</FSW_ID_PROJECT_VERSION>
+  <FSW_ID_PROGRAM_VERSION WF_UIname="Program version" ImportToHis="False" HisName="NA" UsedForECR="True">V037</FSW_ID_PROGRAM_VERSION>
+  <TP_LEVEL WF_UIname="TP_Level" ImportToHis="False" HisName="NA" UsedForECR="True">9</TP_LEVEL>
+  <OTP_Reference WF_UIname="OTP_Reference" ImportToHis="False" HisName="NA" UsedForECR="True">0.0.0.0</OTP_Reference>
+  <HSM_DGP_NOT_BEFORE_ID WF_UIname="HSM_DGP_NOT_BEFORE_ID" ImportToHis="False" HisName="NA" UsedForECR="True"></HSM_DGP_NOT_BEFORE_ID>
+  <RELEASEVERSIONFILE WF_UIname="Release version file" ImportToHis="False" HisName="NA" UsedForECR="True">10SW133405_cleaned.hex</RELEASEVERSIONFILE>
+  <RELEASEVERSIONFILE_CHECKSUM_LINEAR WF_UIname="LINEAR" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <RELEASEVERSIONFILE_CHECKSUM_CARB WF_UIname="Release version file: CRC32" ImportToHis="False" HisName="NA" UsedForECR="True">4DF2BF1F</RELEASEVERSIONFILE_CHECKSUM_CARB>
+  <FSW_CONTAINER WF_UIname="RB plant container" ImportToHis="False" HisName="NA" UsedForECR="True">10SW133405.cnt</FSW_CONTAINER>
+  <FSW_CONTAINER_CHECKSUM_CRC32 WF_UIname="RB plant container: CRC32" ImportToHis="False" HisName="NA" UsedForECR="True">76064075</FSW_CONTAINER_CHECKSUM_CRC32>
+  <BOARD_NUMBER WF_UIname="Board number" ImportToHis="False" HisName="NA" UsedForECR="False"></BOARD_NUMBER>
+  <DRAWING_LIST WF_UIname="Drawing list" ImportToHis="False" HisName="NA" UsedForECR="False"></DRAWING_LIST>
+  <MATERIAL_PART_LIST WF_UIname="Material part list" ImportToHis="False" HisName="NA" UsedForECR="False"></MATERIAL_PART_LIST>
+  <PLANT WF_UIname="Plant (RB)" ImportToHis="False" HisName="NA" UsedForECR="False"></PLANT>
+  <Software_name WF_UIname="Software name" ImportToHis="False" HisName="NA" UsedForECR="True">10SW133405</Software_name>
+  <Program_version WF_UIname="Program version" ImportToHis="False" HisName="NA" UsedForECR="True">MG1CS022_62XSC_V037_TPROT</Program_version>
+  <Data_version WF_UIname="Data version" ImportToHis="False" HisName="NA" UsedForECR="True">MG1CS022_62XSC_V037_TPROT_L8-2_FFV_4Dr_Hi_MP2_Gt13.hex</Data_version>
+  <SoftwareNameInPartList WF_UIname="Software name in part list" ImportToHis="False" HisName="NA" UsedForECR="True"></SoftwareNameInPartList>
+  <ContainerScope WF_UIname="Container scope" ImportToHis="False" HisName="NA" UsedForECR="True"></ContainerScope>
+  <ReferenceJobForMultiContainer WF_UIname="Reference job" ImportToHis="False" HisName="NA" UsedForECR="True"></ReferenceJobForMultiContainer>
+  <!-- VW/Audi, VW/Audi UDE -->
+  <MKB_MOTORKENNBUCHSTABE WF_UIname="Motorkennbuchstaben" ImportToHis="False" HisName="NA" UsedForECR="False"></MKB_MOTORKENNBUCHSTABE>
+  <CUSTOMER_SW_VERSION WF_UIname="Customer SW-Version (SGIDB3)" ImportToHis="False" HisName="NA" UsedForECR="True"></CUSTOMER_SW_VERSION>
+  <CUSTOMER_HW_IDENT_NO_SGIDB7 WF_UIname="Customer hardware part number" ImportToHis="False" HisName="NA" UsedForECR="False">37820-62X-ME2</CUSTOMER_HW_IDENT_NO_SGIDB7>
+  <KLARTEXT_TESTER WF_UIname="Systembezeichnung Tester (SGIDB2)" ImportToHis="False" HisName="NA" UsedForECR="True"></KLARTEXT_TESTER>
+  <CUSTOMERORDERNUMBER_CONDENSED WF_UIname="Customer order number" ImportToHis="False" HisName="NA" UsedForECR="True">37820-62X-ME20-M6</CUSTOMERORDERNUMBER_CONDENSED>
+  <TPROT_VERSION WF_UIname="TPROT_Version" ImportToHis="False" HisName="NA" UsedForECR="True"></TPROT_VERSION>
+  <ODX_IDENTIFIER WF_UIname="ODX file identifer" ImportToHis="False" HisName="NA" UsedForECR="True"></ODX_IDENTIFIER>
+  <ODX_VERSION WF_UIname="ODX file version" ImportToHis="False" HisName="NA" UsedForECR="True"></ODX_VERSION>
+  <CUSTOMERRELEASEVERSIONFILE WF_UIname="Customer release version file" ImportToHis="False" HisName="NA" UsedForECR="True"></CUSTOMERRELEASEVERSIONFILE>
+  <CUSTOMERRELEASEVERSIONFILE_CHECKSUM_LINEAR WF_UIname="LINEAR" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <CUSTOMERRELEASEVERSIONFILE_CHECKSUM_CARB WF_UIname="Customer release version file: CRC32" ImportToHis="False" HisName="NA" UsedForECR="True"></CUSTOMERRELEASEVERSIONFILE_CHECKSUM_CARB>
+  <!-- VW/Audi, VW/Audi UDE -->
+  <!-- FORD -->
+  <LABEL_TYPE WF_UIname="Label_type" ImportToHis="False" HisName="NA" UsedForECR="True"></LABEL_TYPE>
+  <DRAWING_NUMBER WF_UIname="Drawing Number" ImportToHis="False" HisName="NA" UsedForECR="True"></DRAWING_NUMBER>
+  <CMZ_PAV_No WF_UIname="Ford GPATS (immobilizer)/CMZ-PAV Number" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <ECU_catch_word WF_UIname="ECU Catch word" ImportToHis="False" HisName="NA" UsedForECR="True"></ECU_catch_word>
+  <!-- FORD -->
+  <!-- HMC/KIA -->
+  <GPART_CAL_ID WF_UIname="ECU Specific Parameters/G-Part Calibration ID" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <Special_HW_Number WF_UIname="ECU Specific Parameters/Special HW Number" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <Special_Modification_Index WF_UIname="ECU Specific Parameters/Special Modification index" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <!-- HMC/KIA -->
+  <!-- PSA -->
+  <Homologation_number_EMC WF_UIname="Homologation number EMC" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <!-- PSA -->
+  <!-- Opel -->
+  <End_Model_Part_Number_Alpha_Code WF_UIname="End Model Part Number" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <Type_Approval_Number WF_UIname="Type Approval Number" ImportToHis="False" HisName="NA" UsedForECR="True">
+    <GMLAN_TYPE_APPROVAL_NUMBER />
+    <KWP2000_TYPE_APPROVAL_NUMBER />
+  </Type_Approval_Number>
+  <System_name_or_engine_type WF_UIname="System name or engine type" ImportToHis="False" HisName="NA" UsedForECR="True">
+    <KWP2000_SNOET />
+    <GMLAN_SNOET />
+    <KWP_LID_0x97_SNOET />
+  </System_name_or_engine_type>
+  <ECU_Software_Version_Number_0x WF_UIname="ECU Software Version Number" ImportToHis="False" HisName="NA" UsedForECR="True">
+    <GMLAN_SW_VERSION_NUMBER_HEX />
+    <KWP2000_SW_VERSION_NUMBER_HEX />
+  </ECU_Software_Version_Number_0x>
+  <ECU_Software_Version_Number_dec WF_UIname="ECU Software Version Number" ImportToHis="False" HisName="NA" UsedForECR="True">
+    <GMLAN_SW_VERSION_NUMBER_DEC />
+    <KWP2000_SW_VERSION_NUMBER_DEC />
+  </ECU_Software_Version_Number_dec>
+  <GM_Broadcast_Code WF_UIname="GM Broadcast Code" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <!-- Opel -->
+  <!-- FIAT -->
+  <Letter_code WF_UIname="Letter code" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <Homolog_No WF_UIname="Homolog. No" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <!-- FIAT -->
+  <!-- GM -->
+  <MTC-Code WF_UIname="MTC-Code" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <!-- GM -->
+  <!-- VOLVO -->
+  <SW_DataNotes WF_UIname="SW_DATANOTES" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <!-- VOLVO -->
+  <!-- Other Customers -->
+  <!-- Other Customers -->
+  <!-- AVTOVAZ -->
+  <VehicleManufactureECUIdentifier WF_UIname="VehicleManufactureECUIdentifier" ImportToHis="False" HisName="NA" UsedForECR="True" />
+  <!-- AVTOVAZ -->
+  <!-- Renault -->
+  <!-- Renault -->
+</FLOW5_DATA>

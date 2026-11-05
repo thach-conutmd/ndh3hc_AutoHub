@@ -1,0 +1,310 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Job ExportGuid="cd7febd3-b3df-456d-9414-15e89b1b397b">
+  <SystemInformation>
+    <BuildConfiguration>Production</BuildConfiguration>
+    <Version>30.3.0</Version>
+  </SystemInformation>
+  <Fields Group="Job Information">
+    <Field Type="String" Name="WFState" Description="Status" ReadOnly="true">In work</Field>
+    <Field Type="String" Name="Creator" Description="Creator" ReadOnly="true">Ngo Huu Dat (MS/EJV5-PS)</Field>
+    <Field Type="String" Name="CustomerGroup" Description="Customer group" ReadOnly="true">JAP</Field>
+    <Field Type="String" Name="Brand" Description="Brand" ReadOnly="true">Honda</Field>
+    <Field Type="String" Name="PD" Description="Tool version, part 1" ReadOnly="true">W0002</Field>
+    <Field Type="String" Name="ToolVersion" Description="Tool version" ReadOnly="true">PD W0002 (Productive)</Field>
+    <Field Type="String" Name="ECUGeneration" Description="ECU Generation" ReadOnly="true">MG1</Field>
+    <Field Type="String" Name="PDState" Description="Tool version, part 2" ReadOnly="true">Prod</Field>
+    <Field Type="Int" Name="JobId" Description="Job Id" ReadOnly="true">218081</Field>
+    <Field Type="String" Name="BoschPurl" Description="Bosch Purl">pkg:bosch.product.swelement/com/bosch/mobility/power-control/MG1CS022@10SW132482</Field>
+    <Field Type="Date" Name="CreationDate" Description="Creation date" ReadOnly="true">2026-03-09T00:00:00</Field>
+    <Field Type="String" Name="ToolUsageType" Description="Tool usage type" ReadOnly="true">WF04_MDG1_JAP_Honda_PDW0002</Field>
+    <Field Type="String" Name="Jobnumber" Description="Job number" ReadOnly="true">WF218081</Field>
+    <Field Type="String" Name="Title" Description="Title" ReadOnly="true">(WF218081) D2P:0261S10A31;37820-62X-MG10-M6;10SW132482;10SW132482 (26-03-09)</Field>
+    <Field Type="String" Name="Instance" Description="Instance" ReadOnly="true">Prerun</Field>
+    <Field Type="String" Name="WFClass" Description="Workflow class" ReadOnly="true">Documentation D2P</Field>
+    <Field Type="String" Name="ECUType" Description="ECU type" ReadOnly="true">MG1CS022</Field>
+    <Field Type="Bool" Name="D2C" Description="Is job mode &quot;with D2C&quot;" ReadOnly="true">true</Field>
+    <Field Type="String" Name="WorkingMode" Description="Working mode" ReadOnly="true">Honda_PreRun</Field>
+  </Fields>
+  <Fields Group="General">
+    <Field Type="String" Name="Power" Description="Power [kW]">93</Field>
+    <Field Type="Date" Name="DeliveryDate" Description="Delivery Date" />
+    <Field Type="String" Name="FactoryShort" Description="Lead Plant">SaW</Field>
+    <Field Type="String" Name="Customer_Name" Description="Customer name">HONDA</Field>
+    <Field Type="String" Name="ECRNumber" Description="ECR number">3E10178576</Field>
+    <Field Type="String" Name="SoftwarePartNumber" Description="Software part number ">10SW132482</Field>
+    <Field Type="String" Name="CancelReason" Description="Cancel Reason" />
+    <Field Type="Bool" Name="FSW_ContainerCreation" Description="Creation of container for RB plant required?">true</Field>
+    <Field Type="String" Name="PST_Lib" Description="PST_Lib Container">MG1CS022_MG1CS022_62XSC_V036_TPROT_0</Field>
+    <Field Type="Bool" Name="EOL_ProgrammingOEM" Description="End of line programming OEM?">false</Field>
+    <Field Type="String" Name="ReleaseScope" Description="Release scope">Program and Data</Field>
+    <Field Type="String" Name="DeliveryMode" Description="Delivery Mode" />
+    <Field Type="Bool" Name="SuccessorToTimeLimitedDeliveryECU" Description="Successor to Time Limited Delivery ECU?">false</Field>
+    <Field Type="String" Name="DevelopmentNumber" Description="Development number">0261B00CF0</Field>
+    <Field Type="String" Name="PredecessorHWPartNo" Description="Predecessor HW part no" />
+    <Field Type="String" Name="HardwarePartNumber" Description="Hardware part number">0261S10A31</Field>
+    <Field Type="Bool" Name="ISIR_Required" Description="Initial Sample Inspection Report (ISIR) required?" />
+    <Field Type="Bool" Name="ReflashableECU" Description="Reflashable ECU?" />
+    <Field Type="String" Name="ProgramVersion" Description="Program version">MG1CS022_62XSC_V036_TPROT</Field>
+    <Field Type="String" Name="PredecessorJobID" Description="Predecessor job ID" />
+    <Field Type="Bool" Name="InitiateExpiration" Description="Initiate expiration?" />
+    <Field Type="String" Name="Model" Description="Model">62XS</Field>
+    <Field Type="String" Name="ChangeEngineer" Description="Change engineer ( Outlook Display Name )">Ngo Huu Dat (MS/EJV5-PS)</Field>
+    <Field Type="String" Name="Limitations" Description="Limitations">NO</Field>
+    <Field Type="String" Name="EngineFamily" Description="Engine family">AP2 FFV</Field>
+    <Field Type="String" Name="ReleaseClass" Description="Release class">Production</Field>
+    <Field Type="String" Name="ECR_Notes" Description="ECR notes">This container is for MP1 customer event.</Field>
+    <Field Type="String" Name="SoftwareName" Description="Software name">10SW132482</Field>
+    <Field Type="String" Name="LinkExpiryTrackingList" Description="Link to tracking list" />
+    <Field Type="String" Name="CostAllocationHardware" Description="Cost allocation">BM-00076893_005</Field>
+    <Field Type="String" Name="ProductReleaseLetterComment" Description="Insert description" />
+    <Field Type="Date" Name="RaceLastImportDate" Description="Race Last Import Date">2026-03-10T00:00:00</Field>
+    <Field Type="String" Name="DeliveryType" Description="OEM Delivery Type" />
+    <Field Type="String" Name="CustomerOrderNumber" Description="Customer order number">37820-62X-MG10-M6</Field>
+    <Field Type="String" Name="ECU_HardwareName" Description="ECU hardware name">MG1CS022</Field>
+    <Field Type="Bool" Name="ExpiryInformedToPlant" Description="Expiration informed to RB plant?" />
+    <Field Type="String" Name="Limitations_Description" Description="Limitation Description" />
+    <Field Type="String" Name="CM_Label" Description="Program identification complete (Element name/variant;revision)">MG1CS022_62XSC/V036_TPROT;0</Field>
+    <Field Type="String" Name="CIStatus" Description="ToolChain Status">CI - Triggered</Field>
+    <Field Type="String" Name="CustomerCodeNumber" Description="Project number (1st part, Customer Code Number)">159</Field>
+    <Field Type="String" Name="DeliveryType_CF" Description="Delivery Type">Plant Introduction</Field>
+    <Field Type="String" Name="ProjectCodeNumber" Description="Project number (2nd part, Project Code Number)">3782062XMG10M6</Field>
+    <Field Type="Bool" Name="IsFieldFixForCompliance" Description="Field Fix for Compliance" />
+    <Field Type="String" Name="CustomerHardwarePartNumber" Description="Customer hardware part number">37820-62X-MG10-M6</Field>
+    <Field Type="Bool" Name="BoschPlantIntroduction" Description="Bosch plant introduction?">true</Field>
+    <Field Type="String" Name="ECRStatus" Description="ECR Status" />
+    <Field Type="String" Name="DataVersion" Description="Data version">MG1CS022_62XSC_V036_TPROT_L8-2_FFV_5Dr_Hi_MP1_Gt12.hex</Field>
+    <Field Type="Bool" Name="IsAutomationCITrigger" Description="Is Automation CI Trigger">true</Field>
+    <Field Type="String" Name="ChangeReleasedBySignature" Description="Change is released by ( Outlook Display Name )" />
+    <Field Type="Bool" Name="TimeLimitationRequired" Description="Time limitation required?">false</Field>
+    <Field Type="String" Name="LinkExpiryDecision" Description="Link to source of decision" />
+    <Field Type="String" Name="BoardNumber" Description="Board number" />
+    <Field Type="String" Name="ECRNumberExpiry" Description="ECR number for expiry" />
+    <Field Type="String" Name="DrawingList" Description="Drawing list" />
+    <Field Type="String" Name="ExpiryDate" Description="Expiry date" />
+    <Field Type="Bool" Name="SendContainerToRB_Plant_Started" Description="Sending of container to RB plant started?" />
+    <Field Type="String" Name="Displacement" Description="Displacement">1.5</Field>
+    <Field Type="Int" Name="NumberOfVariants" Description="Number of variants">1</Field>
+    <Field Type="String" Name="SoftwareReplacedByJobnumber" Description="Software replaced by jobnumber" />
+    <Field Type="String" Name="CustomerSoftwarePartNumber" Description="Customer software part number">10SW132482</Field>
+    <Field Type="String" Name="ExpiryComment" Description="Insert description" />
+    <Field Type="Bool" Name="SW_ReleaseLetterSentToOEM" Description="Release Note SW or Release Note SW/CAL (in case of limitations, incl. this info) sent to OEM?" />
+    <Field Type="Bool" Name="SSDValidation" Description="SSD Validation">true</Field>
+    <Field Type="String" Name="ProductReleaseState" Description="Product release state">40: Series</Field>
+    <Field Type="String" Name="NumberOfCylinders" Description="Cylinders">4</Field>
+    <Field Type="Bool" Name="OEM_ConfirmationAvailable" Description="OEM confirmation available?" />
+    <Field Type="Bool" Name="ExpirationLetterSentToOEM" Description="Expiration letter sent to OEM?" />
+    <Field Type="String" Name="Car" Description="Car">City</Field>
+    <Field Type="String" Name="ISIR_DueDate" Description="Initial Sample Inspection Report (ISIR) due date" />
+    <Field Type="StringList" Name="ChangeReason" Description="Change Reason">Customer requirement (Target: Customer covers costs)</Field>
+    <Field Type="StringList" Name="EmissionNorm" Description="Emission norm">PROCONVE L8</Field>
+    <Field Type="StringList" Name="ModelYear" Description="Model year">2027</Field>
+    <Field Type="StringList" Name="Immobilizer" Description="Immobilizer">active|IMMO6</Field>
+    <Field Type="StringList" Name="Market" Description="Market">Brazil</Field>
+    <Field Type="StringList" Name="Transmission" Description="Transmission">CVT</Field>
+    <Field Name="JobRouted_By">NDH3HC</Field>
+    <Field Name="ToolRunTriggeredBy_Dept">MS/EJV5-PS</Field>
+    <Field Name="CIExecution">True</Field>
+    <Field Name="D2PJobNumber">WF218081</Field>
+  </Fields>
+  <Fields Group="Check">
+    <Field Type="Bool" Name="OT_TestSuccessful" Description="Has an OT according to process library requirements been successfully performed?" />
+    <Field Type="Bool" Name="Functional_Limitation_CF" Description="Functional limitations are mentioned in clear text in the release documentation" />
+    <Field Type="String" Name="SRDComment" Description="Insert description" />
+    <Field Type="String" Name="DataAssessmentComment" Description="Insert description" />
+    <Field Type="String" Name="MapsCurveComment" Description="Insert description" />
+    <Field Type="String" Name="OTComment" Description="Insert description" />
+    <Field Type="Bool" Name="Safety_Monitoring_SW_by_RB" Description="Safety Monitoring SW by RB">true</Field>
+    <Field Type="Bool" Name="RiskReleaseRequired" Description="Risk assessment required?" />
+    <Field Type="String" Name="MonitoringDataTestSuccessful" Description="Was the ECU-MST process performed successfully and all Data related documents stored accordingly?" />
+    <Field Type="String" Name="SSD_ComplianceCheckSuccessful" Description="Does the SSD Compliance Report contain zero deviations?" />
+    <Field Type="Bool" Name="DataAssessmentRelease" Description="Are there open points out of final data assessment?" />
+    <Field Type="String" Name="PVER_MapCurveCheckCritical" Description="Has PVER critical content with respect to map/curve resizing?" />
+    <Field Type="Bool" Name="DataSSD_Release" Description="Has a SSD Check been performed successfully?" />
+    <Field Type="Bool" Name="SafetyCalibrationResponsibility" Description="Has Bosch responsibility for Safety Calibration? ">true</Field>
+    <Field Type="Bool" Name="AT_TestSuccessful" Description="Has an AT according to process library requirements been successfully performed?" />
+    <Field Type="String" Name="MonitoringSW_TestSuccessful" Description="Was the ECU-MST process performed successfully and all Software related documents stored accordingly?" />
+    <Field Type="Bool" Name="CalibrationChecksResult" Description="Summarized result: It can be released? (all codex related topics w/ regard to Calibration completed?)" />
+    <Field Type="String" Name="ATComment" Description="Insert description" />
+    <Field Type="String" Name="MonitoringSW_Comment" Description="Insert description" />
+    <Field Type="Bool" Name="Functional_Safety_CF" Description="Functional Safety is ensured in the non limited area" />
+    <Field Type="Bool" Name="IsRequiredSecBOM" Description="Does your process require a SecBOM to be in webFLOW - XML format?">true</Field>
+    <Field Type="Bool" Name="CalibrationChecksCompleted" Description="All calibration check tasks completed?" />
+    <Field Type="String" Name="HexCodeCompareComment" Description="Insert description" />
+    <Field Type="Bool" Name="SRD_TestSuccessful" Description="Has an SRD according to process library requirements been performed successfully?" />
+    <Field Type="Bool" Name="SaftyCalibrationCompletedByMoPeD" Description="Has Safety Calibration Completed by MoPeD?" />
+    <Field Type="Bool" Name="ResizedCalibrationDetected" Description="Has calibration data resizing in critical maps/curves?" />
+    <Field Type="String" Name="OT_TestEnvironment" Description="Which test environment has been used for OT?" />
+    <Field Type="String" Name="HexCodeComparePassed" Description="Are all differences in hex code compare allowed?" />
+    <Field Type="Bool" Name="IntegrationChecksCompleted" Description="All integration check tasks completed?" />
+    <Field Type="Bool" Name="DataIntegrationResponsibility" Description="Is Bosch responsible for data integration?">true</Field>
+    <Field Type="Bool" Name="CalibrationChecksRequired" Description="Have calibration checks to be processed for this release?">true</Field>
+    <Field Type="String" Name="MonitoringComment" Description="Insert description" />
+    <Field Type="Bool" Name="CalibrationResponsibility" Description="Has Bosch Cal Data Responsibility beside Safety Calibration? ">true</Field>
+    <Field Type="String" Name="SSD_ComplianceComment" Description="Insert description" />
+  </Fields>
+  <Fields Group="">
+    <Field Type="Date" Name="ExternalResultLastImportDate" Description="ExternalResult last import date" />
+    <Field Type="Bool" Name="IsHardwarwPartNumberInValid" Description="Check hardware part number validaity" ReadOnly="true">false</Field>
+    <Field Type="String" Name="DefaultRouting_search" Description="Routing" ReadOnly="true">Honda_MG1CA020</Field>
+    <Field Type="Bool" Name="HinddenFieldPhase2JobClosure" Description="Job closure phase2" ReadOnly="true">false</Field>
+    <Field Type="Bool" Name="EHB6MemberInDeliveryToPlant" Description="EHB6 is member of delivery to plant instance" ReadOnly="true">true</Field>
+    <Field Type="String" Name="WFState_search" Description="Status" ReadOnly="true">In work</Field>
+    <Field Type="String" Name="PVERArchivingStatus" Description="PVER Archiving Status" ReadOnly="true">Successful</Field>
+    <Field Type="Bool" Name="EHDMemberInDeliveryToPlant" Description="EHD is member of delivery to plant instance" ReadOnly="true">false</Field>
+    <Field Type="Date" Name="PrerunExternalResultLastImportDate" Description="PrerunExternalResult last import date" />
+    <Field Type="Bool" Name="SafetyCalRespValidation" Description="Safety Calibration Responsibility to be trigeered" ReadOnly="true">true</Field>
+    <Field Type="String" Name="Creator_search" Description="Creator" ReadOnly="true">Ngo Huu Dat (MS/EJV5-PS)Â£$Dat.NgoHuu@vn.bosch.com</Field>
+    <Field Type="Int" Name="NoOfController" Description="NoOfController" />
+  </Fields>
+  <Fields Group="ECU">
+    <Field Type="String" Name="IndiSpec" Description="Specification-ID for PAV (INDI_SPEC)">Honda_MG1CS022_CS_IndiSpec_01</Field>
+    <Field Type="String" Name="TP_Level" Description="TP_Level">9</Field>
+    <Field Type="String" Name="FSWID_ProgramVersion" Description="FSWID Program version">V036</Field>
+    <Field Type="String" Name="FamilyName" Description="Family name (FAM_NAME)">MG1CS022</Field>
+    <Field Type="Bool" Name="LCTVorb_Required" Description="Project with LCTVorb?" />
+    <Field Type="String" Name="FSWID_ProjectVersion" Description="FSWID Project version">62XS</Field>
+    <Field Type="String" Name="DiagnosticProtocol" Description="Diagnostic protocol" />
+  </Fields>
+  <Fields Group="Notes">
+    <Field Type="String" Name="PreparationNotes" Description="Preparation comment" />
+    <Field Type="String" Name="CoordinationNotes" Description="Coordination comment" />
+    <Field Type="String" Name="RequestNotes" Description="Request comment" />
+    <Field Type="String" Name="PlantIntroductionNotes" Description="Plant Introduction comment" />
+    <Field Type="String" Name="ExecutionNotes" Description="Execution comment" />
+    <Field Type="String" Name="CompletionNotes" Description="Completion comment" />
+    <Field Type="String" Name="PrerunNotes" Description="Prerun comment" />
+  </Fields>
+  <Fields Group="Customer">
+    <Field Type="String" Name="ECU_rewriting_ID" Description="ECU rewriting ID">01000000</Field>
+    <Field Type="String" Name="Component_ID" Description="Component ID" />
+    <Field Type="String" Name="SW_Version" Description="SW version">01</Field>
+    <Field Type="String" Name="ECU_default_ID" Description="ECU default ID">FFFFEFFFFFEE00000000</Field>
+    <Field Type="String" Name="SecurityCoefficient" Description="Security coefficient">FFFFFFFFFFFF</Field>
+    <Field Type="String" Name="ECU_progam_ID" Description="ECU progam ID">33373830352D3632582D4D473130</Field>
+  </Fields>
+  <Fields Group="Adapter">
+    <Field Name="PSTBuildType" Type="String">MDG</Field>
+    <Field Name="BuildMode" Type="String">4</Field>
+    <Field Name="BuildCount" Type="String">4_0</Field>
+    <Field Name="PSTBuildVersion" Type="String">2019.2_3.0.0</Field>
+    <Field Name="PSTName" Type="String">MG1CS022_62XSC</Field>
+    <Field Name="PSTVariant" Type="String">V036_TPROT</Field>
+    <Field Name="PSTRevision" Type="String">0</Field>
+    <Field Name="ProjectName" Type="String">MG1CS022</Field>
+    <Field Name="PVER_Label" Type="String">MG1CS022_62XSC/V036_TPROT;0</Field>
+    <Field Name="Root_PST_Folder" Type="String">\\Bosch.com\dfsrb\DfsDE\LOC\Si\GS\SDE\MDG1\pst\MDG1_JAP\Honda\MG1CS022\Int\MG1CS022_62XSC__V036_TPROT__0__Build_1\MG1CS022_62XSC_V036_TPROT</Field>
+    <Field Name="CMBTYP_SY" Type="String">1</Field>
+    <Field Name="ECU_TRICORE_SY" Type="String"></Field>
+    <Field Name="INFOBLOCKS" Type="String">&lt;![CDATA[&lt;BLKLINK START="0x80000020" NXTBLK="0x80070000" /&gt;
+&lt;BLKLINK START="0x80070000" NXTBLK="0x800A0000" /&gt;
+&lt;BLKLINK START="0x800A0000" NXTBLK="0x804D8000" /&gt;
+&lt;BLKLINK START="0x804D8000" NXTBLK="0x00" /&gt;]]&gt;</Field>
+    <Field Name="VDS_STARTADDRESS" Type="String" />
+    <Field Name="COMPATIBILITY_POINTER_LIST" Type="String">&lt;![CDATA[&lt;IB BLKADDR="0x804D8000" DEPBLKADDR="0x800A0000" /&gt;
+]]&gt;</Field>
+    <Field Name="ABMBLOCKS" Type="String">&lt;![CDATA[&lt;PRIMARY START="0x80000000" \&gt;
+]]&gt;</Field>
+    <Field Name="XADDRESS" Type="String"></Field>
+    <Field Name="SB_SIG_STARTADDRESS" Type="String"></Field>
+    <Field Name="SB_SIG_ENDADDRESS" Type="String"></Field>
+    <Field Name="CB_ADDON_STARTADDRESS" Type="String"></Field>
+    <Field Name="CB_ADDON_ENDADDRESS" Type="String"></Field>
+    <Field Name="TPROT_STARTADDRESS" Type="String"></Field>
+    <Field Name="CB_STARTADDRESS" Type="String"></Field>
+    <Field Name="ASW0_STARTADDRESS" Type="String"></Field>
+  </Fields>
+  <Fields Group="General">
+    <Field Type="String" Name="WD_Brand">Honda</Field>
+    <Field Type="String" Name="RunMode">PreRun</Field>
+    <Field Type="String" Name="IsSamPD">0</Field>
+    <Field Type="String" Name="UserNTId">COPRSI</Field>
+  </Fields>
+  <Fields Group="PreRun">
+    <Field Type="String" Name="LT_Watcher1_ToolTemplate">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\PDT_LT_Watcher1.txt</Field>
+    <Field Type="String" Name="LT_Watcher2_ToolTemplate">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\PDT_LT_Watcher2.txt</Field>
+    <Field Type="String" Name="Prerun_CC_Config_FileAttributes">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Global_FileList.txt</Field>
+    <Field Type="String" Name="ShowInputMask">1</Field>
+    <Field Type="String" Name="ToolRunSSDCheckCompliance">0</Field>
+    <Field Type="String" Name="SRVChecker_PVER_Scan">0</Field>
+    <Field Type="String" Name="WorkingDirectory">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081</Field>
+    <Field Type="String" Name="TaskList_Prerun">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Tasklist_PreRun.xml</Field>
+    <Field Type="String" Name="CopyFilesList_Configuration">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\CopyFilesList_Configuration.xml</Field>
+    <Field Type="String" Name="CheckoutD2PFiles_Configuration">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\CheckoutD2PContainerFiles_Configuration.xml</Field>
+    <Field Type="String" Name="LatestToolVersion_Batch">LatestToolVer_Hexmodx.bat</Field>
+    <Field Type="String" Name="PDTDB_Checkin_VariableList">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\PDTDB_Checkin_VariableList_V01.xml</Field>
+    <Field Type="String" Name="Systconst_Configuration_Prerun">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Systconst_Configuration_checkin.xml</Field>
+    <Field Type="String" Name="ToolList_Config">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\ToolListConfig.XML</Field>
+    <Field Type="String" Name="ToolRunSRVChecker">0</Field>
+    <Field Type="String" Name="CheckoutPST_LIbFiles_Configuration">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\CheckoutPST_LIbFiles_Configuration.xml</Field>
+    <Field Type="String" Name="Prerun_PDT_CC_Handler_Config">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Config_CC_Standard_LT.xml</Field>
+    <Field Type="String" Name="ECUSECU_SeriesTest_Matrix_Path">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Matrix_EcuSecu_SeriesTest_V01.csv</Field>
+    <Field Type="String" Name="Remainder_ExcludeFilesListName">ReminderZipExcludeFileList.txt</Field>
+    <Field Type="String" Name="HexServiceTimeout">210</Field>
+    <Field Type="String" Name="A2LServiceTimeout">120</Field>
+    <Field Name="PDT_CC_Handler_Config">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Config_CC_Standard_LT.xml</Field>
+  </Fields>
+  <Fields Group="Controls">
+    <Field Type="String" Name="PDT_Config">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config</Field>
+  </Fields>
+  <Fields Group="Actual">
+    <Field Type="String" Name="DemoMode">1</Field>
+  </Fields>
+  <Fields Group="CENV_PD">
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="Adapter_path">C:\toolbase\pdt_adapter\v5.2.6\</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="WrapperPath">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\ProcDesc\D2C_PreRun\</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="PDRoot_D2C_Prerun">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\ProcDesc\D2C_PreRun</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="PD_Version">PDW0009</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="SourceLibraryFile_PrerunD2C">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\ProcDesc\D2C_PreRun\PDW0009\LIB_TOOLCHAIN_E383514A0E036735.xml</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="WorkingDirectory_Root">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="PD_Version_Prerun">PDW0009</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="WrapperPath_PrerunD2C">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\ProcDesc\D2C_PreRun\PDW0009</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="ProcessDescriptionFile_PrerunD2C">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\ProcDesc\D2C_PreRun\PDW0009\PDW0009.XML</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="FileList_PreRun_EXEC_IN">FL_EI_PreRun</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="FileList_PreRun_EXEC_OUT">FL_EO_PreRun</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="ProgramFilesDirectory">C:\toolbase\pdt_toolchain\1v72.1</Field>
+    <Field App="PD" TC_Type="EXEC" Step="004" Name="ToolchainApplication_PrerunD2C">C:\toolbase\pdt_toolchain\1v72.1\ToolChain.exe</Field>
+  </Fields>
+  <Fields Group="CENV_Common">
+    <Field Type="String" Name="Prerun_CC_Config_FileAttributes">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Global_FileList.txt</Field>
+    <Field Type="String" Name="ShowInputMask">1</Field>
+    <Field Type="String" Name="ToolRunSSDCheckCompliance">0</Field>
+    <Field Type="String" Name="SRVChecker_PVER_Scan">0</Field>
+    <Field Type="String" Name="WorkingDirectory">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081</Field>
+    <Field Type="String" Name="TaskList_Prerun">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Tasklist_PreRun.xml</Field>
+    <Field Type="String" Name="CopyFilesList_Configuration">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\CopyFilesList_Configuration.xml</Field>
+    <Field Type="String" Name="CheckoutD2PFiles_Configuration">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\CheckoutD2PContainerFiles_Configuration.xml</Field>
+    <Field Type="String" Name="LatestToolVersion_Batch">LatestToolVer_Hexmodx.bat</Field>
+    <Field Type="String" Name="PDTDB_Checkin_VariableList">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\PDTDB_Checkin_VariableList_V01.xml</Field>
+    <Field Type="String" Name="Systconst_Configuration_Prerun">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Systconst_Configuration_checkin.xml</Field>
+    <Field Type="String" Name="ToolList_Config">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\ToolListConfig.XML</Field>
+    <Field Type="String" Name="ToolRunSRVChecker">0</Field>
+    <Field Type="String" Name="CheckoutPST_LIbFiles_Configuration">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\CheckoutPST_LIbFiles_Configuration.xml</Field>
+    <Field Type="String" Name="Prerun_PDT_CC_Handler_Config">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Config_CC_Standard_LT.xml</Field>
+    <Field Type="String" Name="ECUSECU_SeriesTest_Matrix_Path">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Matrix_EcuSecu_SeriesTest_V01.csv</Field>
+    <Field Type="String" Name="Remainder_ExcludeFilesListName">ReminderZipExcludeFileList.txt</Field>
+    <Field Type="String" Name="LT_Watcher1_ToolTemplate">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\PDT_LT_Watcher1.txt</Field>
+    <Field Type="String" Name="LT_Watcher2_ToolTemplate">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\PDT_LT_Watcher2.txt</Field>
+    <Field Type="String" Name="HexServiceTimeout">210</Field>
+    <Field Type="String" Name="A2LServiceTimeout">120</Field>
+    <Field Type="String" Name="PDT_DB_Type">Production</Field>
+    <Field Name="TaskList">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Tasklist_PreRun.xml</Field>
+    <Field Name="CC_Config_FileAttributes">C:\temp\PDT\JAP\MDG1\Prerun_Toolchain\PreRun\MG1CS022\WF218081\Tool_Config\Global_FileList.txt</Field>
+  </Fields>
+  <Fields Group="ExternalResult">
+    <Field Name="SSD_COMPLIANCE_LABEL_COUNT_A2L" Type="String" Description="Number of SSD compliance labels found in A2L">76</Field>
+    <Field Name="SSD_COMPLIANCE_A2L_ERROR" Type="String" Description="Error info A2L SSD compliance label check in case of execution failure">noerror</Field>
+    <Field Name="SSD_COMPLIANCE_LABEL_FAILURE_COUNT" Type="String" Description="Number of failed SSD compliance labels">-1</Field>
+    <Field Name="SSD_COMPLIANCE_CHECK_ERROR" Type="String" Description="Error info iCDM SSD compliance check in case of execution failure">"FEAVAL.PIDC_ELEMENT_MISSING":"PIDC element is mandatory since some of the parameters being reviewed have attribute dependencies"</Field>
+    <Field Name="SRVCHECKER_ERROR" Type="String" Description="Error in SRVChecker">noerror</Field>
+    <Field Name="SRVCHECKER_PVER_LABEL_COUNT" Type="String" Description="Numbers of critical labels found in PVER">0</Field>
+    <Field Name="SRVCHECKER_PVER_TOOLVERSION" Type="String" Description="SRVChecker version used for PVER scan">2.1.0</Field>
+    <Field Name="SRVCHECKER_AFFECTED_LABEL_COUNT" Type="String" Description="Numbers of affected labels found in Calibration">0</Field>
+    <Field Name="SWSEEDKEY_VERSION" Type="String" Description="ECU seed key derived from rba_EcuSecu_EcucValues.arxml">NotFound</Field>
+    <Field Name="IS_SEED_KEY_VALID" Type="String" Description="Is Seed Key valid">0</Field>
+    <Field Name="SEED_KEY_MAIL_MESSAGE" Type="String" Description="Mail message for EHT5">ECU seed key is not found</Field>
+    <Field Name="BOOTCTRL_VERSION" Type="String" Description="BootCtrl Version derived from Integration Hex File">V04.25.06</Field>
+    <Field Name="SSD_COMPLIANCE_CSSD_FAILURE_COUNT" Type="String" Description="Number of failed CSSD compliance labels">-1</Field>
+    <Field Name="SSD_COMPLIANCE_SSD2RV_FAILURE_COUNT" Type="String" Description="Number of failed SSD2RV compliance labels">-1</Field>
+    <Field Name="PST_BUILD_VERSION" Type="String" Description="PST Build version">2019.2_3.0.0</Field>
+  </Fields>
+</Job>

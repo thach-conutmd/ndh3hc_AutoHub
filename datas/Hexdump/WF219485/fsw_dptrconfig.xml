@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CONFIG>
+  <!--  Beispiel , mit IBChain und fixen Pointern -->
+  <DATAPOINTERS>
+    <DATAPOINTER>
+      <!-- Source sagt, das es fixe Angaben sind -->
+      <DPTR-SOURCE>MERGED</DPTR-SOURCE>
+      <!--Alias für die Verwendung im Addressmodel-->
+      <DPTR_ALIAS>SB_MERGED</DPTR_ALIAS>
+      <!-- ID des Datenblock -->
+      <DATABLOCK_ID>SB_MERGED</DATABLOCK_ID>
+      <!-- der Name des Datenblock -->
+      <DATABLOCK_NAME>
+      </DATABLOCK_NAME>
+      <!-- welche Signatur wird mit diesem Pointer erstellt-->
+      <SIGNBLOCK_NAME>SIGNATURE</SIGNBLOCK_NAME>
+      <!-- no checksum required -->
+      <CHECKSUM>YES</CHECKSUM>
+      <!-- Session (optional)-->
+      <SESSION>programming</SESSION>
+      <!-- Programmierbar -->
+      <PROGRAMMABLE>YES</PROGRAMMABLE>
+      <!-- Ranges -->
+      <DPTR_BLOCKS>
+        <!-- Ranges for Addresses-->
+        <DPTR_BLOCK ID="BHMD">
+          <ADDRESS START="0x80000000" END="0x8000001F" />
+        </DPTR_BLOCK>
+        <DPTR_BLOCK ID="0x10" />
+      </DPTR_BLOCKS>
+    </DATAPOINTER>
+    <DATAPOINTER>
+      <!-- Source sagt, das es fixe Angaben sind -->
+      <DPTR-SOURCE>FIXED</DPTR-SOURCE>
+      <!--Alias für die Verwendung im Addressmodel-->
+      <DPTR_ALIAS>FLASH_0</DPTR_ALIAS>
+      <!-- ID des Datenblock -->
+      <DATABLOCK_ID>FLASH_0</DATABLOCK_ID>
+      <!-- der Name des Datenblock -->
+      <DATABLOCK_NAME>
+      </DATABLOCK_NAME>
+      <!-- welche Signatur wird mit diesem Pointer erstellt-->
+      <SIGNBLOCK_NAME>SIGNATURE_0</SIGNBLOCK_NAME>
+      <!-- no checksum required -->
+      <CHECKSUM>YES</CHECKSUM>
+      <!-- Session (optional)-->
+      <SESSION>programming</SESSION>
+      <!-- Ranges -->
+      <DPTR_BLOCKS>
+        <!-- Ranges for Addresses-->
+        <DPTR_BLOCK>
+          <ADDRESS START="0x0" END="0x0" />
+        </DPTR_BLOCK>
+      </DPTR_BLOCKS>
+    </DATAPOINTER>
+    <!-- **************************************************** 
+		  NOTE!!!!
+		  This is a datapointer for remaining infoblocks except SB block
+		  ****************************************************  -->
+    <DATAPOINTER>
+      <!-- Source sagt, das es fixe Angaben sind -->
+      <DPTR-SOURCE>IBCHAIN</DPTR-SOURCE>
+      <!--Alias für die Verwendung im Addressmodel-->
+      <DPTR_ALIAS />
+      <!-- ID des Datenblock -->
+      <DATABLOCK_ID />
+      <!-- der Name des Datenblock -->
+      <DATABLOCK_NAME />
+      <!-- welche Signatur wird mit diesem Pointer erstellt-->
+      <SIGNBLOCK_NAME>SIGNATURE</SIGNBLOCK_NAME>
+      <!-- no checksum required -->
+      <CHECKSUM>YES</CHECKSUM>
+    </DATAPOINTER>
+    <!--****************************************************
+		 Above is the datapointer for remaining infoblocks except SB block
+		****************************************************  -->
+    <DATAPOINTER>
+      <!-- Source sagt, das es fixe Angaben sind -->
+      <DPTR-SOURCE>FIXED</DPTR-SOURCE>
+      <!--Alias für die Verwendung im Addressmodel-->
+      <DPTR_ALIAS>DATAPOINTER_HSM_GUAM</DPTR_ALIAS>
+      <!-- ID des Datenblock -->
+      <DATABLOCK_ID>DATAPOINTER_HSM_GUAM</DATABLOCK_ID>
+      <!-- der Name des Datenblock -->
+      <DATABLOCK_NAME>
+      </DATABLOCK_NAME>
+      <!-- welche Signatur wird mit diesem Pointer erstellt-->
+      <SIGNBLOCK_NAME>SIGNATURE</SIGNBLOCK_NAME>
+      <!-- no checksum required -->
+      <CHECKSUM>YES</CHECKSUM>
+      <!-- Session (optional)-->
+      <SESSION>programming</SESSION>
+      <!-- Ranges -->
+      <DPTR_BLOCKS>
+        <!-- Ranges for Addresses-->
+        <DPTR_BLOCK>
+          <ADDRESS START="0x80010000" END="0x8004FEFF" />
+        </DPTR_BLOCK>
+      </DPTR_BLOCKS>
+    </DATAPOINTER>
+    <DATAPOINTER>
+      <!-- Source sagt, das es fixe Angaben sind -->
+      <DPTR-SOURCE>FIXED</DPTR-SOURCE>
+      <!--Alias für die Verwendung im Addressmodel-->
+      <DPTR_ALIAS>BHMD</DPTR_ALIAS>
+      <!-- ID des Datenblock -->
+      <DATABLOCK_ID>BHMD</DATABLOCK_ID>
+      <!-- der Name des Datenblock -->
+      <DATABLOCK_NAME>
+      </DATABLOCK_NAME>
+      <!-- welche Signatur wird mit diesem Pointer erstellt-->
+      <SIGNBLOCK_NAME>SIGNATURE</SIGNBLOCK_NAME>
+      <!-- no checksum required -->
+      <CHECKSUM>No</CHECKSUM>
+      <DATAPOINTER>NO</DATAPOINTER>
+      <!-- Session (optional)-->
+      <SESSION>programming</SESSION>
+      <!-- Ranges -->
+      <DPTR_BLOCKS>
+        <!-- Ranges for Addresses-->
+        <DPTR_BLOCK>
+          <ADDRESS START="0x08FC0000" END="0x08FC001F" />
+        </DPTR_BLOCK>
+      </DPTR_BLOCKS>
+    </DATAPOINTER>
+  </DATAPOINTERS>
+</CONFIG>
