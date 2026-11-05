@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from autohub.core.batch_journal import JsonBatchJournal
+from autohub.core.dialogs import QtDialogs
 from autohub.core.com import com_session
 from autohub.core.module_base import AutoHubModule
 from autohub.core.settings import JsonSettingsStore, SettingsStore
@@ -16,7 +17,11 @@ from autohub.services.FormB.form_b import TEMPLATE_PATH as FORM_B_TEMPLATE_PATH,
 from autohub.modules.home.module import HomeModule
 from autohub.modules.home.service import VariantService
 from autohub.modules.hexdump.module import HexdumpModule
+from autohub.modules.settings.creation_form import load_config
 from autohub.modules.settings.module import SettingsModule
+from autohub.modules.testing.features import add_instance_member_feature
+from autohub.modules.testing.module import TestingModule
+from autohub.modules.testing.service import InstanceMemberTestService
 from autohub.services.EcuInfoSheet.EcuInfoSheet import EcuInfoSheet
 from autohub.services.HWInfo.HWInfo import HWInfo
 from autohub.services.KickOff.KickOff import KickOffMeeting
@@ -51,6 +56,11 @@ def build_templates(settings: SettingsStore) -> TemplateManager:
     return templates
 
 
+def build_webflow_test_session(settings: SettingsStore) -> WebFlow:
+    config = load_config(settings)
+    return WebFlow(driver_path=config.driver_path, base_url=config.base_url, trace_dir=config.trace_dir)
+
+
 def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
     """Sidebar modules in display order. To add a feature, build and append its module here."""
     settings = settings or JsonSettingsStore()
@@ -68,5 +78,14 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
             lambda: ComparisonService(WebFlow), settings, lambda: MasterImplUpdater(open_master_sheet, com_session)
         ),
         HexdumpModule(),
+        TestingModule([
+            add_instance_member_feature(
+                InstanceMemberTestService(
+                    lambda: build_webflow_test_session(settings),
+                    lambda: load_config(settings).change_engineer,
+                ),
+                QtDialogs,
+            ),
+        ]),
         SettingsModule(settings, templates),
     ]
