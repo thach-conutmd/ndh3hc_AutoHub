@@ -1,26 +1,10 @@
-"""Tests for the Hexdump module: service adapter error conversion and widget behavior."""
+"""Tests for the Hexdump module widget and its placeholder backend."""
 import time
-
-import pytest
 
 from autohub.core.ports import HexdumpInputError
 from autohub.modules.hexdump.module import HexdumpModule
 from autohub.modules.hexdump.ui import HexdumpWidget
-from autohub.services.HexdumpAnalyzer.exceptions import HexdumpSettingsError
-from autohub.services.HexdumpAnalyzer.range_finder import find_range
-from autohub.services.HexdumpAnalyzer.service import HexdumpService
-
-DFLASH_TEXT = """+-------+
-| Id: 7
-| Name: BLK_A
-| Info: x
-+-------+
-+-------+
-| Id: 8
-| Name: BLK_B
-| Info: y
-+-------+
-"""
+from autohub.modules.hexdump.unavailable import UnavailableHexdumpService
 
 
 class FakeAnalysis:
@@ -61,19 +45,6 @@ def _wait_idle(qapp, widget, timeout=5.0):
         time.sleep(0.01)
     qapp.processEvents()
     assert not widget._busy, "background task did not finish"
-
-
-def _settings_toml(path_to_source) -> str:
-    return f"""
-[[file]]
-FILE = '{path_to_source}'
-APP = "notepad"
-MODE = "block"
-
-[[file.shot]]
-name = "first"
-key = "BLK_A"
-"""
 
 
 def test_module_is_named_hexdump_and_builds_widget(qapp):
@@ -158,47 +129,13 @@ def test_browse_fills_path_field(qapp):
         widget.close()
 
 
-def test_service_find_range_matches_direct_call(tmp_path):
-    dump = tmp_path / "dump.txt"
-    dump.write_text(DFLASH_TEXT, encoding="utf-8")
-    assert HexdumpService().find_range("block", str(dump), "BLK_B") == find_range("block", str(dump), "BLK_B")
-
-
-def test_service_find_range_converts_missing_key_and_file(tmp_path):
-    dump = tmp_path / "dump.txt"
-    dump.write_text(DFLASH_TEXT, encoding="utf-8")
-    with pytest.raises(HexdumpInputError):
-        HexdumpService().find_range("block", str(dump), "NOPE")
-    with pytest.raises(HexdumpInputError):
-        HexdumpService().find_range("block", str(tmp_path / "absent.txt"), "BLK_A")
-
-
-def test_service_find_range_rejects_unknown_mode(tmp_path):
-    with pytest.raises(HexdumpInputError, match="unknown MODE"):
-        HexdumpService().find_range("bogus", str(tmp_path), "KEY")
-
-
-def test_service_check_settings_converts_errors_to_messages(tmp_path):
-    bad = tmp_path / "bad.toml"
-    bad.write_text('[common]\nFOO = 1\n', encoding="utf-8")
-    with pytest.raises(HexdumpInputError) as info:
-        HexdumpService().check_settings(str(bad))
-    assert "unknown parameter 'FOO'" in str(info.value)
-    assert "Nothing to capture" in str(info.value)
-
-
-def test_service_check_settings_summarizes_valid_file(tmp_path):
-    source = tmp_path / "source.txt"
-    source.write_text(DFLASH_TEXT, encoding="utf-8")
-    settings_file = tmp_path / "job.toml"
-    settings_file.write_text(_settings_toml(source), encoding="utf-8")
-    summary = HexdumpService().check_settings(str(settings_file))
-    assert summary.startswith("OK: 1 file(s), 1 shot(s), output folder 'out'.")
-    assert "MODE=block" in summary and "- first: key=BLK_A" in summary
-
-
-def test_service_settings_error_is_wrapped_not_leaked(tmp_path):
-    with pytest.raises(HexdumpInputError) as info:
-        HexdumpService().check_settings(str(tmp_path / "missing.toml"))
-    assert not isinstance(info.value, HexdumpSettingsError)
-    assert "Settings file not found" in str(info.value)
+def test_placeholder_backend_reports_unavailable_on_every_action(qapp):
+    widget = HexdumpWidget(UnavailableHexdumpService(), dialogs=FakePicker())
+    try:
+        widget._dump_path.setText("dump.txt")
+        widget._key.setText("KEY")
+        widget._find_range()
+        _wait_idle(qapp, widget)
+        assert widget._range_result.text() == "Not found: The Hexdump service is not available yet."
+    finally:
+        widget.close()
