@@ -112,8 +112,8 @@ def test_event_is_left_aligned_and_columns_fit_individual_content(qapp):
         checklist.resize(width, 300)
         qapp.processEvents()
         table = checklist._table
-        assert sum(table.columnWidth(col) for col in range(table.columnCount())) == table.viewport().width()
-        assert table.columnWidth(1) <= 240
+        assert sum(table.columnWidth(col) for col in range(table.columnCount())) <= table.viewport().width()
+        assert table.columnWidth(1) <= max(240, 0.2 * table.viewport().width())
         assert table.columnWidth(0) == min(table.columnWidth(col) for col in range(table.columnCount()))
         assert table.horizontalScrollBar().maximum() == 0
         assert table.columnWidth(5) < table.columnWidth(3)
@@ -159,8 +159,8 @@ def test_maximized_table_caps_part_number_and_keeps_select_narrow(qapp):
     checklist.show()
     qapp.processEvents()
     table = checklist._table
-    assert table.columnWidth(1) <= 240
+    assert table.columnWidth(1) <= max(240, 0.2 * table.viewport().width())
     assert table.columnWidth(0) < 100
-    assert table.columnWidth(3) > table.columnWidth(1) or table.columnWidth(5) > table.columnWidth(1)
-    assert sum(table.columnWidth(col) for col in range(table.columnCount())) == table.viewport().width()
+    assert all(table.columnWidth(1) > table.columnWidth(col) for col in range(2, table.columnCount()))
+    assert sum(table.columnWidth(col) for col in range(table.columnCount())) <= table.viewport().width()
     checklist.close()

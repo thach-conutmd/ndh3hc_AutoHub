@@ -29,6 +29,26 @@ _HEADERS = (
 )
 
 
+def _share_proportionally(bases: list[int], pool: int, limit: int) -> list[int]:
+    """Split pool across bases in proportion to each base, capping each share at limit."""
+    result = [0] * len(bases)
+    active = list(range(len(bases)))
+    while active:
+        total = sum(bases[i] for i in active) or 1
+        capped = [i for i in active if pool * bases[i] / total > limit]
+        if not capped:
+            shares = {i: int(pool * bases[i] / total) for i in active}
+            for i in active:
+                result[i] = shares[i]
+            result[active[-1]] += pool - sum(shares.values())
+            break
+        for i in capped:
+            result[i] = limit
+            pool -= limit
+            active.remove(i)
+    return result
+
+
 class CreationTable(QTableWidget):
     def __init__(self):
         super().__init__(0, len(_HEADERS))
@@ -45,18 +65,17 @@ class CreationTable(QTableWidget):
             for column in range(self.columnCount())
         ]
         select_width = widths[0]
-        part_width = min(widths[1], _PART_NUMBER_MAX_WIDTH)
         others = widths[2:]
-        available = self.viewport().width() - select_width - part_width
-        if sum(others) > available:
-            others = [int(width * available / sum(others)) for width in others]
-            others[-1] += available - sum(others)
+        available = max(self.viewport().width() - select_width, 0)
+        fill_width = -(-(available + 24 * len(others)) // (len(others) + 1))
+        part_width = max(_PART_NUMBER_MAX_WIDTH, fill_width, max(others) + 24)
+        if available - part_width >= sum(others):
+            others = _share_proportionally(others, available - part_width, part_width - 24)
+            widths = [select_width, part_width, *others]
         else:
-            extra = available - sum(others)
-            total = sum(others) or 1
-            others = [width + int(extra * width / total) for width in others]
-            others[-1] += available - sum(others)
-        widths = [select_width, part_width, *others]
+            part_base = max(widths[1], max(others) + 24)
+            shares = _share_proportionally([part_base, *others], available, available)
+            widths = [select_width, *shares]
         for column, width in enumerate(widths):
             self.setColumnWidth(column, width)
 
