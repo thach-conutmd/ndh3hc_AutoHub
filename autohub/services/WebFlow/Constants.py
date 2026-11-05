@@ -48,6 +48,16 @@ BODY_ACTION_RIBBON_CLASS = "action-ribbon"  # Class name for the action ribbon i
 BODY_INFORMATION_TITLE_XPATH = '//span[text()=" Job information "]'     # XPath of the body information title
 BODY_INFORMATION_BODY_CSS    = 'div[style^="display:"]'  # CSS selector for the body of the job information section
 
+INSTANCE_MEMBERS_TIMEOUT          = 30                    # Seconds the Instance Members dialog may take to load its roles and users
+INSTANCE_MEMBERS_BUTTON_XPATH     = '//span[@data-pc-section="label" and normalize-space()="Instance Members"]/ancestor::button[1]'
+INSTANCE_MEMBERS_DIALOG_CSS       = '#dlgActiveInstanceMembers div[role="dialog"]'  # The "Job Instance Members" dialog
+INSTANCE_MEMBERS_FILTER_CSS       = '#imColumnRight input.filter-box'  # Filter box that searches users
+INSTANCE_MEMBERS_ROLE_CSS        = 'app-imtree-component.left-table > ul > li > div.ui-treenode-content'  # Top-level roles; users are nested deeper
+INSTANCE_MEMBERS_ROLE_CHILDREN_CSS = 'div.tree-children div.ui-treenode-content[title]'  # Users under a role
+INSTANCE_MEMBERS_ROW_CSS         = '#imColumnRight tr.p-selectable-row[title]'  # Users listed in the filtered right panel
+INSTANCE_MEMBERS_OK_XPATH         = '//*[@id="dlgActiveInstanceMembers"]//div[contains(@class, "p-dialog-footer")]//span[normalize-space()="OK"]/ancestor::button[1]'
+INSTANCE_MEMBERS_SKIPPED_ROLES    = ("Plant Introduction",)  # Roles the user is not added to
+
 
 CUSTOMER_TAB_XPATH = '//a[text()="Customer"]'
 FILES_TAB_XPATH = '//a[text()="Files"]'
