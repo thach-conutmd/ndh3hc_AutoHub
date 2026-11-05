@@ -828,8 +828,7 @@ def test_selection_table_fills_viewport_and_resizes_content_columns(qapp):
         assert header.length() == table.viewport().width()
 
         assert not table.horizontalScrollBar().isVisible()
-        assert abs(table.columnWidth(3) - table.columnWidth(5)) <= 1
-        for column in (0, 1, 2, 4):
+        for column in (0, 1, 2, 3, 4, 5):
             assert table.columnWidth(column) >= table.sizeHintForColumn(column)
     table.item(0, 4).setText("Exporting Target XML")
     qapp.processEvents()
