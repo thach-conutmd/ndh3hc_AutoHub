@@ -15,8 +15,10 @@ from autohub.modules.form_b.module import FormBModule
 from autohub.services.FormB.form_b import TEMPLATE_PATH as FORM_B_TEMPLATE_PATH, FormBService, form_b_template_problem
 from autohub.modules.home.module import HomeModule
 from autohub.modules.home.service import VariantService
+from autohub.modules.hexdump.module import HexdumpModule
 from autohub.modules.settings.module import SettingsModule
 from autohub.services.EcuInfoSheet.EcuInfoSheet import EcuInfoSheet
+from autohub.services.HexdumpAnalyzer.service import HexdumpService
 from autohub.services.HWInfo.HWInfo import HWInfo
 from autohub.services.KickOff.KickOff import KickOffMeeting
 from autohub.services.MasterSheet.master_sheet_factory import master_sheet_format_error, open_master_sheet
@@ -66,5 +68,6 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
         ComparisonModule(
             lambda: ComparisonService(WebFlow), settings, lambda: MasterImplUpdater(open_master_sheet, com_session)
         ),
+        HexdumpModule(HexdumpService),
         SettingsModule(settings, templates),
     ]
