@@ -872,13 +872,12 @@ class ComparisonWidget(QWidget):
         def content_width(column: int) -> int:
             return max(table.sizeHintForColumn(column), header.sectionSizeHint(column))
 
-        base_width = max(content_width(3), content_width(5))
         widths = _fit_widths(
-            {0: content_width(0), 1: content_width(1), 2: content_width(2), 3: base_width,
-             4: content_width(4), 5: base_width},
+            {0: content_width(0), 1: content_width(1), 2: content_width(2), 3: content_width(3),
+             4: content_width(4), 5: content_width(5)},
             {1: 2, 2: 2, 3: 2, 5: 2},
             table.viewport().width(),
-            {1: 360, 2: 240, 3: 480, 5: 480},
+            {1: 360, 2: 240, 3: 480},
         )
         for column, width in widths.items():
             table.setColumnWidth(column, width)
