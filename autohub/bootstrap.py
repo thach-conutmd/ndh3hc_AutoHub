@@ -16,7 +16,6 @@ from autohub.services.FormB.form_b import TEMPLATE_PATH as FORM_B_TEMPLATE_PATH,
 from autohub.modules.home.module import HomeModule
 from autohub.modules.home.service import VariantService
 from autohub.modules.hexdump.module import HexdumpModule
-from autohub.modules.hexdump.unavailable import UnavailableHexdumpService
 from autohub.modules.settings.module import SettingsModule
 from autohub.services.EcuInfoSheet.EcuInfoSheet import EcuInfoSheet
 from autohub.services.HWInfo.HWInfo import HWInfo
@@ -68,6 +67,6 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
         ComparisonModule(
             lambda: ComparisonService(WebFlow), settings, lambda: MasterImplUpdater(open_master_sheet, com_session)
         ),
-        HexdumpModule(UnavailableHexdumpService),
+        HexdumpModule(),
         SettingsModule(settings, templates),
     ]
