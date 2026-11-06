@@ -85,3 +85,20 @@ def test_variant_context_lists_part_numbers_only():
 
 def test_labels_are_the_documented_values():
     assert (SUCCESS, FAILED, CANCELLED) == ("Success", "Failed", "Cancelled")
+
+
+def test_nested_operations_log_the_traceback_only_once(caplog):
+    @logged_operation(_log, "Inner")
+    def inner():
+        raise RuntimeError("deep")
+
+    @logged_operation(_log, "Outer")
+    def outer():
+        inner()
+
+    with caplog.at_level(logging.INFO, logger=_log.name):
+        with pytest.raises(RuntimeError):
+            outer()
+    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert [bool(r.exc_info) for r in errors] == [True, False]
+    assert "cause: RuntimeError: deep" in errors[1].getMessage()

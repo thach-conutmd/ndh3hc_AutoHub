@@ -36,6 +36,11 @@ def _report(name: str, ok: bool, seconds: float, error: str = "") -> None:
         _observer.on_step(name, ok, seconds, error)
 
 
+def record_checkpoint(name: str, ok: bool, seconds: float = 0.0, error: str = "") -> None:
+    """Reports a point inside a running step (e.g. after a wait) to the observer, without running an action."""
+    _report(name, ok, seconds, error)
+
+
 def run_step(logger: logging.Logger, name: str, action: Callable[..., Any], *args: Any) -> bool:
     logger.info("Step: %s", name)
     _begin(name)
