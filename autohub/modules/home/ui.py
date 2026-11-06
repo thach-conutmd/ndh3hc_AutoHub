@@ -11,7 +11,6 @@ from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.settings import SettingsStore
 from autohub.core.templates import TemplateManager
 from autohub.core.settings_keys import (
-    CALIBRATION_FOLDER_PATH_KEY,
     DEFAULT_MASTER_SHEET_TEMPLATE_KEY,
     LATEST_COUNT_KEY,
     SHOW_WEBFLOW_LINK_KEY,
@@ -273,11 +272,4 @@ class HomeWidget(QWidget):
         self._variant_table.remove_rows(rows)
 
     def publish_variants(self, variants: list[dict]) -> None:
-        folder_path = str(self._settings.load().get(CALIBRATION_FOLDER_PATH_KEY, "")).strip()
-        if folder_path:
-            folder = Path(folder_path)
-            for variant in variants:
-                filename = str(variant.get("hardware", {}).get("data_version") or "").strip()
-                if Path(filename).suffix.casefold() == ".hex":
-                    variant["_calibration_hex_path"] = str(folder / Path(filename).name)
         self.variantsLoaded.emit(variants)

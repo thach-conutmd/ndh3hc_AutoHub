@@ -281,6 +281,9 @@ def test_reader_preserves_release_class_for_both_reported_variants():
         def _webflow_link(self, row):
             return ""
 
+        def _hyperlink_address(self, column, row):
+            return ""
+
     variants = Reader(None).load_webflow_variants()
     assert [variant["part_number"] for variant in variants] == [
         "37820-6WZ-M610-M6", "37820-6WZ-M710-M6",

@@ -8,13 +8,15 @@ from PySide6.QtWidgets import (
     QGroupBox, QHBoxLayout, QLabel, QMessageBox, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 
+from autohub.core.a2l_hex import DEFAULT_COMP_ID_SYMBOL
 from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
-from autohub.core.settings_keys import WEBFLOW_GENERAL_OPTIONS_KEY
+from autohub.core.settings_keys import A2L_COMP_ID_SYMBOL_KEY, WEBFLOW_GENERAL_OPTIONS_KEY
 from autohub.core.workers import TaskRunner
 from autohub.core.webflow_numbers import number_updates
 from autohub.modules.creation.config_form import load_config
+from autohub.modules.creation.hex_paths import resolve_calibration_hex
 from autohub.modules.creation.service import WebFlowJobService
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.ui.theme import set_muted
@@ -122,8 +124,23 @@ class CreationWidget(QWidget):
             return
 
         _logger.info("Create WebFlow jobs clicked (%d variant(s), config=%s)", len(selected), config)
+        selected, hex_errors = self._with_calibration_hex(selected)
+        if hex_errors:
+            QMessageBox.critical(
+                self, "Create WebFlow jobs",
+                "These variants were skipped because no calibration HEX file was found:\n\n" + "\n".join(hex_errors),
+            )
+        if not selected:
+            return
         master_sheet_path = self._settings.load().get("master_sheet_path", "")
         self._start_task(lambda step: self._service.create_jobs(selected, config, step, master_sheet_path))
+
+    def _with_calibration_hex(self, variants: list[dict]) -> tuple[list[dict], list[str]]:
+        symbol = str(self._settings.load().get(A2L_COMP_ID_SYMBOL_KEY, DEFAULT_COMP_ID_SYMBOL)).strip()
+        return resolve_calibration_hex(
+            variants, symbol or DEFAULT_COMP_ID_SYMBOL,
+            lambda: self._dialogs.pick_folder("Select the calibration HEX folder"),
+        )
 
     def on_startup(self) -> None:
         """Offers to continue a WebFlow batch that did not finish, e.g. because the app crashed."""

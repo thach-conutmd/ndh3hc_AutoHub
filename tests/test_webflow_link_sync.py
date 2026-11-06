@@ -239,7 +239,7 @@ def test_general_options_are_cached_and_reach_home(qapp):
     assert restarted_home._variant_table.itemDelegateForColumn(column)._choices == ("Brazil", "Japan")
 
 
-def test_home_resolves_data_version_to_the_selected_calibration_file(qapp, tmp_path):
+def test_home_does_not_guess_a_calibration_hex_from_the_settings_folder(qapp, tmp_path):
     from autohub.core.settings_keys import CALIBRATION_FOLDER_PATH_KEY
 
     calibration = tmp_path / "calibration-v3.hex"
@@ -247,15 +247,11 @@ def test_home_resolves_data_version_to_the_selected_calibration_file(qapp, tmp_p
     home = HomeWidget(Mock(), MemorySettings({CALIBRATION_FOLDER_PATH_KEY: str(tmp_path)}))
     published = []
     home.variantsLoaded.connect(published.append)
-    variants = [
-        {"part_number": "P1", "hardware": {"data_version": calibration.name}},
-        {"part_number": "P2", "hardware": {"data_version": "not-a-hex-file"}},
-    ]
+    variants = [{"part_number": "P1", "hardware": {"data_version": calibration.name}}]
 
     home.publish_variants(variants)
 
-    assert published[0][0]["_calibration_hex_path"] == str(calibration)
-    assert "_calibration_hex_path" not in published[0][1]
+    assert "_calibration_hex_path" not in published[0][0]
 
 
 @pytest.mark.parametrize("frozen", [False, True])
