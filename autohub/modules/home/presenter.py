@@ -552,6 +552,8 @@ class HomePresenter:
             )
             return
 
+        variants_to_save = self._with_calibration_paths(variants_to_save)
+
         changed_rows = [
             f"- {_part_number_value(row.get('J')) or '(blank)'}"
             for row in variants_to_save
@@ -585,6 +587,17 @@ class HomePresenter:
             lambda error: self._fail_update(error, window),
             window, UPDATE_TEXT,
         )
+
+    def _with_calibration_paths(self, variants: list[dict]) -> list[dict]:
+        """Adds `_calibration_hex_path` (the absolute HEX path in the calibration folder) to each variant whose AZ is a HEX file."""
+        folder = str(self._settings.load().get(CALIBRATION_FOLDER_PATH_KEY, "")).strip()
+        if not folder:
+            return variants
+        for variant in variants:
+            filename = str(variant.get("AZ") or "").strip()
+            if Path(filename).suffix.casefold() == ".hex" and Path(filename).name == filename:
+                variant["_calibration_hex_path"] = str(Path(folder).absolute() / filename)
+        return variants
 
     def _finish_update(self, result, window: ProgressWindow, deleted: list[int]) -> None:
         saved, rows, available = result

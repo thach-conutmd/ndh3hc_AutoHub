@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import PureWindowsPath
 
 from autohub.core.impl_values import normalize_impl_value
 from autohub.core.checksums import normalize_crc32
@@ -13,6 +14,7 @@ FIRST_DATA_ROW = 11  # rows above hold the template and examples
 
 LAST_DATA_COLUMN = "CZ"
 WEBFLOW_LINK_COLUMN = "I"  # "Webflow No. with Link"
+HEX_LINK_COLUMN = "AZ"  # "Data Version (Cal Hex)": shows the HEX filename, links to its full path
 _ROWS_PER_VARIANT = 3  # request, implementation and comparison rows
 _INSERT_SHIFT_DOWN = -4121  # xlShiftDown
 _TEMPLATE_ROW_TYPES = {"REQ", "IMPL"}
@@ -51,14 +53,15 @@ class VariantRowWriter:
         for variant in variants:
             existing_row = variant.get("_row")
             values = {key: value for key, value in variant.items() if not key.startswith("_")}
+            links = {HEX_LINK_COLUMN: variant["_calibration_hex_path"]} if variant.get("_calibration_hex_path") else None
 
             if existing_row:
                 request_row = int(existing_row)
-                self.write_values(request_row, values)
+                self.write_values(request_row, values, links)
             else:
                 copied = self.copy_one_variant_template()
                 request_row = int(copied["InsertedRows"].split(":", 1)[0])
-                self.write_values(request_row, {**values, "C": datetime.now()})
+                self.write_values(request_row, {**values, "C": datetime.now()}, links)
 
             saved.append(
                 {
@@ -191,7 +194,8 @@ class VariantRowWriter:
                 outcomes[part] = ImplOutcome(written)
         return outcomes
 
-    def write_values(self, row: int, values: dict) -> None:
+    def write_values(self, row: int, values: dict, links: dict[str, str] | None = None) -> None:
+        """Writes the non-empty values; a column in `links` gets its value as a hyperlink to the given absolute path."""
         worksheet = self._worksheet
         last_data_column = worksheet.Range(f"{LAST_DATA_COLUMN}1").Column
         for column_name, value in values.items():
@@ -199,9 +203,21 @@ class VariantRowWriter:
                 continue
             cell = worksheet.Range(f"{column_name}{row}")
             if cell.Column <= last_data_column and not cell.HasFormula:
+                target = (links or {}).get(column_name)
+                if target and str(value) == PureWindowsPath(target).name:
+                    self._write_hyperlink(cell, target, str(value))
+                    continue
                 if needs_text_format(value):
                     cell.NumberFormat = "@"  # keep leading zeros and values like 4E5 as typed
                 cell.Value = value
+
+    def _write_hyperlink(self, cell, target: str, text: str) -> None:
+        cell.NumberFormat = "@"
+        try:
+            # positional arguments: COM can drop keyword arguments
+            self._worksheet.Hyperlinks.Add(cell, target, "", "", text)
+        except Exception:  # the filename as plain text is still better than nothing
+            cell.Value = text
 
     def _clear_copied_values(self, first_row: int, last_row: int) -> None:
         worksheet = self._worksheet
