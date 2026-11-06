@@ -24,6 +24,10 @@ class Dialogs(Protocol):
         """Chosen destination path, or "" when the user cancels."""
         ...
 
+    def pick_folder(self, title: str) -> str:
+        """Selected folder, or "" when the user cancels."""
+        ...
+
     def info(self, title: str, text: str) -> None: ...
 
     def error(self, title: str, text: str) -> None: ...
@@ -60,6 +64,9 @@ class QtDialogs:
     def save_file(self, title: str, default_name: str, file_filter: str) -> str:
         path, _ = QFileDialog.getSaveFileName(self._parent, title, default_name, file_filter)
         return path
+
+    def pick_folder(self, title: str) -> str:
+        return QFileDialog.getExistingDirectory(self._parent, title)
 
     def info(self, title: str, text: str) -> None:
         QMessageBox.information(self._parent, title, text)

@@ -9,7 +9,7 @@ from autohub.core.variant_schema import  VARIANT_FIELD_ORDER
 from autohub.services.MasterSheet.variant_builder import variant_key
 from autohub.services.MasterSheet.webflow_variants import WEBFLOW_SOURCE_COLUMNS, webflow_variant_from_row
 
-from autohub.services.MasterSheet.row_writer import FIRST_DATA_ROW, WEBFLOW_LINK_COLUMN  # rows above hold the template, not variants
+from autohub.services.MasterSheet.row_writer import FIRST_DATA_ROW, HEX_LINK_COLUMN, WEBFLOW_LINK_COLUMN  # rows above hold the template, not variants
 _REQUEST_MARK = "REQ"
 
 
@@ -36,15 +36,21 @@ class VariantRowReader:
             if part_number:
                 yield row, part_number
 
-    def _webflow_link(self, row: int) -> str:
-        """The address of the cell's hyperlink; a cell holding the plain link text counts too."""
-        cell = self._worksheet.Range(f"{WEBFLOW_LINK_COLUMN}{row}")
+    def _hyperlink_address(self, column: str, row: int) -> str:
+        cell = self._worksheet.Range(f"{column}{row}")
         try:
             if cell.Hyperlinks.Count:
                 return clean_text(cell.Hyperlinks(1).Address)
         except Exception:
             pass
-        text = clean_text(cell.Value)
+        return ""
+
+    def _webflow_link(self, row: int) -> str:
+        """The address of the cell's hyperlink; a cell holding the plain link text counts too."""
+        address = self._hyperlink_address(WEBFLOW_LINK_COLUMN, row)
+        if address:
+            return address
+        text = clean_text(self._worksheet.Range(f"{WEBFLOW_LINK_COLUMN}{row}").Value)
         return text if is_link(text) else ""
 
     def latest_request_rows(self) -> dict[str, int]:
@@ -73,6 +79,9 @@ class VariantRowReader:
             values = {column: self._value(column, row) for column in WEBFLOW_SOURCE_COLUMNS}
             variant = webflow_variant_from_row(part_number, values)
             variant["webflow_link"] = self._webflow_link(row)
+            hex_path = self._hyperlink_address(HEX_LINK_COLUMN, row)
+            if hex_path:
+                variant["_calibration_hex_path"] = hex_path
             variants_by_part_number[part_number.upper()] = variant
         return list(variants_by_part_number.values())
 

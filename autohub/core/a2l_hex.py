@@ -180,3 +180,13 @@ def component_id_matches(value: str, expected: str) -> bool:
     normalized_value = re.sub(r"[^a-z0-9]", "", value.casefold())
     normalized_expected = re.sub(r"[^a-z0-9]", "", expected.casefold())
     return normalized_value == normalized_expected
+
+
+def find_calibration_hex(folder: str | Path, symbol: str, expected: str) -> Path:
+    """The HEX file in `folder` whose component ID matches the DWG number `expected` (same check as the Home sheet)."""
+    calibrations = load_calibration_folder(folder, symbol)
+    match = next((item for item in calibrations if component_id_matches(item.component_id, expected)), None)
+    if match is None:
+        available = ", ".join(f"{item.hex_filename}: {item.component_id}" for item in calibrations)
+        raise ValueError(f"no calibration HEX file matches the DWG number {expected} (found {available}).")
+    return Path(folder) / match.hex_filename
