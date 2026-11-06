@@ -22,6 +22,7 @@ from .InstanceMembers import InstanceMembers
 from .job_filler import JobFiller
 from .job_batch import JobBatch
 from .job_cancel import cancel_open_job
+from .operation_log import CANCELLED, FAILED, job_id_from_link, logged_operation
 from .SideMenuBar import SideMenuBar
 from .step_log import run_step, set_step_observer
 from .step_trace import StepTrace
@@ -34,8 +35,35 @@ def _is_browser_error_page(driver) -> bool:
     return "ERR_UNEXPECTED" in driver.page_source
 
 
+def _job_context(arguments: dict) -> str:
+    return f"job {arguments['job_id']}"
+
+
+def _link_context(arguments: dict) -> str:
+    return f"job {job_id_from_link(arguments['link'])}"
+
+
+def _variants_context(arguments: dict) -> str:
+    part_numbers = [str(v.get("part_number", "")) for v in arguments["variants"] if isinstance(v, dict)]
+    return f"{len(part_numbers)} variant(s): {', '.join(part_numbers)}"
+
+
+def _variant_context(arguments: dict) -> str:
+    variant = arguments["variant"]
+    return f"part {variant.get('part_number', '')}" if isinstance(variant, dict) else ""
+
+
+def _member_context(arguments: dict) -> str:
+    return f"job {arguments['job_id']}, user {arguments['name']}"
+
+
+def _cancel_outcome(result: bool) -> str:
+    return CANCELLED if result else FAILED
+
+
 class WebFlow(webdriver.Edge):
 
+    @logged_operation(_logger, "Start Edge browser")
     def __init__(
         self,
         driver_path: str = "",
@@ -71,6 +99,7 @@ class WebFlow(webdriver.Edge):
         _logger.info("Closing the browser")
         self.quit()
 
+    @logged_operation(_logger, "Open WebFlow dashboard (login)")
     def open_dashboard_page(self) -> bool:
 
         _logger.info("Opening the WebFlow dashboard: %s", self.base_url)
@@ -101,6 +130,7 @@ class WebFlow(webdriver.Edge):
         url = urlsplit(self.base_url)
         return f"{url.scheme}://{url.netloc}/app/ShowJob/{job_id}"
 
+    @logged_operation(_logger, "Open job", _job_context)
     def open_job(self, job_id: str, url: str | None = None) -> bool:
         url = url or self.job_url(job_id)
         _logger.info("Opening job %s: %s", job_id, url)
@@ -139,6 +169,7 @@ class WebFlow(webdriver.Edge):
             _logger.exception("Job %s did not finish loading", job_id)
             return False
 
+    @logged_operation(_logger, "Export job XML", _link_context)
     def export_job_xml(self, link: str) -> bytes:
         """Use the same browser, authentication and page-readiness checks as job creation."""
         job_id = urlsplit(link).path.rstrip("/").rsplit("/", 1)[-1]
@@ -146,6 +177,7 @@ class WebFlow(webdriver.Edge):
             raise RuntimeError(f"Could not open WebFlow job {job_id} for Export XML.")
         return export_xml(self)
 
+    @logged_operation(_logger, "Cancel job", _job_context, _cancel_outcome)
     def cancel_job(self, job_id: str, reason: str) -> bool:
         """False when the job cannot be opened or WebFlow does not confirm the cancellation."""
         if not self.open_job(job_id):
@@ -157,6 +189,10 @@ class WebFlow(webdriver.Edge):
             _logger.exception("Could not cancel WebFlow job %s", job_id)
             return False
 
+    @logged_operation(
+        _logger, "Read container CRC32",
+        lambda a: f"{_link_context(a)}, file {a['filename']}",
+    )
     def get_container_crc32(self, link: str, filename: str) -> str:
         """Reads the Execution Files CRC32, downloading the .cnt only when WebFlow has none."""
         job_id = urlsplit(link).path.rstrip("/").rsplit("/", 1)[-1]
@@ -167,6 +203,7 @@ class WebFlow(webdriver.Edge):
             raise RuntimeError(f"Could not open the Files tab for WebFlow job {job_id}.")
         return files.container_crc32(filename)
 
+    @logged_operation(_logger, "Create and fill jobs", _variants_context)
     def create_and_fill_jobs(
         self,
         variants: list,
@@ -190,12 +227,14 @@ class WebFlow(webdriver.Edge):
         self.general_options = self.body.tab.generaltab.general_options
         return results
 
+    @logged_operation(_logger, "Add user to Instance Members", _member_context)
     def add_instance_member(self, job_id: str, name: str) -> bool:
         """Open a saved job and add the user to Instance Members, using the normal flow's steps."""
         if not self.open_job(job_id):
             raise RuntimeError(f"Could not open WebFlow job {job_id}.")
         return InstanceMembers(self).add_user(name)
 
+    @logged_operation(_logger, "Fill job", _variant_context)
     def _fill_job(self, variant: dict) -> list[str]:
         result = self.job_filler.fill(variant)  # runs Save last; Instance Members only follows a saved job
         change_engineer = str((variant.get("ecr") or {}).get("change_engineer") or "").strip()

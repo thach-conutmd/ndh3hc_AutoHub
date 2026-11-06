@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from . import Constants as Constants
 from .Information import Information
 from .components import button_is_enabled, scroll_into_view_if_hidden, wait_until_idle
+from .operation_log import logged_operation
 
 _logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class InstanceMembers:
         self.driver = driver
         self._information = Information(driver)
 
+    @logged_operation(_logger, "Add user to Instance Members dialog", lambda a: f"user {a['name']}")
     def add_user(self, name: str) -> bool:
         if not wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT):
             raise RuntimeError("WebFlow is still busy before Instance Members")
