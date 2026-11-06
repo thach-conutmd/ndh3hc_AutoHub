@@ -127,3 +127,18 @@ def test_testing_page_lists_feature_buttons(qapp):
     assert isinstance(page, testing_ui.TestingWidget)
     assert [button.text() for button in page.findChildren(QPushButton)] == ["Add User to Instance Members"]
     assert module.display_name == "Test"
+
+
+def test_features_are_placed_in_their_group_frame_with_compact_width():
+    from PySide6.QtWidgets import QGroupBox
+    from unittest.mock import Mock
+    from autohub.modules.testing.features import TestFeature
+
+    page = testing_ui.TestingWidget([
+        TestFeature("Add User to Instance Members", Mock()),
+        TestFeature("Other", Mock(), group="Other"),
+    ])
+    groups = {g.title(): g for g in page.findChildren(QGroupBox)}
+    assert set(groups) == {"WebFlow", "Other"}
+    assert [b.text() for b in groups["WebFlow"].findChildren(QPushButton)] == ["Add User to Instance Members"]
+    assert all(b.width() == b.maximumWidth() <= 240 for b in page.findChildren(QPushButton))

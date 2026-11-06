@@ -15,6 +15,7 @@ from autohub.modules.testing.service import InstanceMemberTestService
 class TestFeature:
     title: str
     create_dialog: Callable[[QWidget], QDialog]
+    group: str = "WebFlow"
 
 
 def add_instance_member_feature(
