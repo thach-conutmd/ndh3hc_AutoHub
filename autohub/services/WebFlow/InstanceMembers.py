@@ -1,4 +1,5 @@
 import logging
+import time
 
 from selenium.common.exceptions import ElementClickInterceptedException, StaleElementReferenceException, TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
@@ -10,6 +11,7 @@ from . import Constants as Constants
 from .Information import Information
 from .components import button_is_enabled, scroll_into_view_if_hidden, wait_until_idle
 from .operation_log import logged_operation
+from .step_log import record_checkpoint
 
 _logger = logging.getLogger(__name__)
 
@@ -69,16 +71,61 @@ class InstanceMembers:
         if not wait_until_idle(self.driver, Constants.INSTANCE_MEMBERS_TIMEOUT):
             raise RuntimeError("Instance Members did not finish loading")
 
+    @logged_operation(_logger, "Filter Instance Members by user", lambda a: f"user {a['name']}")
     def _filter(self, name: str) -> None:
-        box = self.driver.find_element(By.CSS_SELECTOR, Constants.INSTANCE_MEMBERS_FILTER_CSS)
-        box.clear()
-        box.send_keys(name)
-        WebDriverWait(self.driver, Constants.INSTANCE_MEMBERS_TIMEOUT).until(
-            lambda driver: any(
-                _matches_user(row.get_attribute("title") or "", name)
-                for row in driver.find_elements(By.CSS_SELECTOR, Constants.INSTANCE_MEMBERS_ROW_CSS)
-            )
-        )
+        self._checkpoint("before filter", name, Constants.INSTANCE_MEMBERS_FILTER_CSS)
+        try:
+            self._type_filter(name)
+            self._checkpoint("after entering user name", name, Constants.INSTANCE_MEMBERS_FILTER_CSS)
+            self._wait_for_user_row(name)
+        except Exception as error:
+            self._checkpoint("failed", name, Constants.INSTANCE_MEMBERS_ROW_CSS, ok=False, error=f"{type(error).__name__}: {error}")
+            raise
+        self._checkpoint("results refreshed", name, Constants.INSTANCE_MEMBERS_ROW_CSS)
+        self._checkpoint("user found", name, Constants.INSTANCE_MEMBERS_ROW_CSS)
+
+    def _checkpoint(self, stage: str, name: str, locator: str, ok: bool = True, error: str = "") -> None:
+        record_checkpoint(f"Instance Members {stage} for {name!r} (locator {locator})", ok, error=error)
+
+    def _type_filter(self, name: str) -> None:
+        """Only the filter box is retried: WebFlow may re-render it while the dialog is still loading."""
+        for attempt in range(Constants.INSTANCE_MEMBERS_STALE_RETRIES + 1):
+            try:
+                box = self.driver.find_element(By.CSS_SELECTOR, Constants.INSTANCE_MEMBERS_FILTER_CSS)
+                box.clear()
+                box.send_keys(name)
+                return
+            except StaleElementReferenceException:
+                if attempt == Constants.INSTANCE_MEMBERS_STALE_RETRIES:
+                    raise
+                _logger.warning("Instance Members filter box went stale; retrying (%d)", attempt + 1)
+                time.sleep(Constants.INSTANCE_MEMBERS_STALE_DELAY)
+
+    def _wait_for_user_row(self, name: str) -> None:
+        """Polls with freshly located rows and stops once the matching user list is unchanged between two polls."""
+        previous: list[str] | None = None
+
+        def stable_match(driver: WebDriver) -> bool:
+            nonlocal previous
+            try:
+                titles = [
+                    row.get_attribute("title") or ""
+                    for row in driver.find_elements(By.CSS_SELECTOR, Constants.INSTANCE_MEMBERS_ROW_CSS)
+                ]
+            except StaleElementReferenceException:
+                previous = None
+                return False
+            matched = [title for title in titles if _matches_user(title, name)]
+            found = bool(matched) and matched == previous
+            previous = matched
+            return found
+
+        try:
+            WebDriverWait(self.driver, Constants.INSTANCE_MEMBERS_TIMEOUT).until(stable_match)
+        except TimeoutException as error:
+            raise TimeoutException(
+                f"Instance Members did not show user {name!r} within {Constants.INSTANCE_MEMBERS_TIMEOUT}s"
+            ) from error
 
     def _find_user_row(self, name: str):
         for row in self.driver.find_elements(By.CSS_SELECTOR, Constants.INSTANCE_MEMBERS_ROW_CSS):

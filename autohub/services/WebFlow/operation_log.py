@@ -16,6 +16,9 @@ SUCCESS = "Success"
 FAILED = "Failed"
 CANCELLED = "Cancelled"
 
+#: Set on an exception once its full traceback is logged, so outer operations log only a summary.
+_TRACEBACK_LOGGED = "_webflow_traceback_logged"
+
 ContextFn = Callable[[dict[str, Any]], str]
 OutcomeFn = Callable[[Any], str]
 
@@ -56,10 +59,17 @@ def logged_operation(
                 result = func(*args, **kwargs)
             except Exception as error:
                 elapsed = time.perf_counter() - started
-                logger.error(
-                    "WebFlow operation %s%s | Result: %s (%.1fs) | error: %s: %s",
-                    name, suffix, FAILED, elapsed, type(error).__name__, error, exc_info=True,
-                )
+                if getattr(error, _TRACEBACK_LOGGED, False):
+                    logger.error(
+                        "WebFlow operation %s%s | Result: %s (%.1fs) | cause: %s: %s",
+                        name, suffix, FAILED, elapsed, type(error).__name__, error,
+                    )
+                else:
+                    setattr(error, _TRACEBACK_LOGGED, True)
+                    logger.error(
+                        "WebFlow operation %s%s | Result: %s (%.1fs) | error: %s: %s",
+                        name, suffix, FAILED, elapsed, type(error).__name__, error, exc_info=True,
+                    )
                 raise
             elapsed = time.perf_counter() - started
             label = outcome(result)

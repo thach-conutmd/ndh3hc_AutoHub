@@ -57,6 +57,8 @@ INSTANCE_MEMBERS_ROLE_CHILDREN_CSS = 'div.tree-children div.ui-treenode-content[
 INSTANCE_MEMBERS_ROW_CSS         = '#imColumnRight tr.p-selectable-row[title]'  # Users listed in the filtered right panel
 INSTANCE_MEMBERS_OK_XPATH         = '//*[@id="dlgActiveInstanceMembers"]//div[contains(@class, "p-dialog-footer")]//span[normalize-space()="OK"]/ancestor::button[1]'
 INSTANCE_MEMBERS_SKIPPED_ROLES    = ("Plant Introduction",)  # Roles the user is not added to
+INSTANCE_MEMBERS_STALE_RETRIES    = 2                     # Extra attempts when the filter box goes stale while WebFlow re-renders
+INSTANCE_MEMBERS_STALE_DELAY      = 0.5                   # Seconds between those attempts
 
 
 CUSTOMER_TAB_XPATH = '//a[text()="Customer"]'
